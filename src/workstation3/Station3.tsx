@@ -38,7 +38,7 @@ const pC = [
 ];
 
 // Helper Components
-const GlitchText = ({ text, className="" }: { text, className? }) => (
+const GlitchText = ({ text, className="" }) => (
   <span className={`glitch-text font-heading italic uppercase ${className}`} data-text={text}>{text}</span>
 );
 const Panel = ({ children, className="", style={} }) => (
@@ -495,6 +495,7 @@ function OutroScreen({ score:S, team, totScore }) {
 }
 
 export default Station3;
+
 
 
 

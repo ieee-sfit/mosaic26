@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import Station4 from './workstation4/Station4.jsx'
-import Station3 from './workstation3/Station3.jsx'
+import Station3 from './workstation3/Station3.tsx'
 import './App.css'
 
 function App() {
@@ -18,3 +18,4 @@ function App() {
 }
 
 export default App
+
