@@ -1,0 +1,1737 @@
+/* ==========================================================================
+   AREA51 FACILITY LOCKDOWN - WORKSTATION 04 INDUSTRIAL CONTROL THEME
+   Scoped strictly with .ws4- prefix
+   ========================================================================== */
+
+:root:has(.ws4-shell),
+#root:has(.ws4-shell) {
+  width: 100% !important;
+  max-width: 100vw !important;
+  margin: 0 !important;
+  border-inline: none !important;
+  padding: 0 !important;
+  background-color: #080a0d !important;
+}
+
+.ws4-shell {
+  --ws4-bg-darkest: #06080a;
+  --ws4-bg-panel: #0d1117;
+  --ws4-bg-surface: #141a22;
+  --ws4-bg-surface-elevated: #1a222d;
+  --ws4-border-subtle: #222d3d;
+  --ws4-border-bright: #303e54;
+  --ws4-border-active: #00ff7f;
+
+  --ws4-neon-green: #00ff7f;
+  --ws4-neon-green-glow: rgba(0, 255, 127, 0.35);
+  --ws4-neon-green-dim: #008f47;
+
+  --ws4-amber-warn: #ffb020;
+  --ws4-amber-glow: rgba(255, 176, 32, 0.3);
+  --ws4-amber-dim: #996200;
+
+  --ws4-crimson-alert: #ff3344;
+  --ws4-crimson-glow: rgba(255, 51, 68, 0.4);
+  --ws4-crimson-dim: #8f121e;
+
+  --ws4-cyan-accent: #00e5ff;
+  --ws4-cyan-dim: #007785;
+
+  --ws4-text-primary: #e6edf3;
+  --ws4-text-secondary: #8b9bb4;
+  --ws4-text-muted: #506177;
+  --ws4-text-green: #00ff7f;
+  --ws4-text-amber: #ffb020;
+  --ws4-text-red: #ff3344;
+
+  --ws4-font-mono: 'Consolas', 'Cascadia Mono', 'Courier New', monospace;
+  --ws4-font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  min-height: 100vh;
+  width: 100%;
+  background-color: var(--ws4-bg-darkest);
+  background-image: 
+    linear-gradient(rgba(0, 255, 127, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 127, 0.03) 1px, transparent 1px),
+    radial-gradient(ellipse at 50% 0%, rgba(0, 255, 127, 0.04) 0%, transparent 60%);
+  background-size: 32px 32px, 32px 32px, 100% 100%;
+  color: var(--ws4-text-primary);
+  font-family: var(--ws4-font-mono);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow-x: hidden;
+  user-select: none;
+}
+
+.ws4-shell *,
+.ws4-shell *::before,
+.ws4-shell *::after {
+  box-sizing: border-box;
+}
+
+/* ==========================================================================
+   HEADER
+   ========================================================================== */
+
+.ws4-header {
+  background: linear-gradient(180deg, #0f141c 0%, #0a0d13 100%);
+  border-bottom: 2px solid var(--ws4-border-subtle);
+  padding: 10px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  z-index: 20;
+}
+
+.ws4-header-branding {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ws4-facility-badge {
+  background: var(--ws4-crimson-dim);
+  border: 1px solid var(--ws4-crimson-alert);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  padding: 4px 8px;
+  border-radius: 2px;
+  text-transform: uppercase;
+  box-shadow: 0 0 10px var(--ws4-crimson-glow);
+}
+
+.ws4-header-titles {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.ws4-header-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--ws4-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ws4-station-tag {
+  color: var(--ws4-neon-green);
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid var(--ws4-neon-green-dim);
+  padding: 1px 6px;
+  border-radius: 2px;
+  background: rgba(0, 255, 127, 0.08);
+}
+
+.ws4-header-subtitle {
+  font-size: 10.5px;
+  color: var(--ws4-text-secondary);
+  letter-spacing: 0.8px;
+  margin-top: 2px;
+}
+
+.ws4-header-status-group {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.ws4-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--ws4-bg-surface);
+  border: 1px solid var(--ws4-border-subtle);
+  padding: 5px 12px;
+  border-radius: 3px;
+  font-size: 11px;
+  letter-spacing: 0.8px;
+}
+
+.ws4-status-pill.ws4-active {
+  border-color: var(--ws4-neon-green-dim);
+  color: var(--ws4-neon-green);
+}
+
+.ws4-status-pill.ws4-critical {
+  border-color: var(--ws4-crimson-alert);
+  color: var(--ws4-crimson-alert);
+}
+
+.ws4-led {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.ws4-led.ws4-green {
+  background-color: var(--ws4-neon-green);
+  color: var(--ws4-neon-green);
+}
+
+.ws4-led.ws4-amber {
+  background-color: var(--ws4-amber-warn);
+  color: var(--ws4-amber-warn);
+}
+
+.ws4-led.ws4-red {
+  background-color: var(--ws4-crimson-alert);
+  color: var(--ws4-crimson-alert);
+}
+
+.ws4-led.ws4-blink {
+  animation: ws4Blink 1.2s infinite;
+}
+
+@keyframes ws4Blink {
+  0%, 100% { opacity: 1; filter: brightness(1.2); }
+  50% { opacity: 0.3; filter: brightness(0.6); }
+}
+
+/* ==========================================================================
+   TIMER COMPONENT
+   ========================================================================== */
+
+.ws4-timer-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #000;
+  border: 2px solid var(--ws4-border-bright);
+  padding: 4px 14px;
+  border-radius: 4px;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.8);
+}
+
+.ws4-timer-container.ws4-timer-urgent {
+  border-color: var(--ws4-crimson-alert);
+  box-shadow: 0 0 12px var(--ws4-crimson-glow), inset 0 2px 6px rgba(0, 0, 0, 0.8);
+  animation: ws4Blink 1s infinite;
+}
+
+.ws4-timer-label {
+  font-size: 10px;
+  color: var(--ws4-text-secondary);
+  letter-spacing: 1px;
+}
+
+.ws4-timer-digits {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 2.5px;
+  color: var(--ws4-neon-green);
+  text-shadow: 0 0 8px var(--ws4-neon-green-glow);
+  font-family: var(--ws4-font-mono);
+}
+
+.ws4-timer-container.ws4-timer-urgent .ws4-timer-digits {
+  color: var(--ws4-crimson-alert);
+  text-shadow: 0 0 10px var(--ws4-crimson-glow);
+}
+
+/* ==========================================================================
+   MAIN WORKSPACE LAYOUT (3-COLUMN DESKTOP INDUSTRIAL GRID)
+   ========================================================================== */
+
+.ws4-main-grid {
+  display: grid;
+  grid-template-columns: 260px 1fr 280px;
+  grid-template-rows: 1fr auto;
+  flex: 1;
+  min-height: calc(100vh - 120px);
+  gap: 12px;
+  padding: 12px 16px;
+  background-color: var(--ws4-bg-darkest);
+}
+
+@media (max-width: 1280px) {
+  .ws4-main-grid {
+    grid-template-columns: 230px 1fr 250px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .ws4-main-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto auto;
+  }
+}
+
+/* Base Panel Styles */
+.ws4-panel {
+  background: var(--ws4-bg-panel);
+  border: 1px solid var(--ws4-border-subtle);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  position: relative;
+}
+
+.ws4-panel-header {
+  background: var(--ws4-bg-surface);
+  border-bottom: 1px solid var(--ws4-border-subtle);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--ws4-text-secondary);
+  text-transform: uppercase;
+}
+
+.ws4-panel-header .ws4-accent {
+  color: var(--ws4-neon-green);
+}
+
+.ws4-panel-content {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+/* ==========================================================================
+   LEFT SIDEBAR: MISSION PROGRESS & METRICS
+   ========================================================================== */
+
+.ws4-sidebar-left {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ws4-module-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ws4-module-item {
+  background: var(--ws4-bg-surface);
+  border: 1px solid var(--ws4-border-subtle);
+  border-left: 3px solid var(--ws4-text-muted);
+  padding: 10px 12px;
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all 0.2s ease;
+  cursor: default;
+}
+
+.ws4-module-item.ws4-current {
+  border-left-color: var(--ws4-neon-green);
+  border-color: var(--ws4-border-bright);
+  background: var(--ws4-bg-surface-elevated);
+  box-shadow: 0 0 10px rgba(0, 255, 127, 0.1);
+}
+
+.ws4-module-item.ws4-done {
+  border-left-color: var(--ws4-cyan-accent);
+}
+
+.ws4-module-item.ws4-locked {
+  opacity: 0.55;
+}
+
+.ws4-mod-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ws4-mod-tag {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+}
+
+.ws4-mod-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+.ws4-mod-badge.ws4-badge-active {
+  background: rgba(0, 255, 127, 0.15);
+  color: var(--ws4-neon-green);
+  border: 1px solid var(--ws4-neon-green-dim);
+}
+
+.ws4-mod-badge.ws4-badge-done {
+  background: rgba(0, 229, 255, 0.15);
+  color: var(--ws4-cyan-accent);
+  border: 1px solid var(--ws4-cyan-dim);
+}
+
+.ws4-mod-badge.ws4-badge-locked {
+  background: rgba(80, 97, 119, 0.2);
+  color: var(--ws4-text-muted);
+  border: 1px solid var(--ws4-border-subtle);
+}
+
+.ws4-mod-name {
+  font-size: 11px;
+  color: var(--ws4-text-secondary);
+  letter-spacing: 0.4px;
+}
+
+.ws4-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.ws4-stat-box {
+  background: #000;
+  border: 1px solid var(--ws4-border-subtle);
+  padding: 8px 10px;
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ws4-stat-title {
+  font-size: 9.5px;
+  color: var(--ws4-text-secondary);
+  letter-spacing: 0.8px;
+}
+
+.ws4-stat-val {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ws4-text-primary);
+}
+
+.ws4-stat-val.ws4-green {
+  color: var(--ws4-neon-green);
+  text-shadow: 0 0 6px var(--ws4-neon-green-glow);
+}
+
+.ws4-stat-val.ws4-red {
+  color: var(--ws4-crimson-alert);
+}
+
+/* ==========================================================================
+   HINT PANEL
+   ========================================================================== */
+
+.ws4-hint-card {
+  background: var(--ws4-bg-surface);
+  border: 1px solid var(--ws4-border-subtle);
+  border-radius: 3px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ws4-hint-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: var(--ws4-amber-warn);
+}
+
+.ws4-hint-btn {
+  background: rgba(255, 176, 32, 0.1);
+  border: 1px solid var(--ws4-amber-dim);
+  color: var(--ws4-amber-warn);
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 3px;
+  cursor: pointer;
+  letter-spacing: 0.8px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.ws4-hint-btn:hover:not(:disabled) {
+  background: rgba(255, 176, 32, 0.25);
+  border-color: var(--ws4-amber-warn);
+  box-shadow: 0 0 8px var(--ws4-amber-glow);
+}
+
+.ws4-hint-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ws4-hint-content {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #d1d8e0;
+  background: #080a0d;
+  padding: 8px;
+  border-radius: 2px;
+  border-left: 2px solid var(--ws4-amber-warn);
+}
+
+/* ==========================================================================
+   CENTER PANEL: CURRENT MODULE WORKBENCH
+   ========================================================================== */
+
+.ws4-center-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--ws4-bg-panel);
+  border: 1px solid var(--ws4-border-bright);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+}
+
+.ws4-module-header {
+  background: linear-gradient(90deg, #121820 0%, #171f2a 100%);
+  border-bottom: 2px solid var(--ws4-border-bright);
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ws4-module-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+
+.ws4-module-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: var(--ws4-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ws4-module-subtitle {
+  font-size: 11px;
+  color: var(--ws4-text-secondary);
+}
+
+.ws4-module-timer-hint {
+  font-size: 11px;
+  color: var(--ws4-cyan-accent);
+  border: 1px solid var(--ws4-cyan-dim);
+  background: rgba(0, 229, 255, 0.08);
+  padding: 3px 8px;
+  border-radius: 2px;
+}
+
+.ws4-module-body {
+  padding: 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+/* ==========================================================================
+   QUESTION CARD COMPONENT
+   ========================================================================== */
+
+.ws4-question-card {
+  background: var(--ws4-bg-surface);
+  border: 1px solid var(--ws4-border-subtle);
+  border-radius: 4px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: left;
+}
+
+.ws4-question-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--ws4-border-subtle);
+  padding-bottom: 8px;
+  font-size: 11px;
+  color: var(--ws4-text-secondary);
+}
+
+.ws4-question-prompt {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ws4-text-primary);
+  font-weight: 600;
+}
+
+.ws4-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ws4-option-btn {
+  background: #090c10;
+  border: 1px solid var(--ws4-border-subtle);
+  color: var(--ws4-text-primary);
+  padding: 10px 14px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--ws4-font-mono);
+  font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.ws4-option-btn:hover:not(:disabled) {
+  border-color: var(--ws4-cyan-accent);
+  background: #0e141c;
+}
+
+.ws4-option-btn.ws4-selected {
+  border-color: var(--ws4-neon-green);
+  background: rgba(0, 255, 127, 0.08);
+  box-shadow: 0 0 10px rgba(0, 255, 127, 0.2);
+}
+
+.ws4-option-key {
+  background: var(--ws4-bg-surface-elevated);
+  border: 1px solid var(--ws4-border-bright);
+  color: var(--ws4-cyan-accent);
+  font-weight: 800;
+  font-size: 11px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+}
+
+.ws4-option-btn.ws4-selected .ws4-option-key {
+  background: var(--ws4-neon-green);
+  color: #000;
+  border-color: var(--ws4-neon-green);
+}
+
+.ws4-question-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 6px;
+}
+
+.ws4-feedback-inline {
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ws4-feedback-inline.ws4-correct {
+  color: var(--ws4-neon-green);
+}
+
+.ws4-feedback-inline.ws4-incorrect {
+  color: var(--ws4-crimson-alert);
+}
+
+/* Common Industrial Buttons */
+.ws4-btn {
+  background: var(--ws4-bg-surface-elevated);
+  border: 1px solid var(--ws4-border-bright);
+  color: var(--ws4-text-primary);
+  font-family: var(--ws4-font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 8px 16px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.ws4-btn:hover:not(:disabled) {
+  border-color: var(--ws4-neon-green);
+  color: #fff;
+  box-shadow: 0 0 10px var(--ws4-neon-green-glow);
+}
+
+.ws4-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: var(--ws4-border-subtle);
+}
+
+.ws4-btn-primary {
+  background: rgba(0, 255, 127, 0.15);
+  border-color: var(--ws4-neon-green);
+  color: var(--ws4-neon-green);
+}
+
+.ws4-btn-primary:hover:not(:disabled) {
+  background: var(--ws4-neon-green);
+  color: #000;
+}
+
+.ws4-btn-danger {
+  background: rgba(255, 51, 68, 0.15);
+  border-color: var(--ws4-crimson-alert);
+  color: var(--ws4-crimson-alert);
+}
+
+.ws4-btn-danger:hover:not(:disabled) {
+  background: var(--ws4-crimson-alert);
+  color: #fff;
+}
+
+/* ==========================================================================
+   MODULE B: CIRCUIT BOARD & SCHEMATIC
+   ========================================================================== */
+
+.ws4-circuit-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ws4-circuit-board-container {
+  background: #040608;
+  border: 2px solid #1c2635;
+  border-radius: 6px;
+  padding: 16px;
+  position: relative;
+  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.9);
+  overflow-x: auto;
+}
+
+.ws4-circuit-board-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px dashed var(--ws4-border-subtle);
+  padding-bottom: 8px;
+  margin-bottom: 14px;
+  font-size: 11px;
+  color: var(--ws4-text-secondary);
+}
+
+.ws4-circuit-canvas-wrap {
+  min-width: 680px;
+  position: relative;
+  height: 380px;
+}
+
+/* Input Toggles Column */
+.ws4-inputs-col {
+  position: absolute;
+  left: 0;
+  top: 10px;
+  width: 170px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  z-index: 10;
+}
+
+.ws4-input-unit {
+  background: #090e14;
+  border: 1px solid var(--ws4-border-bright);
+  border-radius: 4px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.ws4-input-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ws4-input-name {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #c0cee0;
+}
+
+.ws4-input-code {
+  font-size: 9px;
+  color: var(--ws4-text-muted);
+}
+
+.ws4-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ws4-industrial-toggle {
+  background: #000;
+  border: 1px solid var(--ws4-border-bright);
+  color: var(--ws4-text-muted);
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ws4-industrial-toggle.ws4-high {
+  background: rgba(0, 255, 127, 0.2);
+  border-color: var(--ws4-neon-green);
+  color: var(--ws4-neon-green);
+  box-shadow: 0 0 8px var(--ws4-neon-green-glow);
+}
+
+.ws4-input-signal-readout {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.ws4-input-signal-readout.ws4-sig-1 {
+  color: var(--ws4-neon-green);
+}
+
+.ws4-input-signal-readout.ws4-sig-0 {
+  color: var(--ws4-text-muted);
+}
+
+/* Circuit SVG Canvas */
+.ws4-circuit-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.ws4-wire-path {
+  fill: none;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke 0.25s ease, stroke-width 0.25s ease;
+}
+
+.ws4-wire-path.ws4-wire-high {
+  stroke: var(--ws4-neon-green);
+  filter: drop-shadow(0 0 4px var(--ws4-neon-green));
+}
+
+.ws4-wire-path.ws4-wire-low {
+  stroke: #1f2937;
+}
+
+.ws4-wire-path.ws4-wire-err {
+  stroke: var(--ws4-crimson-alert);
+  filter: drop-shadow(0 0 4px var(--ws4-crimson-alert));
+}
+
+.ws4-wire-pulse {
+  stroke-dasharray: 6 10;
+  animation: ws4WireFlow 1s linear infinite;
+}
+
+@keyframes ws4WireFlow {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+
+/* Gate Slots on Canvas */
+.ws4-gate-slot {
+  position: absolute;
+  width: 120px;
+  height: 100px;
+  background: #090e14;
+  border: 1px solid var(--ws4-border-bright);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 8px;
+  z-index: 10;
+  transition: all 0.2s ease;
+}
+
+.ws4-gate-slot.ws4-slot-target {
+  border: 2px dashed var(--ws4-amber-warn);
+  background: #111722;
+}
+
+.ws4-gate-slot.ws4-slot-dragover {
+  border-color: var(--ws4-neon-green);
+  background: rgba(0, 255, 127, 0.12);
+  box-shadow: 0 0 16px var(--ws4-neon-green-glow);
+  transform: scale(1.03);
+}
+
+.ws4-gate-slot.ws4-slot-faulty {
+  border-color: var(--ws4-crimson-alert);
+  box-shadow: 0 0 12px var(--ws4-crimson-glow);
+}
+
+.ws4-gate-slot.ws4-slot-repaired {
+  border-color: var(--ws4-neon-green);
+  box-shadow: 0 0 12px var(--ws4-neon-green-glow);
+}
+
+.ws4-gate-slot-tag {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--ws4-text-secondary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ws4-gate-display-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
+
+.ws4-gate-type-name {
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  color: #fff;
+}
+
+.ws4-gate-symbol {
+  font-size: 11px;
+  color: var(--ws4-cyan-accent);
+}
+
+.ws4-slot-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+
+.ws4-slot-mini-btn {
+  background: #16202c;
+  border: 1px solid var(--ws4-border-subtle);
+  color: var(--ws4-text-secondary);
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.ws4-slot-mini-btn:hover {
+  border-color: var(--ws4-crimson-alert);
+  color: var(--ws4-crimson-alert);
+}
+
+/* Output Indicator Box */
+.ws4-output-box {
+  position: absolute;
+  right: 10px;
+  top: 135px;
+  width: 140px;
+  background: #090e14;
+  border: 2px solid var(--ws4-border-bright);
+  border-radius: 4px;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
+}
+
+.ws4-output-box.ws4-out-safe {
+  border-color: var(--ws4-neon-green);
+  box-shadow: 0 0 16px var(--ws4-neon-green-glow);
+}
+
+.ws4-output-box.ws4-out-unsafe {
+  border-color: var(--ws4-crimson-alert);
+  box-shadow: 0 0 16px var(--ws4-crimson-glow);
+}
+
+.ws4-output-title {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--ws4-text-secondary);
+}
+
+.ws4-output-val {
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+}
+
+/* Gate Toolbox */
+.ws4-toolbox-container {
+  background: var(--ws4-bg-surface);
+  border: 1px solid var(--ws4-border-subtle);
+  border-radius: 4px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ws4-toolbox-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--ws4-cyan-accent);
+}
+
+.ws4-toolbox-gates-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ws4-gate-chip {
+  background: #0b1017;
+  border: 1px solid var(--ws4-border-bright);
+  border-radius: 3px;
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: grab;
+  user-select: none;
+  transition: all 0.2s ease;
+  min-width: 80px;
+}
+
+.ws4-gate-chip:hover {
+  border-color: var(--ws4-cyan-accent);
+  background: #111a26;
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.ws4-gate-chip:active {
+  cursor: grabbing;
+}
+
+.ws4-gate-chip-name {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #fff;
+}
+
+.ws4-gate-chip-symbol {
+  font-size: 10px;
+  color: var(--ws4-text-secondary);
+}
+
+.ws4-circuit-feedback {
+  background: #0a0e14;
+  border-left: 3px solid var(--ws4-border-bright);
+  padding: 10px 14px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ws4-circuit-feedback.ws4-verified {
+  border-left-color: var(--ws4-neon-green);
+  background: rgba(0, 255, 127, 0.05);
+}
+
+.ws4-circuit-feedback.ws4-faulty {
+  border-left-color: var(--ws4-crimson-alert);
+  background: rgba(255, 51, 68, 0.05);
+}
+
+/* ==========================================================================
+   MODULE C: TOLERANCE, BYPASS & AUTHORIZATION
+   ========================================================================== */
+
+.ws4-mod-c-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 860px) {
+  .ws4-mod-c-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tolerance Controls */
+.ws4-tolerance-panel {
+  background: var(--ws4-bg-surface);
+  border: 1px solid var(--ws4-border-subtle);
+  border-radius: 4px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ws4-tolerance-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--ws4-text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ws4-tolerance-item {
+  background: #0a0d12;
+  border: 1px solid var(--ws4-border-subtle);
+  border-radius: 3px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ws4-tol-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ws4-tol-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: #c4d1e2;
+}
+
+.ws4-tol-safe-range {
+  font-size: 10px;
+  color: var(--ws4-text-secondary);
+}
+
+.ws4-tol-val-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ws4-tol-val {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.ws4-tol-val.ws4-in-range {
+  color: var(--ws4-neon-green);
+}
+
+.ws4-tol-val.ws4-out-range {
+  color: var(--ws4-crimson-alert);
+}
+
+.ws4-tol-slider {
+  flex: 1;
+  accent-color: var(--ws4-neon-green);
+  cursor: pointer;
+}
+
+.ws4-tol-step-btn {
+  background: #141b24;
+  border: 1px solid var(--ws4-border-bright);
+  color: var(--ws4-text-primary);
+  width: 26px;
+  height: 26px;
+  border-radius: 2px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.ws4-tol-step-btn:hover {
+  border-color: var(--ws4-cyan-accent);
+  color: #fff;
+}
+
+/* Bypass Switch */
+.ws4-bypass-container {
+  background: #100b0e;
+  border: 2px solid var(--ws4-crimson-dim);
+  border-radius: 4px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ws4-bypass-container.ws4-bypass-tripped {
+  border-color: var(--ws4-crimson-alert);
+  box-shadow: 0 0 16px var(--ws4-crimson-glow);
+  background: #1e0b11;
+}
+
+.ws4-bypass-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ws4-crimson-alert);
+  letter-spacing: 1px;
+}
+
+.ws4-bypass-toggle-btn {
+  background: #000;
+  border: 2px solid var(--ws4-crimson-alert);
+  color: var(--ws4-crimson-alert);
+  font-family: var(--ws4-font-mono);
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  padding: 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ws4-bypass-toggle-btn.ws4-tripped {
+  background: var(--ws4-crimson-alert);
+  color: #fff;
+  box-shadow: 0 0 14px var(--ws4-crimson-glow);
+}
+
+/* Keypad Component */
+.ws4-keypad-panel {
+  background: var(--ws4-bg-surface);
+  border: 1px solid var(--ws4-border-subtle);
+  border-radius: 4px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ws4-keypad-display {
+  background: #000;
+  border: 2px solid var(--ws4-border-bright);
+  padding: 10px 14px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ws4-keypad-code {
+  font-size: 22px;
+  letter-spacing: 8px;
+  font-weight: 800;
+  color: var(--ws4-cyan-accent);
+  min-height: 28px;
+}
+
+.ws4-keypad-status-msg {
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.ws4-keypad-status-msg.ws4-accepted {
+  color: var(--ws4-neon-green);
+}
+
+.ws4-keypad-status-msg.ws4-rejected {
+  color: var(--ws4-crimson-alert);
+}
+
+.ws4-keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.ws4-key-btn {
+  background: #0d131b;
+  border: 1px solid var(--ws4-border-bright);
+  color: #fff;
+  font-family: var(--ws4-font-mono);
+  font-size: 18px;
+  font-weight: 800;
+  padding: 12px 0;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ws4-key-btn:hover:not(:disabled) {
+  border-color: var(--ws4-cyan-accent);
+  background: #16202c;
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.3);
+}
+
+.ws4-key-btn:active:not(:disabled) {
+  background: var(--ws4-cyan-accent);
+  color: #000;
+}
+
+.ws4-key-btn.ws4-clear {
+  color: var(--ws4-amber-warn);
+  font-size: 12px;
+}
+
+.ws4-key-btn.ws4-enter {
+  color: var(--ws4-neon-green);
+  font-size: 12px;
+}
+
+/* ==========================================================================
+   FINAL AUTHORIZATION ACTIONS
+   ========================================================================== */
+
+.ws4-final-auth-section {
+  background: #090e14;
+  border: 2px solid var(--ws4-border-bright);
+  border-radius: 4px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+}
+
+.ws4-auth-checklist {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  text-align: left;
+  font-size: 11px;
+}
+
+.ws4-check-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ws4-text-secondary);
+}
+
+.ws4-check-item.ws4-checked {
+  color: var(--ws4-neon-green);
+}
+
+.ws4-check-item.ws4-pending {
+  color: var(--ws4-text-muted);
+}
+
+.ws4-authorize-facility-btn {
+  background: rgba(0, 255, 127, 0.2);
+  border: 2px solid var(--ws4-neon-green);
+  color: var(--ws4-neon-green);
+  font-family: var(--ws4-font-mono);
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  padding: 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  box-shadow: 0 0 16px var(--ws4-neon-green-glow);
+}
+
+.ws4-authorize-facility-btn:hover:not(:disabled) {
+  background: var(--ws4-neon-green);
+  color: #000;
+  box-shadow: 0 0 24px var(--ws4-neon-green-glow);
+}
+
+.ws4-authorize-facility-btn:disabled {
+  border-color: var(--ws4-border-subtle);
+  background: #0e131a;
+  color: var(--ws4-text-muted);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   RIGHT PANEL: LIVE SYSTEM STATUS & INTERLOCK
+   ========================================================================== */
+
+.ws4-sidebar-right {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ws4-status-gauge-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ws4-status-gauge-item {
+  background: var(--ws4-bg-surface);
+  border: 1px solid var(--ws4-border-subtle);
+  padding: 8px 10px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ws4-gauge-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ws4-text-secondary);
+}
+
+.ws4-gauge-val {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.ws4-primary-interlock-display {
+  background: #000;
+  border: 2px solid var(--ws4-border-bright);
+  border-radius: 4px;
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.ws4-primary-interlock-display.ws4-safe {
+  border-color: var(--ws4-neon-green);
+  box-shadow: 0 0 16px var(--ws4-neon-green-glow);
+}
+
+.ws4-primary-interlock-display.ws4-unsafe {
+  border-color: var(--ws4-crimson-alert);
+  box-shadow: 0 0 16px var(--ws4-crimson-glow);
+}
+
+.ws4-interlock-state-badge {
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 2px;
+}
+
+.ws4-interlock-state-badge.ws4-safe {
+  color: var(--ws4-neon-green);
+  text-shadow: 0 0 10px var(--ws4-neon-green-glow);
+}
+
+.ws4-interlock-state-badge.ws4-unsafe {
+  color: var(--ws4-crimson-alert);
+  text-shadow: 0 0 10px var(--ws4-crimson-glow);
+}
+
+/* ==========================================================================
+   BOTTOM: SYSTEM LOG / ACTION FEEDBACK
+   ========================================================================== */
+
+.ws4-system-log-panel {
+  grid-column: 1 / -1;
+  background: #040608;
+  border: 1px solid var(--ws4-border-subtle);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  height: 110px;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.8);
+}
+
+.ws4-log-header {
+  background: #0a0e14;
+  border-bottom: 1px solid var(--ws4-border-subtle);
+  padding: 4px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--ws4-text-secondary);
+}
+
+.ws4-log-feed {
+  padding: 6px 12px;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 3px;
+  font-size: 11px;
+}
+
+.ws4-log-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  line-height: 1.3;
+}
+
+.ws4-log-timestamp {
+  color: var(--ws4-text-muted);
+  font-size: 10px;
+}
+
+.ws4-log-msg {
+  color: #b0c4de;
+}
+
+.ws4-log-msg.ws4-log-success {
+  color: var(--ws4-neon-green);
+}
+
+.ws4-log-msg.ws4-log-warn {
+  color: var(--ws4-amber-warn);
+}
+
+.ws4-log-msg.ws4-log-error {
+  color: var(--ws4-crimson-alert);
+}
+
+.ws4-log-msg.ws4-log-info {
+  color: var(--ws4-cyan-accent);
+}
+
+/* ==========================================================================
+   START SCREEN, SUCCESS SCREEN, FAILURE SCREEN MODALS
+   ========================================================================== */
+
+.ws4-fullscreen-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 6, 8, 0.96);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  backdrop-filter: blur(8px);
+}
+
+.ws4-screen-card {
+  background: #0c1017;
+  border: 2px solid var(--ws4-border-bright);
+  border-radius: 6px;
+  max-width: 680px;
+  width: 100%;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 255, 127, 0.1);
+  position: relative;
+}
+
+.ws4-screen-card.ws4-alert-failure {
+  border-color: var(--ws4-crimson-alert);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 30px var(--ws4-crimson-glow);
+}
+
+.ws4-screen-card.ws4-alert-success {
+  border-color: var(--ws4-neon-green);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 35px var(--ws4-neon-green-glow);
+}
+
+.ws4-screen-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #fff;
+}
+
+.ws4-screen-badge {
+  font-size: 13px;
+  letter-spacing: 2px;
+  font-weight: 800;
+  color: var(--ws4-neon-green);
+}
+
+.ws4-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--ws4-border-bright), transparent);
+}
+
+.ws4-mission-box {
+  background: #06090e;
+  border: 1px solid var(--ws4-border-subtle);
+  border-left: 3px solid var(--ws4-neon-green);
+  padding: 14px;
+  border-radius: 3px;
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #c4d1e2;
+}
+
+.ws4-countdown-display {
+  font-size: 72px;
+  font-weight: 900;
+  color: var(--ws4-neon-green);
+  text-shadow: 0 0 20px var(--ws4-neon-green-glow);
+  letter-spacing: 4px;
+  animation: ws4PulseCountdown 0.9s infinite alternate;
+}
+
+@keyframes ws4PulseCountdown {
+  from { transform: scale(1); opacity: 1; }
+  to { transform: scale(1.1); opacity: 0.8; }
+}
+
+.ws4-results-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+
+.ws4-results-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--ws4-border-subtle);
+  font-size: 12.5px;
+}
+
+.ws4-results-table td:first-child {
+  color: var(--ws4-text-secondary);
+  text-align: left;
+}
+
+.ws4-results-table td:last-child {
+  font-weight: 800;
+  text-align: right;
+  color: #fff;
+}
+
+/* ==========================================================================
+   DEVELOPER DEBUG OVERLAY (CTRL + SHIFT + D)
+   ========================================================================== */
+
+.ws4-debug-drawer {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  width: 420px;
+  max-width: 95vw;
+  background: #090e14;
+  border: 2px solid var(--ws4-amber-warn);
+  border-bottom: none;
+  border-right: none;
+  border-top-left-radius: 6px;
+  z-index: 9999;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.8), 0 0 20px var(--ws4-amber-glow);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ws4-debug-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ws4-amber-warn);
+  border-bottom: 1px solid var(--ws4-amber-dim);
+  padding-bottom: 6px;
+}
+
+.ws4-debug-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.ws4-debug-btn {
+  background: #141c26;
+  border: 1px solid var(--ws4-border-bright);
+  color: #d1dced;
+  font-size: 10.5px;
+  font-family: var(--ws4-font-mono);
+  padding: 6px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.ws4-debug-btn:hover {
+  border-color: var(--ws4-amber-warn);
+  color: var(--ws4-amber-warn);
+  background: #1c2635;
+}
+
+/* ==========================================================================
+   REFRESH RECOVERY MODAL
+   ========================================================================== */
+
+.ws4-recovery-modal {
+  background: #0b0f16;
+  border: 2px solid var(--ws4-cyan-accent);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9), 0 0 25px rgba(0, 229, 255, 0.2);
+  border-radius: 6px;
+  padding: 24px;
+  max-width: 500px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
