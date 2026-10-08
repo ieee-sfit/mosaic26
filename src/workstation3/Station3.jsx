@@ -1,4 +1,4 @@
-// @ts-nocheck
+import './station3.css';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -38,32 +38,32 @@ const pC = [
 ];
 
 // Helper Components
-const GlitchText = ({ text, className="" }: { text: string, className?: string }) => (
+const GlitchText = ({ text, className="" }: { text, className? }) => (
   <span className={`glitch-text font-heading italic uppercase ${className}`} data-text={text}>{text}</span>
 );
-const Panel = ({ children, className="", style={} }: any) => (
+const Panel = ({ children, className="", style={} }) => (
   <div className={`panel-clip bg-gradient-to-br from-carbon to-carbon-light border border-[#334] p-5 shadow-2xl relative ${className}`} style={style}>
     <div className="absolute top-0 left-0 w-10 h-[3px] bg-neon-cyan" />
     {children}
   </div>
 );
-const Btn = ({ children, onClick, danger=false, className="" }: any) => (
+const Btn = ({ children, onClick, danger=false, className="" }) => (
   <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onClick}
     className={`btn-clip font-heading italic text-xl px-8 py-4 border-2 uppercase relative overflow-hidden transition-colors ${danger ? 'border-danger-red text-danger-red hover:bg-danger-red/10 shadow-[0_0_10px_#ff1111_inset]' : 'border-neon-cyan text-neon-cyan hover:bg-neon-cyan/10 shadow-[0_0_10px_#00f3ff_inset]'} ${className}`}>
     {children}
   </motion.button>
 );
 
-function App() {
+function Station3() {
   const [phase, setPhase] = useState(0); 
   const [team, setTeam] = useState({ name: '', size: 3 });
   const [score, setScore] = useState({ a:0, ap:0, b:0, bp:0, c:0, cp:0, bon:0 });
   const [time, setTime] = useState(720);
   const [shake, setShake] = useState(false);
-  const [toast, setToast] = useState<{msg:string, err:boolean}|null>(null);
+  const [toast, setToast] = useState|(null);
 
   const fxFail = () => { setShake(true); setTimeout(()=>setShake(false), 500); };
-  const showToast = (msg: string, err=false) => { setToast({msg, err}); setTimeout(()=>setToast(null), 3000); };
+  const showToast = (msg, err=false) => { setToast({msg, err}); setTimeout(()=>setToast(null), 3000); };
 
   useEffect(() => {
     if (phase >= 2 && phase <= 4) {
@@ -123,9 +123,9 @@ function App() {
 
       <main className="flex-1 p-8 overflow-y-auto relative z-50 flex flex-col">
         {phase === 0 && <BootScreen onDone={() => setPhase(1)} />}
-        {phase === 1 && <BriefingScreen onStart={(t: any) => { setTeam(t); setPhase(2); }} />}
-        {phase === 2 && <ModuleA time={time} score={score} setScore={setScore} onComplete={(t: any) => { if(!t) setScore((s:any)=>({...s, bon: s.bon + Math.floor((time-630)/5)})); setPhase(3); }} fxFail={fxFail} />}
-        {phase === 3 && <ModuleB time={time} score={score} setScore={setScore} onComplete={(t: any) => { if(!t) setScore((s:any)=>({...s, bon: s.bon + Math.floor((time-360)/5)})); setPhase(4); }} fxFail={fxFail} showToast={showToast} />}
+        {phase === 1 && <BriefingScreen onStart={(t) => { setTeam(t); setPhase(2); }} />}
+        {phase === 2 && <ModuleA time={time} score={score} setScore={setScore} onComplete={(t) => { if(!t) setScore((s:any)=>({...s, bon: s.bon + Math.floor((time-630)/5)})); setPhase(3); }} fxFail={fxFail} />}
+        {phase === 3 && <ModuleB time={time} score={score} setScore={setScore} onComplete={(t) => { if(!t) setScore((s:any)=>({...s, bon: s.bon + Math.floor((time-360)/5)})); setPhase(4); }} fxFail={fxFail} showToast={showToast} />}
         {phase === 4 && <ModuleC time={time} score={score} setScore={setScore} onComplete={() => { setScore((s:any)=>({...s, bon: s.bon + Math.floor(time/5)})); setPhase(5); }} fxFail={fxFail} showToast={showToast} />}
         {phase === 5 && <OutroScreen score={score} team={team} totScore={totScore} />}
       </main>
@@ -134,7 +134,7 @@ function App() {
 }
 
 // ---------------- BOOT SCREEN ----------------
-function BootScreen({ onDone }: any) {
+function BootScreen({ onDone }) {
   const [text, setText] = useState("");
   const fullText = "PATROL UNIT 03 ONLINE\nANPR GRID: LIVE\nTARGET: ILLEGAL STREET RACE, SECTOR 7\nESTABLISHING UPLINK...";
   useEffect(() => {
@@ -150,7 +150,7 @@ function BootScreen({ onDone }: any) {
 }
 
 // ---------------- BRIEFING SCREEN ----------------
-function BriefingScreen({ onStart }: any) {
+function BriefingScreen({ onStart }) {
   const [name, setName] = useState("");
   const [size, setSize] = useState(3);
   return (
@@ -181,11 +181,11 @@ function BriefingScreen({ onStart }: any) {
 }
 
 // ---------------- MODULE A ----------------
-function ModuleA({ score, setScore, onComplete, fxFail }: any) {
+function ModuleA({ score, setScore, onComplete, fxFail }) {
   const [qs] = useState(() => [...pA].sort(()=>Math.random()-0.5).slice(0,2));
   const [qIdx, setQIdx] = useState(0);
   const [opts, setOpts] = useState<string[]>([]);
-  const [ansd, setAnsd] = useState<string|null>(null);
+  const [ansd, setAnsd] = useState<string|(null);
 
   useEffect(() => {
     if(qIdx < 2) setOpts([qs[qIdx].a, ...qs[qIdx].w].sort(()=>Math.random()-0.5));
@@ -195,7 +195,7 @@ function ModuleA({ score, setScore, onComplete, fxFail }: any) {
   if(qIdx >= 2) return null;
   const q = qs[qIdx];
 
-  const handleAns = (opt: string) => {
+  const handleAns = (opt) => {
     if(ansd) return;
     setAnsd(opt);
     if(opt === q.a) { setScore((s:any)=>({...s, a: s.a+10})); }
@@ -225,7 +225,7 @@ function ModuleA({ score, setScore, onComplete, fxFail }: any) {
 }
 
 // ---------------- MODULE B ----------------
-function ModuleB({ score, setScore, onComplete, fxFail, showToast }: any) {
+function ModuleB({ score, setScore, onComplete, fxFail, showToast }) {
   const [cap] = useState(() => pB[Math.floor(Math.random()*pB.length)]);
   const [c, setC] = useState(cap.sc);
   const [t, setT] = useState(cap.st);
@@ -242,7 +242,7 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }: any) {
   if(cap.fd && !d) cf -= 15;
   const conf = Math.max(0, Math.min(100, Math.floor(cf)));
 
-  const handleDrag = (e: any) => {
+  const handleDrag = (e) => {
     if(!vWrapRef.current) return;
     const rect = vWrapRef.current.getBoundingClientRect();
     let x = e.clientX || (e.touches && e.touches[0].clientX);
@@ -337,7 +337,7 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }: any) {
 }
 
 // ---------------- MODULE C ----------------
-function ModuleC({ score, setScore, onComplete, fxFail, showToast }: any) {
+function ModuleC({ score, setScore, onComplete, fxFail, showToast }) {
   const [cap] = useState(() => pC[Math.floor(Math.random()*pC.length)]);
   const [step, setStep] = useState(1);
   const [ex, setEx] = useState(0);
@@ -346,13 +346,13 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }: any) {
   const [showTkt, setTkt] = useState(false);
   const [rt, setRt] = useState("");
 
-  const zMap: any = { 'S':'SCHOOL', 'R':'RESIDENTIAL', 'U':'URBAN', 'H':'HIGHWAY' };
+  const zMap = { 'S':'SCHOOL', 'R':'RESIDENTIAL', 'U':'URBAN', 'H':'HIGHWAY' };
 
   const handleS1 = () => {
     if(ex===cap.ans.ex && fn===cap.ans.fn) { setScore((s:any)=>({...s, c: s.c+20})); setStep(2); }
     else { fxFail(); setScore((s:any)=>({...s, cp: s.cp+3})); }
   };
-  const handleS2 = (r: string, e: any) => {
+  const handleS2 = (r, e) => {
     if(r===cap.ans.rt) { setScore((s:any)=>({...s, c: s.c+15})); setRt(r); setStep(3); }
     else { fxFail(); setScore((s:any)=>({...s, cp: s.cp+3})); e.currentTarget.classList.add('opacity-30', 'pointer-events-none', 'border-danger-red'); }
   };
@@ -460,7 +460,7 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }: any) {
 }
 
 // ---------------- OUTRO SCREEN ----------------
-function OutroScreen({ score:S, team, totScore }: any) {
+function OutroScreen({ score:S, team, totScore }) {
   let tr = "ROOKIE";
   if(totScore>=120) tr="DCP"; else if(totScore>=90) tr="INSPECTOR"; else if(totScore>=60) tr="OFFICER";
 
@@ -494,7 +494,8 @@ function OutroScreen({ score:S, team, totScore }: any) {
   );
 }
 
-export default App;
+export default Station3;
+
 
 
 
