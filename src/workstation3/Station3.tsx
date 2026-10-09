@@ -59,7 +59,7 @@ const Btn = ({ children, onClick, danger=false, className="" }) => (
 function Station3() {
   const [phase, setPhase] = useState(0); 
   const [team, setTeam] = useState({ name: '', size: 3 });
-  const [score, setScore] = useState({ a:0, ap:0, b:0, bp:0, c:0, cp:0, bon:0 });
+  const [score, setScore] = useState({ a:40, ap:0, b:60, bp:0, c:50, cp:0, bon:0 });
   const [time, setTime] = useState(1800);
   const [shake, setShake] = useState(false);
   const [toast, setToast] = useState(null);
@@ -250,7 +250,7 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }) {
     let x = e.clientX || (e.touches && e.touches[0].clientX);
     if(!x) return;
     x = x - rect.left;
-    setSliderX(Math.max(0, Math.min(600, x)));
+    setSliderX(Math.max(0, Math.min(rect.width, x)));
   };
 
   const cssRaw = `grayscale(100%) contrast(${cap.sc}%) brightness(${cap.st}%) ${(!cap.sd && cap.fd)?'blur(3px)':''}`;
@@ -273,12 +273,12 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }) {
             <div className="absolute inset-0 border-2 border-white/10 pointer-events-none" />
             <div className="absolute top-4 left-4 text-danger-red font-heading text-xl animate-pulse tracking-widest drop-shadow-[0_0_5px_red]">REC</div>
             
-            <div ref={vWrapRef} className="relative w-[600px] h-[150px] z-10 select-none" onMouseMove={(e)=>e.buttons===1 && handleDrag(e)} onTouchMove={handleDrag}>
+            <div ref={vWrapRef} className="relative w-full h-[350px] z-10 select-none overflow-hidden" onMouseMove={(e)=>e.buttons===1 && handleDrag(e)} onTouchMove={handleDrag}>
               <div className="absolute inset-0 flex items-center justify-center bg-[#334] cam-noise" style={{ filter: cssProc }}>
-                {(!cap.img || imgFailed) ? <span className="font-plate font-bold text-7xl text-[#99a] drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">{cap.p}</span> : <img src={cap.img} onError={()=>setImgFailed(true)} className="w-full h-full object-cover" />}
+                {(!cap.img || imgFailed) ? <span className="font-plate font-bold text-7xl text-[#99a] drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">{cap.p}</span> : <img src={cap.img} onError={()=>setImgFailed(true)} className="w-full h-full object-contain" />}
               </div>
-              <div className="absolute inset-0 flex items-center justify-center bg-[#334] cam-noise" style={{ filter: cssRaw, clipPath: `inset(0 ${600-sliderX}px 0 0)` }}>
-                {(!cap.img || imgFailed) ? <span className="font-plate font-bold text-7xl text-[#99a] drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">{cap.p}</span> : <img src={cap.img} onError={()=>setImgFailed(true)} className="w-full h-full object-cover" />}
+              <div className="absolute inset-0 flex items-center justify-center bg-[#334] cam-noise" style={{ filter: cssRaw, clipPath: `inset(0 calc(100% - ${sliderX}px) 0 0)` }}>
+                {(!cap.img || imgFailed) ? <span className="font-plate font-bold text-7xl text-[#99a] drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">{cap.p}</span> : <img src={cap.img} onError={()=>setImgFailed(true)} className="w-full h-full object-contain" />}
               </div>
               <div className="absolute top-0 bottom-0 w-1 bg-neon-cyan shadow-[0_0_10px_#00f3ff] cursor-ew-resize flex items-center justify-center" style={{ left: sliderX }} onMouseDown={(e)=>e.preventDefault()}>
                 <div className="bg-neon-cyan text-black text-[10px] py-1 px-2 rounded-full font-bold">◀ ▶</div>
@@ -519,6 +519,7 @@ function OutroScreen({ score:S, team, totScore }) {
 }
 
 export default Station3;
+
 
 
 
