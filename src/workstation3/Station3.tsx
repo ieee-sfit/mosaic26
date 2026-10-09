@@ -60,7 +60,7 @@ function Station3() {
   const [score, setScore] = useState({ a:0, ap:0, b:0, bp:0, c:0, cp:0, bon:0 });
   const [time, setTime] = useState(720);
   const [shake, setShake] = useState(false);
-  const [toast, setToast] = useState|(null);
+  const [toast, setToast] = useState(null);
 
   const fxFail = () => { setShake(true); setTimeout(()=>setShake(false), 500); };
   const showToast = (msg, err=false) => { setToast({msg, err}); setTimeout(()=>setToast(null), 3000); };
@@ -184,8 +184,8 @@ function BriefingScreen({ onStart }) {
 function ModuleA({ score, setScore, onComplete, fxFail }) {
   const [qs] = useState(() => [...pA].sort(()=>Math.random()-0.5).slice(0,2));
   const [qIdx, setQIdx] = useState(0);
-  const [opts, setOpts] = useState<string[]>([]);
-  const [ansd, setAnsd] = useState<string|(null);
+  const [opts, setOpts] = useState([]);
+  const [ansd, setAnsd] = useState(null);
 
   useEffect(() => {
     if(qIdx < 2) setOpts([qs[qIdx].a, ...qs[qIdx].w].sort(()=>Math.random()-0.5));
@@ -495,6 +495,7 @@ function OutroScreen({ score:S, team, totScore }) {
 }
 
 export default Station3;
+
 
 
 
