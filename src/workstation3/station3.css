@@ -52,3 +52,63 @@
 }
 
 #root { flex: 1; display: flex; flex-direction: column; width: 100vw; height: 100vh; overflow: hidden; }
+
+/* Custom Range Sliders */
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%;
+  background: transparent;
+  outline: none;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  background: #223;
+  border-radius: 2px;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 24px;
+  width: 12px;
+  background: var(--color-neon-cyan);
+  margin-top: -10px;
+  cursor: pointer;
+  clip-path: polygon(0 10%, 100% 0, 100% 90%, 0 100%);
+  box-shadow: 0 0 10px var(--color-neon-cyan);
+}
+input[type=range]:focus::-webkit-slider-thumb {
+  background: #fff;
+}
+
+/* Checkbox override */
+input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--color-neon-cyan);
+  background: rgba(0, 243, 255, 0.1);
+  position: relative;
+  cursor: pointer;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+}
+input[type="checkbox"]:checked {
+  background: var(--color-neon-cyan);
+  box-shadow: 0 0 15px var(--color-neon-cyan);
+}
+input[type="checkbox"]:checked::after {
+  content: 'X';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #000;
+  font-family: var(--font-heading);
+  font-weight: 900;
+  font-size: 16px;
+}
+
+/* Fallback Noise for Viewfinder */
+.cam-noise {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.15'/%3E%3C/svg%3E");
+}

@@ -42,8 +42,10 @@ const GlitchText = ({ text, className="" }) => (
   <span className={`glitch-text font-heading font-black tracking-widest uppercase ${className}`} data-text={text}>{text}</span>
 );
 const Panel = ({ children, className="", style={} }) => (
-  <div className={`panel-clip bg-gradient-to-br from-carbon to-carbon-light border border-[#334] p-5 shadow-[0_0_15px_rgba(0,0,0,0.5)] relative ${className}`} style={style}>
-    <div className="absolute top-0 left-0 w-10 h-[3px] bg-neon-cyan" />
+  <div className={`panel-clip bg-gradient-to-br from-[#0a0a0f] to-[#12121a] border border-[#2a2a35] p-6 shadow-[0_0_15px_rgba(0,0,0,0.8)] relative ${className}`} style={style}>
+    <div className="absolute top-0 left-0 w-16 h-[2px] bg-neon-cyan shadow-[0_0_8px_#00f3ff]" />
+    <div className="absolute bottom-0 right-0 w-16 h-[2px] bg-neon-magenta shadow-[0_0_8px_#ff00ff]" />
+    <div className="absolute top-2 right-4 text-[9px] font-plate text-[#445] tracking-[0.3em]">SYS.MOD.{Math.floor(Math.random()*9000)+1000}</div>
     {children}
   </div>
 );
@@ -103,7 +105,7 @@ function Station3() {
       {phase >= 2 && phase <= 4 && (
         <header className="flex justify-between items-end p-6 pb-2 border-b-2 border-[#334] relative z-50">
           <div className="absolute bottom-[-2px] left-0 w-40 h-[2px] bg-neon-cyan" />
-          <div className="font-heading text-2xl text-neon-cyan tracking-widest">OP: <span className="text-white">{team.name}</span></div>
+          <div className="font-heading font-black text-2xl text-neon-cyan tracking-widest">OP: <span className="text-white">{team.name}</span></div>
           
           <div className="flex-1 mx-10 h-2 bg-[#223] relative rounded-full flex items-center">
             <motion.div className="h-full bg-neon-magenta shadow-[0_0_10px_#ff00ff]" animate={{ width: `${((720-time)/720)*100}%` }} transition={{ duration: 1 }} />
@@ -115,7 +117,7 @@ function Station3() {
             <span className="rotate-45 text-white drop-shadow-md">{Math.floor(time/60)}:{(time%60).toString().padStart(2,'0')}</span>
           </div>
           
-          <div className="ml-8 font-heading text-4xl text-acid-green drop-shadow-[0_0_10px_#39ff14] flex flex-col items-end leading-none">
+          <div className="ml-8 font-heading text-4xl text-acid-green drop-shadow-[0_0_15px_#39ff14] flex flex-col items-end leading-none">
             <span className="text-sm text-text-muted tracking-widest mb-1">PTS</span>{totScore}
           </div>
         </header>
@@ -170,7 +172,7 @@ function BriefingScreen({ onStart }) {
       <div className="flex gap-6 mb-8 w-full justify-center">
         {[{t:"OPERATOR", c:"text-neon-cyan", d:"Controls terminal."}, {t:"VERIFIER", c:"text-neon-magenta", d:size===2?"Consults manual. Maths & codes.":"Consults manual. Validates plates."}, ...(size===3?[{t:"TACTICIAN", c:"text-amber", d:"Calculates speed & fines."}]:[])].map((r, i) => (
           <Panel key={i} className="w-48 flex flex-col items-center text-center p-4">
-            <div className="w-full aspect-square bg-[#111] mb-3 border-b-2 border-neon-cyan flex items-center justify-center font-heading text-3xl text-[#333]">PIC</div>
+            <div className="w-full aspect-square bg-[#111] mb-3 border-b-2 border-neon-cyan flex items-center justify-center font-heading text-3xl text-[#99a] drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">PIC</div>
             <h3 className={`text-lg ${r.c}`}>{r.t}</h3><p className="text-[10px] text-text-muted mt-1 leading-tight">{r.d}</p>
           </Panel>
         ))}
@@ -272,11 +274,11 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }) {
             <div className="absolute top-4 left-4 text-danger-red font-heading text-xl animate-pulse tracking-widest drop-shadow-[0_0_5px_red]">REC</div>
             
             <div ref={vWrapRef} className="relative w-[600px] h-[150px] z-10 select-none" onMouseMove={(e)=>e.buttons===1 && handleDrag(e)} onTouchMove={handleDrag}>
-              <div className="absolute inset-0 flex items-center justify-center bg-[#888]" style={{ filter: cssProc }}>
-                {(!cap.img || imgFailed) ? <span className="font-plate font-bold text-7xl text-[#333]">{cap.p}</span> : <img src={cap.img} onError={()=>setImgFailed(true)} className="w-full h-full object-cover" />}
+              <div className="absolute inset-0 flex items-center justify-center bg-[#334] cam-noise" style={{ filter: cssProc }}>
+                {(!cap.img || imgFailed) ? <span className="font-plate font-bold text-7xl text-[#99a] drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">{cap.p}</span> : <img src={cap.img} onError={()=>setImgFailed(true)} className="w-full h-full object-cover" />}
               </div>
-              <div className="absolute inset-0 flex items-center justify-center bg-[#888]" style={{ filter: cssRaw, clipPath: `inset(0 ${600-sliderX}px 0 0)` }}>
-                {(!cap.img || imgFailed) ? <span className="font-plate font-bold text-7xl text-[#333]">{cap.p}</span> : <img src={cap.img} onError={()=>setImgFailed(true)} className="w-full h-full object-cover" />}
+              <div className="absolute inset-0 flex items-center justify-center bg-[#334] cam-noise" style={{ filter: cssRaw, clipPath: `inset(0 ${600-sliderX}px 0 0)` }}>
+                {(!cap.img || imgFailed) ? <span className="font-plate font-bold text-7xl text-[#99a] drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">{cap.p}</span> : <img src={cap.img} onError={()=>setImgFailed(true)} className="w-full h-full object-cover" />}
               </div>
               <div className="absolute top-0 bottom-0 w-1 bg-neon-cyan shadow-[0_0_10px_#00f3ff] cursor-ew-resize flex items-center justify-center" style={{ left: sliderX }} onMouseDown={(e)=>e.preventDefault()}>
                 <div className="bg-neon-cyan text-black text-[10px] py-1 px-2 rounded-full font-bold">◀ ▶</div>
@@ -495,6 +497,8 @@ function OutroScreen({ score:S, team, totScore }) {
 }
 
 export default Station3;
+
+
 
 
 
