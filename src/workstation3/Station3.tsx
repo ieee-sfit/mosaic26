@@ -22,12 +22,12 @@ const pA = [
   {q:"Code for a red-light violation?", a:"RLV-02", w:["SPD-01", "RLV-01", "RED-02"]}
 ];
 const pB = [
-  { id:"N1", p:"MH02XX1234", img: "assets/plate_1.jpg", d:0, sc:25, st:90, sd:false, tc:[60,75], tt:[80,110], cg:75, bg:132 },
-  { id:"N2", p:"DL09YY5678", img: "assets/plate_2.jpg", d:1, sc:45, st:90, sd:false, tc:[35,50], tt:[150,180], cg:120, bg:220 },
-  { id:"N3", p:"KA05ZZ9012", img: "assets/plate_3.jpg", d:2, sc:60, st:115, sd:false, tc:[55,65], tt:[100,130], cg:70, bg:160, fd:true },
-  { id:"N4", p:"UP14AA3456", img: "assets/plate_4.jpg", d:3, sc:90, st:160, sd:false, tc:[70,85], tt:[70,95], cg:50, bg:146 },
-  { id:"N5", p:"TN01XY9999", img: "assets/plate_5.jpg", d:1, sc:30, st:120, sd:false, tc:[60,80], tt:[90,130], cg:80, bg:200 },
-  { id:"N6", p:"GJ05AB1111", img: "assets/plate_6.jpg", d:0, sc:20, st:100, sd:false, tc:[65,85], tt:[85,120], cg:90, bg:150 }
+  { id:"N1", p:"MH47R1105", img: "/plate1.jpg", d:0, sc:25, st:90, sd:false, tc:[60,75], tt:[80,110], cg:75, bg:132 },
+  { id:"N2", p:"MH02CN4901", img: "/plate2.jpg", d:1, sc:45, st:90, sd:false, tc:[35,50], tt:[150,180], cg:120, bg:220 },
+  { id:"N3", p:"MH02DE1544", img: "/plate3.jpg", d:2, sc:60, st:115, sd:false, tc:[55,65], tt:[100,130], cg:70, bg:160, fd:true },
+  { id:"N4", p:"MH47R1105", img: "/plate1.jpg", d:3, sc:90, st:160, sd:false, tc:[70,85], tt:[70,95], cg:50, bg:146 },
+  { id:"N5", p:"MH02CN4901", img: "/plate2.jpg", d:1, sc:30, st:120, sd:false, tc:[60,80], tt:[90,130], cg:80, bg:200 },
+  { id:"N6", p:"MH02DE1544", img: "/plate3.jpg", d:0, sc:20, st:100, sd:false, tc:[65,85], tt:[85,120], cg:90, bg:150 }
 ];
 const pC = [
   {id:"C1", p:"MH12AB4721", c:96, dist:25, t:1.25, z:"U", o:1, ang:false, amb:false, ans:{ex:7, fn:500, rt:'Auto-validate', cd:'UA211'}},
@@ -519,6 +519,7 @@ function OutroScreen({ score:S, team, totScore }) {
 }
 
 export default Station3;
+
 
 
 
