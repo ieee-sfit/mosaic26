@@ -39,17 +39,17 @@ const pC = [
 
 // Helper Components
 const GlitchText = ({ text, className="" }) => (
-  <span className={`glitch-text font-heading italic uppercase ${className}`} data-text={text}>{text}</span>
+  <span className={`glitch-text font-heading font-black tracking-widest uppercase ${className}`} data-text={text}>{text}</span>
 );
 const Panel = ({ children, className="", style={} }) => (
-  <div className={`panel-clip bg-gradient-to-br from-carbon to-carbon-light border border-[#334] p-5 shadow-2xl relative ${className}`} style={style}>
+  <div className={`panel-clip bg-gradient-to-br from-carbon to-carbon-light border border-[#334] p-5 shadow-[0_0_15px_rgba(0,0,0,0.5)] relative ${className}`} style={style}>
     <div className="absolute top-0 left-0 w-10 h-[3px] bg-neon-cyan" />
     {children}
   </div>
 );
 const Btn = ({ children, onClick, danger=false, className="" }) => (
   <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onClick}
-    className={`btn-clip font-heading italic text-xl px-8 py-4 border-2 uppercase relative overflow-hidden transition-colors ${danger ? 'border-danger-red text-danger-red hover:bg-danger-red/10 shadow-[0_0_10px_#ff1111_inset]' : 'border-neon-cyan text-neon-cyan hover:bg-neon-cyan/10 shadow-[0_0_10px_#00f3ff_inset]'} ${className}`}>
+    className={`btn-clip font-heading font-bold tracking-widest text-xl px-8 py-4 border-2 uppercase relative overflow-hidden transition-colors ${danger ? 'border-danger-red text-danger-red hover:bg-danger-red/10 shadow-[0_0_10px_#ff1111_inset]' : 'border-neon-cyan text-neon-cyan hover:bg-neon-cyan/10 shadow-[0_0_10px_#00f3ff_inset]'} ${className}`}>
     {children}
   </motion.button>
 );
@@ -88,7 +88,7 @@ function Station3() {
   return (
     <motion.div animate={shake ? { x: [-10, 10, -10, 10, 0] } : {}} transition={{ duration: 0.4 }} className="h-full flex flex-col relative z-10" style={{ color: 'white' }}>
       <div className="ambient-layer bg-[radial-gradient(circle_at_center,#112_0%,#000_100%)] -z-10" />
-      <div className="ambient-layer scanlines" />
+      <div className="ambient-layer cyber-grid" />
       <div className="ambient-layer vignette" />
       
       <AnimatePresence>
@@ -146,7 +146,7 @@ function BootScreen({ onDone }) {
     }, 50);
     return () => clearInterval(t);
   }, []);
-  return <div className="flex-1 flex items-center justify-center whitespace-pre-wrap font-plate text-neon-cyan text-xl leading-relaxed text-center drop-shadow-[0_0_5px_#00f3ff]" style={{ color: '#00f3ff' }}>{text}</div>;
+  return <div className="flex-1 flex items-center justify-center whitespace-pre-wrap font-plate text-neon-cyan text-xl leading-relaxed text-center " style={{ color: '#00f3ff' }}>{text}</div>;
 }
 
 // ---------------- BRIEFING SCREEN ----------------
@@ -267,7 +267,7 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }) {
       <div className="col-span-2 flex flex-col gap-6">
         <Panel className="p-4 flex-1 max-h-[500px]">
           <div className="relative bg-black h-full border border-[#334] overflow-hidden flex items-center justify-center">
-            <div className="absolute inset-0 bg-[#112] opacity-30 blur-sm" />
+            <div className="absolute inset-0 bg-[#050508] opacity-70" />
             <div className="absolute inset-0 border-2 border-white/10 pointer-events-none" />
             <div className="absolute top-4 left-4 text-danger-red font-heading text-xl animate-pulse tracking-widest drop-shadow-[0_0_5px_red]">REC</div>
             
@@ -310,7 +310,7 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }) {
 
       <div className="flex flex-col gap-6">
         <Panel>
-          <h2 className="text-neon-cyan mb-4 text-xl">1. DIAGNOSTICS</h2>
+          <h2 className="font-heading font-bold tracking-widest text-neon-cyan mb-4 text-sm">1. DIAGNOSTICS</h2>
           <div className="grid grid-cols-2 gap-3">
             {["CONTRAST LOW", "THRESH LOW", "DENOISE OFF", "BOTH HIGH"].map((dTxt, i) => (
               <button key={i} onClick={() => {
@@ -324,7 +324,7 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }) {
 
         <Panel className={`flex-1 relative ${!diagDone ? 'opacity-40 pointer-events-none' : ''}`}>
           {!diagDone && <div className="absolute inset-0 flex items-center justify-center font-heading text-danger-red text-2xl z-10 text-center px-4 leading-tight drop-shadow-md">DIAGNOSE FAULT TO UNLOCK</div>}
-          <h2 className="text-neon-cyan mb-6 text-xl">2. REPAIR PARAMS</h2>
+          <h2 className="font-heading font-bold tracking-widest text-neon-cyan mb-6 text-sm">2. REPAIR PARAMS</h2>
           <div className="mb-6"><div className="flex justify-between font-heading text-text-muted mb-2"><span>CONTRAST</span><span className="font-plate text-neon-cyan">{c}</span></div><input type="range" min="10" max="100" value={c} onChange={e=>setC(Number(e.target.value))} /></div>
           <div className="mb-6"><div className="flex justify-between font-heading text-text-muted mb-2"><span>THRESHOLD</span><span className="font-plate text-neon-cyan">{t}</span></div><input type="range" min="50" max="200" value={t} onChange={e=>setT(Number(e.target.value))} /></div>
           <label className="flex items-center gap-4 cursor-pointer font-heading text-xl mt-8">
@@ -389,7 +389,7 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }) {
       <Panel className="flex-1 flex flex-col justify-center px-10">
         {step===1 && (
           <motion.div initial={{opacity:0}} animate={{opacity:1}}>
-            <h2 className="text-neon-magenta text-2xl mb-8">SEC 1: TOLERANCE & FINE</h2>
+            <h2 className="font-heading font-bold tracking-widest text-neon-magenta text-xl mb-8">SEC 1: TOLERANCE & FINE</h2>
             <div className="flex gap-10 items-center">
               <div>
                 <div className="font-heading text-text-muted mb-4">EXCESS SPEED (KM/H)</div>
@@ -413,7 +413,7 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }) {
         
         {step===2 && (
           <motion.div initial={{opacity:0}} animate={{opacity:1}}>
-            <h2 className="text-neon-magenta text-2xl mb-6">SEC 2: ROUTING</h2>
+            <h2 className="font-heading font-bold tracking-widest text-neon-magenta text-xl mb-6">SEC 2: ROUTING</h2>
             <div className="grid grid-cols-2 gap-4">
               {[{t:'Auto-validate',d:'DIRECT TO SYSTEM'},{t:'Manual bypass',d:'OFFICER OVERRIDE'},{t:'Reject / re-tune',d:'DISCARD CAPTURE'},{t:'Void fine',d:'EMERGENCY ONLY'}].map(r => (
                 <button key={r.t} onClick={(e)=>handleS2(r.t, e)} className="panel-clip bg-[#111] border border-[#334] p-8 text-center hover:bg-white/5 hover:border-neon-magenta transition-all">
@@ -426,7 +426,7 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }) {
 
         {step===3 && (
           <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex flex-col items-center">
-            <h2 className="text-neon-magenta text-2xl mb-6">SEC 3: AUTHORIZATION CODE</h2>
+            <h2 className="font-heading font-bold tracking-widest text-neon-magenta text-xl mb-6">SEC 3: AUTHORIZATION CODE</h2>
             <div className="w-full max-w-md h-20 bg-black border border-neon-magenta mb-6 flex items-center justify-center font-plate text-4xl text-neon-magenta tracking-[0.5em] shadow-[inset_0_0_15px_rgba(255,0,255,0.2)]">{(pc+"_____").slice(0,5).split('').join(' ')}</div>
             <div className="grid grid-cols-3 gap-3 w-full max-w-md">
               {['U','S','H','A','B','E','1','2','3','8','9','0','X','-','DEL'].map(k => (
@@ -495,6 +495,7 @@ function OutroScreen({ score:S, team, totScore }) {
 }
 
 export default Station3;
+
 
 
 

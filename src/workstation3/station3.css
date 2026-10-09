@@ -1,37 +1,52 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg-base: #050508;
-  --color-carbon: #121215;
-  --color-carbon-light: #1a1a20;
+  --color-bg-base: #030305;
+  --color-carbon: #0a0a0f;
+  --color-carbon-light: #12121a;
   --color-neon-cyan: #00f3ff;
   --color-neon-magenta: #ff00ff;
   --color-nitrous-blue: #0a44ff;
-  --color-danger-red: #ff1111;
-  --color-amber: #ff9900;
+  --color-danger-red: #ff2222;
+  --color-amber: #ffaa00;
   --color-acid-green: #39ff14;
 
-  --font-heading: 'Impact', 'Arial Black', 'sans-serif';
-  --font-plate: 'Consolas', 'Courier New', 'monospace';
-  --font-body: 'Segoe UI', 'Helvetica Neue', 'sans-serif';
+  --font-heading: 'Segoe UI', 'Roboto', 'sans-serif';
+  --font-plate: 'Consolas', 'Monaco', 'monospace';
+  --font-body: 'Segoe UI', 'Roboto', 'sans-serif';
 }
 
 @layer base {
   body {
-    @apply bg-bg-base text-white overflow-hidden h-screen flex flex-col font-body selection:bg-neon-magenta selection:text-white;
+    @apply bg-bg-base text-white flex flex-col font-body selection:bg-neon-magenta selection:text-white h-screen m-0 p-0;
   }
 }
 
-.glitch-text { position: relative; display: inline-block; }
-.glitch-text::before, .glitch-text::after { content: attr(data-text); position: absolute; top: 0; left: 0; opacity: 0.8; }
-.glitch-text::before { color: #00f3ff; z-index: -1; transform: translate(-2px, 1px); }
-.glitch-text::after { color: #ff00ff; z-index: -2; transform: translate(2px, -1px); }
+.panel-clip { 
+  clip-path: polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 15px 100%, 0 calc(100% - 15px)); 
+}
+.btn-clip { 
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); 
+}
 
-.ambient-layer { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 1; }
-.scanlines { background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%); background-size: 100% 4px; opacity: 0.4; z-index: 2; }
-.vignette { box-shadow: inset 0 0 200px rgba(0,0,0,0.9); z-index: 3; }
-.panel-clip { clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px); }
-.btn-clip { clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px); }
+.ambient-layer { 
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 1; 
+}
 
-input[type=range] { -webkit-appearance: none; width: 100%; background: #111; height: 24px; border: 1px solid #334; clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%); outline: none; margin-top: 5px; }
-input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 30px; background: #fff; border: 2px solid #00f3ff; cursor: pointer; transform: skewX(-15deg); box-shadow: 0 0 10px #00f3ff; }
+.cyber-grid {
+  background-image: 
+    linear-gradient(rgba(0, 243, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 243, 255, 0.05) 1px, transparent 1px);
+  background-size: 30px 30px;
+  background-position: center center;
+  z-index: 2;
+}
+
+.vignette {
+  box-shadow: inset 0 0 150px rgba(0,0,0,0.8);
+  z-index: 3;
+}
+
+.glitch-text {
+  position: relative;
+}
