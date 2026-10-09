@@ -50,7 +50,7 @@
   min-height: 100vh;
   width: 100%;
   background-color: var(--ws4-bg-darkest);
-  background-image: 
+  background-image:
     linear-gradient(rgba(0, 255, 127, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 255, 127, 0.03) 1px, transparent 1px),
     radial-gradient(ellipse at 50% 0%, rgba(0, 255, 127, 0.04) 0%, transparent 60%);
@@ -196,8 +196,17 @@
 }
 
 @keyframes ws4Blink {
-  0%, 100% { opacity: 1; filter: brightness(1.2); }
-  50% { opacity: 0.3; filter: brightness(0.6); }
+
+  0%,
+  100% {
+    opacity: 1;
+    filter: brightness(1.2);
+  }
+
+  50% {
+    opacity: 0.3;
+    filter: brightness(0.6);
+  }
 }
 
 /* ==========================================================================
@@ -254,6 +263,49 @@
   gap: 12px;
   padding: 12px 16px;
   background-color: var(--ws4-bg-darkest);
+}
+
+.ws4-module-transition {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  perspective: 1200px;
+  transform-style: preserve-3d;
+}
+
+.ws4-module-transition>.ws4-center-panel {
+  transform-origin: 50% 45%;
+  backface-visibility: hidden;
+  animation: ws4ModuleArrival 760ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes ws4ModuleArrival {
+  0% {
+    opacity: 0;
+    transform: translate3d(44px, 12px, -120px) rotateY(-16deg) rotateX(3deg) scale(0.94);
+    filter: brightness(0.62) blur(2px);
+    box-shadow: 0 0 0 rgba(0, 229, 255, 0);
+  }
+
+  55% {
+    opacity: 1;
+    transform: translate3d(-5px, -2px, 26px) rotateY(2deg) rotateX(-0.5deg) scale(1.01);
+    filter: brightness(1.12) blur(0);
+    box-shadow: 0 0 34px rgba(0, 229, 255, 0.18);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotateY(0) rotateX(0) scale(1);
+    filter: brightness(1) blur(0);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ws4-module-transition>.ws4-center-panel {
+    animation: none;
+  }
 }
 
 @media (max-width: 1280px) {
@@ -1632,8 +1684,15 @@
 }
 
 @keyframes ws4PulseCountdown {
-  from { transform: scale(1); opacity: 1; }
-  to { transform: scale(1.1); opacity: 0.8; }
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  to {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
 }
 
 .ws4-results-table {

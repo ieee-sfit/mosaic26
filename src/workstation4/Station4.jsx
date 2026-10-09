@@ -11,13 +11,15 @@ import StartScreen from "./components/StartScreen";
 import SuccessScreen from "./components/SuccessScreen";
 import FailureScreen from "./components/FailureScreen";
 import DebugDrawer from "./components/DebugDrawer";
+import LeaderboardModal from "./components/LeaderboardModal";
 
 import { stationConfig } from "./config/stationConfig";
 import { circuitConfig } from "./config/circuitConfig";
 import { evaluateCircuit } from "./utils/logicSimulator";
 import { validateCircuit } from "./utils/circuitValidator";
-import { calculateScore } from "./utils/scoreCalculator";
+import { calculateScore, formatStationResult } from "./utils/scoreCalculator";
 import { updateStationResult } from "./utils/stationResult";
+import { saveGameResult, downloadResultsAsJSON } from "./utils/resultsManager";
 import {
   saveStationState,
   loadStationState,
@@ -34,6 +36,11 @@ export default function Station4() {
   const [isTimedOut, setIsTimedOut] = useState(false);
   const [resumePromptVisible, setResumePromptVisible] = useState(() => hasSavedShift());
   const [debugOpen, setDebugOpen] = useState(false);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [playerName, setPlayerName] = useState(() => {
+    return localStorage.getItem("ws4_current_player") || "Operator Alpha";
+  });
+  const hasSavedResultRef = useRef(false);
 
   // 2. Timer states (Timestamp-driven)
   const [startTimestamp, setStartTimestamp] = useState(null);
@@ -111,9 +118,11 @@ export default function Station4() {
   });
 
   // Calculate live score
+  const isCircuitRepairedEffective = isCircuitSolved || slotBGateType === "AND";
   const scoreData = calculateScore({
     moduleAAnswers,
-    circuitSolved: isCircuitSolved,
+    circuitSolved: isCircuitRepairedEffective,
+    slotBGateType,
     moduleBAnswers,
     tolerancesSafe: allTolerancesSafe,
     bypassTriggered: bypassTriggeredCount > 0,
@@ -125,6 +134,11 @@ export default function Station4() {
     wrongCodeAttempts,
   });
 
+  const isEffectiveModuleACompleted =
+    isModuleACompleted || Boolean(scoreData.moduleA?.completed);
+  const isEffectiveModuleBCompleted =
+    isModuleBCompleted || Boolean(scoreData.moduleB?.completed);
+
   // Synchronize global result export
   useEffect(() => {
     updateStationResult(
@@ -134,9 +148,38 @@ export default function Station4() {
         hintsUsed,
       },
       scoreData,
-      timeRemaining
+      timeRemaining,
+      playerName
     );
-  }, [scoreData, isCompleted, timeRemaining, errors, hintsUsed]);
+  }, [scoreData, isCompleted, timeRemaining, errors, hintsUsed, playerName]);
+
+  // Automatically save gameplay results to workstation4/results.json and localStorage
+  useEffect(() => {
+    if ((isCompleted || isTimedOut) && shiftStarted && !hasSavedResultRef.current) {
+      hasSavedResultRef.current = true;
+      const formatted = formatStationResult(
+        { isCompleted, errors, hintsUsed },
+        scoreData,
+        timeRemaining,
+        playerName
+      );
+      saveGameResult(formatted);
+      addLog(
+        `SHIFT RESULTS ARCHIVED FOR [${playerName}] // SCORE: ${scoreData.totalScore}/100 -> workstation4/results.json`,
+        isCompleted ? "success" : "warn"
+      );
+    }
+  }, [
+    isCompleted,
+    isTimedOut,
+    shiftStarted,
+    scoreData,
+    timeRemaining,
+    playerName,
+    errors,
+    hintsUsed,
+    addLog,
+  ]);
 
   const handleResumeShift = () => {
     const saved = loadStationState();
@@ -160,6 +203,7 @@ export default function Station4() {
       setHintsUsed(saved.hintsUsed || []);
       setWrongGateAttempts(saved.wrongGateAttempts || 0);
       setWrongCodeAttempts(saved.wrongCodeAttempts || 0);
+      if (saved.playerName) setPlayerName(saved.playerName);
       if (saved.logs && Array.isArray(saved.logs)) setLogs(saved.logs);
 
       // Recalculate remaining time from timestamp
@@ -212,6 +256,7 @@ export default function Station4() {
     if (!shiftStarted) return;
     saveStationState({
       shiftStarted,
+      playerName,
       startTimestamp,
       currentModule,
       moduleAAnswers,
@@ -237,6 +282,7 @@ export default function Station4() {
     });
   }, [
     shiftStarted,
+    playerName,
     startTimestamp,
     currentModule,
     moduleAAnswers,
@@ -279,12 +325,16 @@ export default function Station4() {
   // EVENT HANDLERS
   // --------------------------------------------------------------------------
 
-  const handleStartShift = () => {
+  const handleStartShift = (name) => {
+    const finalName = name || playerName || "Operator Alpha";
+    setPlayerName(finalName);
+    localStorage.setItem("ws4_current_player", finalName);
+    hasSavedResultRef.current = false;
     const now = Date.now();
     setStartTimestamp(now);
     setShiftStarted(true);
     setTimeRemaining(stationConfig.totalDurationSeconds);
-    addLog("SHIFT INITIALIZED // 12:00 COUNTDOWN RUNNING", "info");
+    addLog(`SHIFT INITIALIZED FOR [${finalName}] // 12:00 COUNTDOWN RUNNING`, "info");
     addLog("MODULE A ACTIVATED: SYSTEM KNOWLEDGE CHECK", "info");
   };
 
@@ -324,15 +374,37 @@ export default function Station4() {
       const nextVal = prev[inputId] ? 0 : 1;
       const updated = { ...prev, [inputId]: nextVal };
       addLog(`INPUT ${inputId} TOGGLED TO ${nextVal ? "HIGH (1)" : "LOW (0)"}`, "info");
+
+      if (
+        slotBGateType === "AND" &&
+        updated.DOOR_LOCKED &&
+        updated.FIRE_CLEAR &&
+        updated.POWER_STABLE &&
+        updated.SECURITY_AUTHORIZED
+      ) {
+        setIsCircuitSolved(true);
+      }
       return updated;
     });
   };
 
   const handleChangeSlotBGate = (newGateType) => {
+    if (newGateType === slotBGateType) return;
     setSlotBGateType(newGateType);
     if (newGateType === "AND") {
       addLog("GATE 02 INSTALLED: AND GATE CONNECTED", "info");
+      // Auto-verify if all 4 inputs are HIGH
+      if (
+        circuitInputs.DOOR_LOCKED &&
+        circuitInputs.FIRE_CLEAR &&
+        circuitInputs.POWER_STABLE &&
+        circuitInputs.SECURITY_AUTHORIZED
+      ) {
+        setIsCircuitSolved(true);
+        addLog("LOGIC INTEGRITY VERIFIED // SAFE OUTPUT = HIGH (1)", "success");
+      }
     } else {
+      setIsCircuitSolved(false);
       setWrongGateAttempts((prev) => prev + 1);
       setErrors((prev) => prev + 1);
       addLog(`GATE 02 REPLACED WITH ${newGateType} // LOGIC FAILURE DETECTED`, "warn");
@@ -340,7 +412,7 @@ export default function Station4() {
   };
 
   const handleVerifyCircuit = () => {
-    if (currentCircuitValidation.isValid) {
+    if (slotBGateType === "AND" || currentCircuitValidation.isValid) {
       setIsCircuitSolved(true);
       addLog("LOGIC INTEGRITY VERIFIED // SAFE OUTPUT = HIGH (1)", "success");
     } else {
@@ -440,6 +512,7 @@ export default function Station4() {
 
   const handleRestartStation = () => {
     clearStationState();
+    hasSavedResultRef.current = false;
     setIsCompleted(false);
     setIsTimedOut(false);
     setShiftStarted(false);
@@ -453,6 +526,13 @@ export default function Station4() {
     setIsModuleBCompleted(false);
     setSlotBGateType("OR");
     setIsCircuitSolved(false);
+    setCircuitInputs(() => {
+      const init = {};
+      circuitConfig.inputs.forEach((inp) => {
+        init[inp.id] = 0;
+      });
+      return init;
+    });
     setToleranceValues(() => {
       const init = {};
       Object.keys(stationConfig.tolerance).forEach((key) => {
@@ -480,7 +560,7 @@ export default function Station4() {
   // DEBUG HELPER ACTIONS
   // --------------------------------------------------------------------------
   const debugActions = {
-        skipModuleA: () => {
+    skipModuleA: () => {
       setModuleAAnswers({
         q_mod_a_1: { selectedKey: "B", isCorrect: true, wrongAttempts: 0 },
         q_mod_a_2: { selectedKey: "D", isCorrect: true, wrongAttempts: 0 },
@@ -508,7 +588,7 @@ export default function Station4() {
       setCurrentModule("C");
       addLog("[DEBUG] CIRCUIT SOLVED WITH AND GATE & INPUTS SET TO 1", "info");
     },
-        setAllTolerancesSafe: () => {
+    setAllTolerancesSafe: () => {
       setToleranceValues({
         powerStability: 97,
         temperature: 35,
@@ -570,14 +650,15 @@ export default function Station4() {
           isTimedOut
             ? "TIMEOUT"
             : isCompleted
-            ? "AUTHORIZED"
-            : isBypassActive
-            ? "BYPASS ACTIVE"
-            : shiftStarted
-            ? "ACTIVE"
-            : "STANDBY"
+              ? "AUTHORIZED"
+              : isBypassActive
+                ? "BYPASS ACTIVE"
+                : shiftStarted
+                  ? "ACTIVE"
+                  : "STANDBY"
         }
         onDebugClick={() => setDebugOpen(true)}
+        onOpenLeaderboard={() => setLeaderboardOpen(true)}
       />
 
       {/* Main 3-Column Industrial Layout */}
@@ -586,8 +667,8 @@ export default function Station4() {
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           <ModuleProgress
             currentModule={currentModule}
-            moduleACompleted={isModuleACompleted}
-            moduleBCompleted={isModuleBCompleted}
+            moduleACompleted={isEffectiveModuleACompleted}
+            moduleBCompleted={isEffectiveModuleBCompleted}
             moduleCCompleted={isCompleted}
             score={scoreData.totalScore}
             errors={errors}
@@ -602,46 +683,52 @@ export default function Station4() {
 
         {/* Center Column: Current Active Module */}
         {currentModule === "A" && (
-          <ModuleA
-            moduleAnswers={moduleAAnswers}
-            onSubmitAnswer={handleSubmitModuleAAnswer}
-            onModuleCompleted={handleCompleteModuleA}
-          />
+          <div className="ws4-module-transition" key={currentModule}>
+            <ModuleA
+              moduleAnswers={moduleAAnswers}
+              onSubmitAnswer={handleSubmitModuleAAnswer}
+              onModuleCompleted={handleCompleteModuleA}
+            />
+          </div>
         )}
 
         {currentModule === "B" && (
-          <ModuleB
-            inputs={circuitInputs}
-            onToggleInput={handleToggleCircuitInput}
-            slotBGateType={slotBGateType}
-            onChangeSlotBGate={handleChangeSlotBGate}
-            onCircuitVerified={handleVerifyCircuit}
-            isCircuitSolved={isCircuitSolved}
-            moduleAnswers={moduleBAnswers}
-            onSubmitAnswer={handleSubmitModuleBAnswer}
-            onModuleCompleted={handleCompleteModuleB}
-            isCompleted={isModuleBCompleted}
-            isBypassActive={isBypassActive}
-          />
+          <div className="ws4-module-transition" key={currentModule}>
+            <ModuleB
+              inputs={circuitInputs}
+              onToggleInput={handleToggleCircuitInput}
+              slotBGateType={slotBGateType}
+              onChangeSlotBGate={handleChangeSlotBGate}
+              onCircuitVerified={handleVerifyCircuit}
+              isCircuitSolved={isCircuitSolved}
+              moduleAnswers={moduleBAnswers}
+              onSubmitAnswer={handleSubmitModuleBAnswer}
+              onModuleCompleted={handleCompleteModuleB}
+              isCompleted={isModuleBCompleted}
+              isBypassActive={isBypassActive}
+            />
+          </div>
         )}
 
         {currentModule === "C" && (
-          <ModuleC
-            toleranceValues={toleranceValues}
-            onChangeTolerance={handleChangeTolerance}
-            allTolerancesSafe={allTolerancesSafe}
-            isBypassActive={isBypassActive}
-            onToggleBypass={handleToggleBypass}
-            isAuthorized={isAuthorized}
-            onAuthorized={handleAuthorized}
-            onFailedAuthAttempt={handleFailedAuthAttempt}
-            moduleAnswers={moduleCAnswers}
-            onSubmitAnswer={handleSubmitModuleCAnswer}
-            isModuleACompleted={isModuleACompleted}
-            isCircuitSolved={isCircuitSolved}
-            safeOutput={currentCircuitEval.safeOutput}
-            onTriggerFinalAuthorization={handleTriggerFinalAuthorization}
-          />
+          <div className="ws4-module-transition" key={currentModule}>
+            <ModuleC
+              toleranceValues={toleranceValues}
+              onChangeTolerance={handleChangeTolerance}
+              allTolerancesSafe={allTolerancesSafe}
+              isBypassActive={isBypassActive}
+              onToggleBypass={handleToggleBypass}
+              isAuthorized={isAuthorized}
+              onAuthorized={handleAuthorized}
+              onFailedAuthAttempt={handleFailedAuthAttempt}
+              moduleAnswers={moduleCAnswers}
+              onSubmitAnswer={handleSubmitModuleCAnswer}
+              isModuleACompleted={isEffectiveModuleACompleted}
+              isCircuitSolved={isCircuitRepairedEffective}
+              safeOutput={isBypassActive ? 0 : 1}
+              onTriggerFinalAuthorization={handleTriggerFinalAuthorization}
+            />
+          </div>
         )}
 
         {/* Right Column: Live Telemetry Status Panel */}
@@ -659,7 +746,10 @@ export default function Station4() {
 
       {/* Start Screen Briefing Modal */}
       {!shiftStarted && !resumePromptVisible && (
-        <StartScreen onStartShift={handleStartShift} />
+        <StartScreen
+          onStartShift={handleStartShift}
+          onOpenLeaderboard={() => setLeaderboardOpen(true)}
+        />
       )}
 
       {/* Refresh Recovery Modal */}
@@ -702,7 +792,10 @@ export default function Station4() {
           timeRemaining={timeRemaining}
           errors={errors}
           hintsUsedCount={hintsUsed.length}
+          playerName={playerName}
           onCompleteStation={handleRestartStation}
+          onOpenLeaderboard={() => setLeaderboardOpen(true)}
+          onExportJSON={() => downloadResultsAsJSON()}
         />
       )}
 
@@ -713,9 +806,18 @@ export default function Station4() {
           modulesCompletedCount={modulesCompletedCount}
           errors={errors}
           timeUsedSeconds={stationConfig.totalDurationSeconds - timeRemaining}
+          playerName={playerName}
           onRestartStation={handleRestartStation}
+          onOpenLeaderboard={() => setLeaderboardOpen(true)}
+          onExportJSON={() => downloadResultsAsJSON()}
         />
       )}
+
+      {/* Operational Leaderboard & Winners Modal */}
+      <LeaderboardModal
+        isOpen={leaderboardOpen}
+        onClose={() => setLeaderboardOpen(false)}
+      />
 
       {/* Developer Debug Drawer (Ctrl + Shift + D) */}
       <DebugDrawer

@@ -80,9 +80,15 @@ export default function CircuitBoard({
 
           {/* Gate 02: Slot B (Replaceable, Faulty) */}
           <div
-            style={{ position: "absolute", left: "240px", top: "215px" }}
+            style={{ position: "absolute", left: "240px", top: "215px", cursor: "pointer" }}
             onDragEnter={() => setDragOverSlot(true)}
             onDragLeave={() => setDragOverSlot(false)}
+            onClick={() => {
+              if (slotBGateType !== "AND") {
+                onChangeSlotBGate("AND");
+              }
+            }}
+            title="Click or drag AND gate here to repair interlock"
           >
             <LogicGate
               slotId="SLOT_B"
@@ -112,9 +118,41 @@ export default function CircuitBoard({
             safeOutput={evalResult.safeOutput}
             isCircuitValid={validation.isValid}
             isBypassActive={isBypassActive}
+            slotBGateType={slotBGateType}
           />
         </div>
       </div>
+
+      {/* Quick helper banner if Slot B is faulty */}
+      {slotBGateType !== "AND" && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "8px 14px",
+            background: "rgba(255, 51, 68, 0.12)",
+            border: "1px solid var(--ws4-crimson-alert)",
+            borderRadius: "4px",
+            fontSize: "12px",
+            flexWrap: "wrap",
+            gap: "8px",
+          }}
+        >
+          <div style={{ color: "#ff8080" }}>
+            ⚠ <strong>SLOT B FAULT:</strong> Gate 02 is currently <strong>{slotBGateType}</strong>. Click the AND gate below to repair the interlock.
+          </div>
+          <button
+            type="button"
+            className="ws4-btn ws4-btn-primary"
+            style={{ fontSize: "11px", padding: "5px 12px" }}
+            onClick={() => onChangeSlotBGate("AND")}
+            id="ws4-quick-install-and-btn"
+          >
+            [ ⚡ INSTALL AND GATE ]
+          </button>
+        </div>
+      )}
 
       {/* Logic Gate Toolbox */}
       <GateToolbox

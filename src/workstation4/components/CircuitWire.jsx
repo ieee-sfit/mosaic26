@@ -9,6 +9,9 @@ export default function CircuitWire({
     return val === 1 ? "ws4-wire-path ws4-wire-high ws4-wire-pulse" : "ws4-wire-path ws4-wire-low";
   };
 
+  // Wire 7 reflects the real physical output of Gate 03
+  const outSignal = isBypassActive ? 0 : wires.gate3ToOutput;
+
   return (
     <svg
       className="ws4-circuit-svg"
@@ -65,7 +68,7 @@ export default function CircuitWire({
       {/* Wire 7: Gate 3 Out to SAFE_OUTPUT */}
       <path
         d="M 560 185 L 590 185"
-        className={getWireClass(wires.gate3ToOutput)}
+        className={getWireClass(outSignal)}
       />
 
       {/* Signal text tags along wires for accessibility */}
@@ -88,8 +91,8 @@ export default function CircuitWire({
       <text x="375" y="295" fill={wires.gate2ToGate3 ? "#00ff7f" : "#506177"} fontSize="9" fontFamily="monospace">
         SIG_B:{wires.gate2ToGate3 ? "1" : "0"}
       </text>
-      <text x="565" y="178" fill={wires.gate3ToOutput ? "#00ff7f" : "#506177"} fontSize="9" fontFamily="monospace">
-        OUT:{wires.gate3ToOutput ? "1" : "0"}
+      <text x="565" y="178" fill={outSignal ? "#00ff7f" : "#506177"} fontSize="9" fontFamily="monospace">
+        OUT:{outSignal ? "1" : "0"}
       </text>
     </svg>
   );

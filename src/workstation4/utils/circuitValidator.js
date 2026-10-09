@@ -1,4 +1,4 @@
-import { evaluateCircuit, testCircuitSecurity } from "./logicSimulator";
+import { evaluateCircuit, testCircuitSecurity } from "./logicSimulator.js";
 
 export function validateCircuit(currentInputs, slotBGateType) {
   const evalResult = evaluateCircuit(currentInputs, slotBGateType);
