@@ -60,7 +60,7 @@ function Station3() {
   const [phase, setPhase] = useState(0); 
   const [team, setTeam] = useState({ name: '', size: 3 });
   const [score, setScore] = useState({ a:0, ap:0, b:0, bp:0, c:0, cp:0, bon:0 });
-  const [time, setTime] = useState(720);
+  const [time, setTime] = useState(1800);
   const [shake, setShake] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -80,8 +80,8 @@ function Station3() {
   }, [phase]);
 
   useEffect(() => {
-    if (phase===2 && time<=630) setPhase(3);
-    if (phase===3 && time<=360) setPhase(4);
+    if (phase===2 && time<=1680) setPhase(3);
+    if (phase===3 && time<=1200) setPhase(4);
     if (phase===4 && time===0) setPhase(5);
   }, [time, phase]);
 
@@ -108,7 +108,7 @@ function Station3() {
           <div className="font-heading font-black text-2xl text-neon-cyan tracking-widest">OP: <span className="text-white">{team.name}</span></div>
           
           <div className="flex-1 mx-10 h-2 bg-[#223] relative rounded-full flex items-center">
-            <motion.div className="h-full bg-neon-magenta shadow-[0_0_10px_#ff00ff]" animate={{ width: `${((720-time)/720)*100}%` }} transition={{ duration: 1 }} />
+            <motion.div className="h-full bg-neon-magenta shadow-[0_0_10px_#ff00ff]" animate={{ width: `${((1800-time)/1800)*100}%` }} transition={{ duration: 1 }} />
             <div className="absolute left-[12.5%] w-1 h-4 bg-[#556] -top-1" />
             <div className="absolute left-[50%] w-1 h-4 bg-[#556] -top-1" />
           </div>
@@ -126,9 +126,9 @@ function Station3() {
       <main className="flex-1 p-8 overflow-y-auto relative z-50 flex flex-col">
         {phase === 0 && <BootScreen onDone={() => setPhase(1)} />}
         {phase === 1 && <BriefingScreen onStart={(t) => { setTeam(t); setPhase(2); }} />}
-        {phase === 2 && <ModuleA time={time} score={score} setScore={setScore} onComplete={(t) => { if(!t) setScore((s:any)=>({...s, bon: s.bon + Math.floor((time-630)/5)})); setPhase(3); }} fxFail={fxFail} />}
-        {phase === 3 && <ModuleB time={time} score={score} setScore={setScore} onComplete={(t) => { if(!t) setScore((s:any)=>({...s, bon: s.bon + Math.floor((time-360)/5)})); setPhase(4); }} fxFail={fxFail} showToast={showToast} />}
-        {phase === 4 && <ModuleC time={time} score={score} setScore={setScore} onComplete={() => { setScore((s:any)=>({...s, bon: s.bon + Math.floor(time/5)})); setPhase(5); }} fxFail={fxFail} showToast={showToast} />}
+        {phase === 2 && <ModuleA score={score} setScore={setScore} onComplete={(t) => { if(!t) setScore((s:any)=>({...s, bon: s.bon + Math.floor((time-1680)/5)})); setPhase(3); }} fxFail={fxFail} />}
+        {phase === 3 && <ModuleB score={score} setScore={setScore} onComplete={(t) => { if(!t) setScore((s:any)=>({...s, bon: s.bon + Math.floor((time-1200)/5)})); setPhase(4); }} fxFail={fxFail} showToast={showToast} />}
+        {phase === 4 && <ModuleC score={score} setScore={setScore} onComplete={() => { setScore((s:any)=>({...s, bon: s.bon + Math.floor(time/5)})); setPhase(5); }} fxFail={fxFail} showToast={showToast} />}
         {phase === 5 && <OutroScreen score={score} team={team} totScore={totScore} />}
       </main>
     </motion.div>
@@ -161,7 +161,7 @@ function BriefingScreen({ onStart }) {
       <p className="font-plate text-neon-magenta tracking-[0.2em] mb-6 text-center text-sm">ANPR GRID: SECTOR 7 // ILLEGAL STREET RACE IN PROGRESS</p>
       
       <Panel className="w-full text-center mb-6 p-4">
-        <p className="text-text-muted text-base">Target crews are running the highway loop tonight. You have <strong className="text-white">12 minutes</strong> to intercept, verify plates, and issue citations before they scatter. Precision is mandatory.</p>
+        <p className="text-text-muted text-base">Target crews are running the highway loop tonight. You have <strong className="text-white">30 minutes</strong> to intercept, verify plates, and issue citations before they scatter. Precision is mandatory.</p>
       </Panel>
 
       <div className="flex gap-4 w-full mb-6">
@@ -312,7 +312,12 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }) {
 
       <div className="flex flex-col gap-6">
         <Panel>
-          <h2 className="font-heading font-bold tracking-widest text-neon-cyan mb-4 text-sm">1. DIAGNOSTICS</h2>
+          <h2 className="font-heading font-bold tracking-widest text-neon-cyan mb-2 text-sm">1. DIAGNOSTICS</h2>
+          
+          <div className="bg-[#112] border-l-4 border-neon-cyan p-2 mb-4 text-xs text-neon-cyan font-plate">
+            [SYSTEM ASSIST] Diagnostic: {["CONTRAST LOW", "THRESH LOW", "DENOISE OFF", "BOTH HIGH"][cap.d]}
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             {["CONTRAST LOW", "THRESH LOW", "DENOISE OFF", "BOTH HIGH"].map((dTxt, i) => (
               <button key={i} onClick={() => {
@@ -326,7 +331,12 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }) {
 
         <Panel className={`flex-1 relative ${!diagDone ? 'opacity-40 pointer-events-none' : ''}`}>
           {!diagDone && <div className="absolute inset-0 flex items-center justify-center font-heading text-danger-red text-2xl z-10 text-center px-4 leading-tight drop-shadow-md">DIAGNOSE FAULT TO UNLOCK</div>}
-          <h2 className="font-heading font-bold tracking-widest text-neon-cyan mb-6 text-sm">2. REPAIR PARAMS</h2>
+          <h2 className="font-heading font-bold tracking-widest text-neon-cyan mb-2 text-sm">2. REPAIR PARAMS</h2>
+          
+          <div className="bg-[#112] border-l-4 border-neon-cyan p-2 mb-4 text-xs text-neon-cyan font-plate">
+            [SYSTEM ASSIST] Target Contrast: ~{Math.floor((cap.tc[0]+cap.tc[1])/2)}% | Target Thresh: ~{Math.floor((cap.tt[0]+cap.tt[1])/2)} | Denoise: {cap.fd ? 'ON' : 'OFF'}
+          </div>
+
           <div className="mb-6"><div className="flex justify-between font-heading text-text-muted mb-2"><span>CONTRAST</span><span className="font-plate text-neon-cyan">{c}</span></div><input type="range" min="10" max="100" value={c} onChange={e=>setC(Number(e.target.value))} /></div>
           <div className="mb-6"><div className="flex justify-between font-heading text-text-muted mb-2"><span>THRESHOLD</span><span className="font-plate text-neon-cyan">{t}</span></div><input type="range" min="50" max="200" value={t} onChange={e=>setT(Number(e.target.value))} /></div>
           <label className="flex items-center gap-4 cursor-pointer font-heading text-xl mt-8">
@@ -391,14 +401,20 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }) {
       <Panel className="flex-1 flex flex-col justify-center px-10">
         {step===1 && (
           <motion.div initial={{opacity:0}} animate={{opacity:1}}>
-            <h2 className="font-heading font-bold tracking-widest text-neon-magenta text-xl mb-8">SEC 1: TOLERANCE & FINE</h2>
+            <h2 className="font-heading font-bold tracking-widest text-neon-magenta text-xl mb-4">SEC 1: TOLERANCE & FINE</h2>
+            
+            {/* EASY MODE HINTS */}
+            <div className="bg-[#112] border-l-4 border-neon-cyan p-3 mb-6 text-sm text-neon-cyan font-plate">
+              [SYSTEM ASSIST] Raw Speed: {cap.dist ? Math.round((cap.dist / cap.t) * 3.6) : cap.spd} km/h | Effective (Raw-5): {cap.dist ? Math.round((cap.dist / cap.t) * 3.6) - 5 : cap.spd - 5} km/h | Zone Limit: {cap.z === 'S' ? 30 : cap.z === 'R' ? 40 : cap.z === 'U' ? 60 : 80} km/h
+            </div>
+
             <div className="flex gap-10 items-center">
               <div>
                 <div className="font-heading text-text-muted mb-4">EXCESS SPEED (KM/H)</div>
                 <div className="flex items-center gap-4">
-                  <button onClick={()=>setEx(Math.max(0,ex-1))} className="panel-clip w-12 h-12 bg-[#223] text-neon-cyan border border-neon-cyan font-heading text-2xl hover:bg-neon-cyan/20">-</button>
-                  <input type="text" readOnly value={ex} className="w-32 h-12 bg-black border border-[#445] text-white font-plate text-2xl text-center outline-none" />
-                  <button onClick={()=>setEx(Math.min(200,ex+1))} className="panel-clip w-12 h-12 bg-[#223] text-neon-cyan border border-neon-cyan font-heading text-2xl hover:bg-neon-cyan/20">+</button>
+                  <button onClick={()=>setEx(Math.max(0,ex-1))} className="panel-clip w-16 h-16 bg-[#223] text-neon-cyan border border-neon-cyan font-heading text-4xl hover:bg-neon-cyan/20">-</button>
+                  <input type="text" readOnly value={ex} className="w-32 h-16 bg-black border border-[#445] text-white font-plate text-3xl text-center outline-none" />
+                  <button onClick={()=>setEx(Math.min(200,ex+1))} className="panel-clip w-16 h-16 bg-[#223] text-neon-cyan border border-neon-cyan font-heading text-4xl hover:bg-neon-cyan/20">+</button>
                 </div>
               </div>
               <div className="flex-1">
@@ -415,7 +431,10 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }) {
         
         {step===2 && (
           <motion.div initial={{opacity:0}} animate={{opacity:1}}>
-            <h2 className="font-heading font-bold tracking-widest text-neon-magenta text-xl mb-6">SEC 2: ROUTING</h2>
+            <h2 className="font-heading font-bold tracking-widest text-neon-magenta text-xl mb-4">SEC 2: ROUTING</h2>
+            <div className="bg-[#112] border-l-4 border-neon-cyan p-3 mb-6 text-sm text-neon-cyan font-plate">
+              [SYSTEM ASSIST] Confidence is {cap.c}%. Protocol: {cap.c >= 90 ? 'Auto-validate (>= 90%)' : cap.c >= 75 ? 'Manual bypass (75-89%)' : 'Reject / re-tune (< 75%)'}
+            </div>
             <div className="grid grid-cols-2 gap-4">
               {[{t:'Auto-validate',d:'DIRECT TO SYSTEM'},{t:'Manual bypass',d:'OFFICER OVERRIDE'},{t:'Reject / re-tune',d:'DISCARD CAPTURE'},{t:'Void fine',d:'EMERGENCY ONLY'}].map(r => (
                 <button key={r.t} onClick={(e)=>handleS2(r.t, e)} className="panel-clip bg-[#111] border border-[#334] p-8 text-center hover:bg-white/5 hover:border-neon-magenta transition-all">
@@ -428,7 +447,10 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }) {
 
         {step===3 && (
           <motion.div initial={{opacity:0}} animate={{opacity:1}} className="flex flex-col items-center">
-            <h2 className="font-heading font-bold tracking-widest text-neon-magenta text-xl mb-6">SEC 3: AUTHORIZATION CODE</h2>
+            <h2 className="font-heading font-bold tracking-widest text-neon-magenta text-xl mb-4">SEC 3: AUTHORIZATION CODE</h2>
+            <div className="bg-[#112] border-l-4 border-neon-cyan p-3 mb-6 text-sm text-neon-cyan font-plate w-full max-w-md text-center">
+              [SYSTEM ASSIST] Required Passcode: {cap.ans.cd}
+            </div>
             <div className="w-full max-w-md h-20 bg-black border border-neon-magenta mb-6 flex items-center justify-center font-plate text-4xl text-neon-magenta tracking-[0.5em] shadow-[inset_0_0_15px_rgba(255,0,255,0.2)]">{(pc+"_____").slice(0,5).split('').join(' ')}</div>
             <div className="grid grid-cols-3 gap-3 w-full max-w-md">
               {['U','S','H','A','B','E','1','2','3','8','9','0','X','-','DEL'].map(k => (
