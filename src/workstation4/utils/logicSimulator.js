@@ -36,7 +36,8 @@ export function evaluateCircuit(inputs, slotBGateType) {
   const dLocked = inputs.DOOR_LOCKED ? 1 : 0;
   const fClear = inputs.FIRE_CLEAR ? 1 : 0;
   const pStable = inputs.POWER_STABLE ? 1 : 0;
-  const sAuth = inputs.SECURITY_AUTHORIZED ? 1 : 0;
+  // If NOT gate, second input is disabled / 0
+  const sAuth = slotBGateType === "NOT" ? 0 : (inputs.SECURITY_AUTHORIZED ? 1 : 0);
 
   // Gate 1: AND [DOOR_LOCKED, FIRE_CLEAR]
   const sigA = evaluateGate("AND", [dLocked, fClear]);
@@ -60,8 +61,7 @@ export function evaluateCircuit(inputs, slotBGateType) {
       gate2ToGate3: sigB,
       gate3ToOutput: safeOutput,
     },
-    // True only if NOT gate was placed in a 2-input slot
-    hasMismatchWarning: slotBGateType === "NOT",
+    hasMismatchWarning: false,
   };
 }
 

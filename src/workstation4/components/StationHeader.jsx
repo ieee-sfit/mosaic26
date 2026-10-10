@@ -5,6 +5,8 @@ export default function StationHeader({
   isCritical,
   systemStatus = "ACTIVE",
   onDebugClick,
+  onOpenLeaderboard,
+  onWatchVideo,
 }) {
   return (
     <header className="ws4-header">
@@ -23,7 +25,45 @@ export default function StationHeader({
         </div>
       </div>
 
-      <div className="ws4-header-status-group">
+      <div className="ws4-header-status-group" style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+        {onWatchVideo && (
+          <button
+            type="button"
+            className="ws4-btn ws4-btn-secondary"
+            onClick={onWatchVideo}
+            style={{
+              fontSize: "11px",
+              padding: "6px 12px",
+              letterSpacing: "1px",
+              borderColor: "var(--ws4-cyan-accent)",
+              color: "var(--ws4-cyan-accent)",
+            }}
+            id="ws4-header-video-btn"
+            title="Watch CCTV Breach Transition Video"
+          >
+            📹 CCTV VIDEO FEED
+          </button>
+        )}
+
+        {onOpenLeaderboard && (
+          <button
+            type="button"
+            className="ws4-btn ws4-btn-secondary"
+            onClick={onOpenLeaderboard}
+            style={{
+              fontSize: "11px",
+              padding: "6px 12px",
+              letterSpacing: "1px",
+              borderColor: "var(--ws4-amber-warn)",
+              color: "var(--ws4-amber-warn)",
+            }}
+            id="ws4-header-leaderboard-btn"
+            title="View Winners & Results"
+          >
+            🏆 WINNERS / LEADERBOARD
+          </button>
+        )}
+
         <div className={`ws4-status-pill ${isCritical ? "ws4-critical" : "ws4-active"}`}>
           <span
             className={`ws4-led ${isCritical ? "ws4-red ws4-blink" : "ws4-green"}`}

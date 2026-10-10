@@ -8,7 +8,10 @@ export default function ModuleB({
   slotBGateType,
   onChangeSlotBGate,
   onCircuitVerified,
+  onSubmitGate,
+  gateSolveHistory = [],
   isCircuitSolved,
+  testedGates = [],
   moduleAnswers = {},
   onSubmitAnswer,
   onModuleCompleted,
@@ -18,6 +21,11 @@ export default function ModuleB({
   const verificationQ = questions.moduleB[0];
   const qAns = moduleAnswers[verificationQ.id];
   const isQuestionAnsweredCorrectly = Boolean(qAns?.isCorrect);
+
+  const allFourGatesTested = ["AND", "OR", "XOR", "NOT"].every(
+    (g) => testedGates.includes(g) || gateSolveHistory.some((h) => h.gateType === g && h.safeOutput === 1)
+  );
+  const isReadyForQuestion = allFourGatesTested;
 
   return (
     <div className="ws4-center-panel" id="ws4-module-b-panel">
@@ -31,7 +39,6 @@ export default function ModuleB({
             DIAGNOSE LOGIC FAILURE // REPLACE INCORRECT GATE // VERIFY FAIL-SAFE CRITERIA
           </span>
         </div>
-        <span className="ws4-module-timer-hint">TARGET TIME: 04:30</span>
       </div>
 
       <div className="ws4-module-body">
@@ -48,8 +55,8 @@ export default function ModuleB({
         >
           <strong>OPERATIONAL BRIEF:</strong> The facility supervisory circuit detected an unsafe
           logic condition. The secondary interlock branch (GATE 02) contains an incorrect gate type.
-          Locate the error, drag/click the correct gate from the toolbox into Slot B, and verify
-          that <strong>SAFE_OUTPUT = HIGH / 1</strong> only when all 4 facility lines are secure.
+          Evaluate all 4 gates (AND, OR, XOR, NOT) in Gate 02, submit each gate evaluation to record timestamps in JSON, and verify
+          that <strong>SAFE_OUTPUT = HIGH / 1</strong> with the AND gate to unlock the verification question.
         </div>
 
         {/* Live Interactive Circuit Board */}
@@ -59,13 +66,23 @@ export default function ModuleB({
           slotBGateType={slotBGateType}
           onChangeSlotBGate={onChangeSlotBGate}
           onCircuitVerified={onCircuitVerified}
+          onSubmitGate={onSubmitGate}
+          gateSolveHistory={gateSolveHistory}
           isCircuitSolved={isCircuitSolved}
+          testedGates={testedGates}
           isBypassActive={isBypassActive}
         />
 
-        {/* Post-circuit verification question */}
-        {isCircuitSolved && (
-          <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "12px" }}>
+        {/* Post-circuit verification question - Unlocked ONLY once all 4 gates have been evaluated AND circuit is solved with AND gate */}
+        {isReadyForQuestion && (
+          <div
+            style={{
+              marginTop: "12px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+            }}
+          >
             <div
               style={{
                 fontSize: "12px",
@@ -119,7 +136,7 @@ export default function ModuleB({
                   onClick={onModuleCompleted}
                   id="ws4-proceed-to-c-btn"
                 >
-                  PROCEED TO MODULE C ➔
+                  NEXT QUESTION ➔ PROCEED TO MODULE C
                 </button>
               </div>
             )}

@@ -1,11 +1,11 @@
-import { stationConfig } from "../config/stationConfig";
-import { calculateScore, formatStationResult } from "./scoreCalculator";
-import { loadStationState } from "./storage";
+import { stationConfig } from "../config/stationConfig.js";
+import { calculateScore, formatStationResult } from "./scoreCalculator.js";
+import { loadStationState } from "./storage.js";
 
 let latestResult = null;
 
-export function updateStationResult(state, scoreData, timeRemaining) {
-  latestResult = formatStationResult(state, scoreData, timeRemaining);
+export function updateStationResult(state, scoreData, timeRemaining, playerName) {
+  latestResult = formatStationResult(state, scoreData, timeRemaining, playerName);
 }
 
 export function getStationResult() {
@@ -13,7 +13,7 @@ export function getStationResult() {
   const saved = loadStationState();
   if (saved) {
     const scoreData = calculateScore(saved);
-    return formatStationResult(saved, scoreData, saved.timeRemaining || 0);
+    return formatStationResult(saved, scoreData, saved.timeRemaining || 0, saved.playerName || "Operator Alpha");
   }
   return {
     stationId: stationConfig.stationId,

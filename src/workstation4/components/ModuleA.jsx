@@ -33,7 +33,6 @@ export default function ModuleA({
             DIAGNOSTIC PROTOCOL // DIGITAL LOGIC FOUNDATION VERIFICATION
           </span>
         </div>
-        <span className="ws4-module-timer-hint">TARGET TIME: 01:30</span>
       </div>
 
       <div className="ws4-module-body">

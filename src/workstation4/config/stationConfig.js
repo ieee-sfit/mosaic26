@@ -8,15 +8,15 @@ export const stationConfig = {
   authorizationCode: "1947",
 
   moduleWeights: {
-    moduleA: 20,
-    moduleB: 35,
-    moduleC: 45,
+    moduleA: 5,
+    moduleB: 26,
+    moduleC: 30,
   },
 
   penalties: {
-    wrongQuestionAnswer: 3,
-    wrongGatePlacement: 3,
-    wrongPasscodeAttempt: 4,
+    wrongQuestionAnswer: 1, // Penalty per incorrect question answer
+    wrongGatePlacement: 1,
+    wrongPasscodeAttempt: 1,
     bypassActivation: 5,
     hints: [2, 3, 5], // Penalty for hint 1, 2, 3
   },
