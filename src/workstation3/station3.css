@@ -1,0 +1,688 @@
+@import "tailwindcss";
+
+/* ================================================================
+   OPERATION REDLINE — Fast & Furious Cinematic UI System
+   Color spec: FF3038 red / FF6B2C orange / 00C8FF blue / 08090D bg
+   Typography: Orbitron (headings, telemetry) / Inter (body, labels)
+   ================================================================ */
+
+@theme {
+  /* ── Backgrounds ── */
+  --color-bg-base:       #08090D;
+  --color-bg-secondary:  #12151C;
+  --color-bg-panel:      #0E1118;
+  --color-bg-card:       #1A1E28;
+
+  /* ── Accents ── */
+  --color-red:           #FF3038;   /* Racing red — primary CTA */
+  --color-orange:        #FF6B2C;   /* Electric orange — secondary accent */
+  --color-blue:          #00C8FF;   /* Neon blue — sparingly */
+  --color-green:         #22C55E;   /* Success green */
+  --color-amber:         #F59E0B;   /* Warning amber */
+
+  /* ── Text ── */
+  --color-text-primary:  #F5F5F5;
+  --color-text-secondary:#9298A5;
+  --color-text-muted:    #5A6070;
+
+  /* ── Borders ── */
+  --color-border:        rgba(255,255,255,0.10);
+  --color-border-accent: rgba(255,48,56,0.35);
+
+  /* ── Legacy aliases (do not remove — used in JSX) ── */
+  --color-nos-orange:    #FF6B2C;
+  --color-nos-amber:     #F59E0B;
+  --color-speed-blue:    #00C8FF;
+  --color-acid-green:    #22C55E;
+  --color-danger-red:    #FF3038;
+  --color-neon-cyan:     #00C8FF;
+  --color-neon-magenta:  #FF6B2C;
+
+  /* ── Typography ── */
+  --font-heading: 'Orbitron', 'Consolas', monospace;
+  --font-hud:     'Orbitron', 'Consolas', monospace;
+  --font-plate:   'Orbitron', 'Consolas', monospace;
+  --font-body:    'Inter', 'Segoe UI', sans-serif;
+}
+
+/* ================================================================
+   BASE
+   ================================================================ */
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; padding: 0;
+    background: #08090D;
+    color: #F5F5F5;
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    font-weight: 400;
+    line-height: 1.5;
+    overflow: hidden;
+    height: 100%;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection { background: #FF3038; color: #fff; }
+}
+
+/* ================================================================
+   ROOT
+   ================================================================ */
+#root {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ================================================================
+   AMBIENT BACKGROUND LAYERS
+   Three layers: deep base, cinematic vignette, subtle road grid
+   ================================================================ */
+.ambient-layer {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  pointer-events: none;
+}
+
+/* Cinematic dark gradient base */
+.asphalt-bg {
+  z-index: 1;
+  background:
+    radial-gradient(ellipse at 15% 85%, rgba(255,48,56,0.06) 0%, transparent 45%),
+    radial-gradient(ellipse at 85% 15%, rgba(0,200,255,0.04) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 50%, rgba(18,21,28,0.8) 0%, #08090D 100%);
+}
+
+/* Subtle road grid — barely visible, cinematic not cyberpunk */
+.road-grid {
+  z-index: 2;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 80px 80px;
+  animation: gridDrift 20s linear infinite;
+  opacity: 0.6;
+}
+@keyframes gridDrift {
+  from { background-position: 0 0; }
+  to   { background-position: 0 80px; }
+}
+
+/* Cinematic vignette frame */
+.vignette {
+  z-index: 3;
+  box-shadow:
+    inset 0 0 140px rgba(0,0,0,0.85),
+    inset 0 0 40px rgba(0,0,0,0.4);
+}
+
+/* Bottom atmospheric glow — red tint on floor */
+.underglow {
+  z-index: 2;
+  background: radial-gradient(ellipse at 50% 105%, rgba(255,48,56,0.08) 0%, transparent 60%);
+}
+
+/* ================================================================
+   TYPOGRAPHY — Orbitron headings, Inter body
+   ================================================================ */
+.font-heading { font-family: 'Orbitron', monospace !important; }
+.font-hud     { font-family: 'Orbitron', monospace !important; }
+.font-plate   { font-family: 'Orbitron', monospace !important; }
+.font-body    { font-family: 'Inter', sans-serif !important; }
+
+/* ================================================================
+   GLITCH TEXT — controlled, not excessive
+   ================================================================ */
+.glitch-text {
+  position: relative;
+  font-family: 'Orbitron', monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.glitch-text::before,
+.glitch-text::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  pointer-events: none;
+}
+.glitch-text::before {
+  color: #FF3038;
+  animation: glitchA 4s infinite linear;
+  clip-path: polygon(0 25%, 100% 25%, 100% 45%, 0 45%);
+}
+.glitch-text::after {
+  color: #00C8FF;
+  animation: glitchB 4s infinite linear;
+  clip-path: polygon(0 58%, 100% 58%, 100% 74%, 0 74%);
+}
+@keyframes glitchA {
+  0%, 88%, 100% { transform: translate(0); opacity: 0; }
+  90%           { transform: translate(-4px, 1px); opacity: 0.75; }
+  92%           { transform: translate(3px, -1px); opacity: 0.75; }
+  94%           { transform: translate(0); opacity: 0; }
+}
+@keyframes glitchB {
+  0%, 82%, 100% { transform: translate(0); opacity: 0; }
+  84%           { transform: translate(4px, -1px); opacity: 0.6; }
+  86%           { transform: translate(-2px, 1px); opacity: 0.6; }
+  88%           { transform: translate(0); opacity: 0; }
+}
+
+/* ================================================================
+   CLIP PATHS — angular motorsport geometry
+   ================================================================ */
+.panel-clip {
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+}
+.panel-clip-sm {
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+}
+.btn-clip {
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+
+/* ================================================================
+   PANEL — cinematic card base
+   ================================================================ */
+.ff-panel {
+  background: #0E1118;
+  border: 1px solid rgba(255,255,255,0.10);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Top-left red accent bar */
+.ff-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 48px; height: 2px;
+  background: #FF3038;
+}
+
+/* Bottom-right subtle line */
+.ff-panel::after {
+  content: '';
+  position: absolute;
+  bottom: 0; right: 0;
+  width: 48px; height: 1px;
+  background: rgba(255,255,255,0.08);
+}
+
+/* ================================================================
+   BUTTONS — primary (red), secondary (ghost), danger
+   ================================================================ */
+.ff-btn {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 14px 36px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.18s ease;
+  border: 1px solid #FF3038;
+  background: rgba(255,48,56,0.12);
+  color: #FF3038;
+}
+
+/* Shimmer sweep on hover */
+.ff-btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,48,56,0.18), transparent);
+  transition: left 0.35s ease;
+}
+.ff-btn:hover {
+  background: rgba(255,48,56,0.22);
+  border-color: #FF3038;
+  color: #fff;
+  box-shadow: 0 0 24px rgba(255,48,56,0.25);
+  transform: translateY(-1px);
+}
+.ff-btn:hover::before { left: 100%; }
+.ff-btn:active { transform: translateY(0) scale(0.98); }
+
+.ff-btn-orange {
+  border-color: #FF6B2C;
+  background: rgba(255,107,44,0.12);
+  color: #FF6B2C;
+}
+.ff-btn-orange:hover {
+  background: rgba(255,107,44,0.22);
+  border-color: #FF6B2C;
+  box-shadow: 0 0 24px rgba(255,107,44,0.25);
+}
+
+.ff-btn-ghost {
+  border-color: rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.04);
+  color: #9298A5;
+}
+.ff-btn-ghost:hover {
+  border-color: rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.08);
+  color: #F5F5F5;
+  box-shadow: none;
+}
+
+/* Alias kept for legacy */
+.ff-btn-danger { }
+
+/* ================================================================
+   HUD HEADER
+   ================================================================ */
+.hud-header {
+  background: rgba(8,9,13,0.97);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  position: relative;
+}
+/* Red accent line at bottom */
+.hud-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, #FF3038 0%, rgba(255,107,44,0.5) 40%, transparent 70%);
+}
+
+/* ================================================================
+   GEAR PROGRESS BAR
+   ================================================================ */
+.gear-pip {
+  width: 32px; height: 6px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
+  transition: all 0.3s ease;
+}
+.gear-pip.active {
+  background: #FF6B2C;
+  border-color: #FF6B2C;
+  box-shadow: 0 0 8px rgba(255,107,44,0.5);
+}
+.gear-pip.redline {
+  background: #FF3038;
+  border-color: #FF3038;
+  box-shadow: 0 0 10px rgba(255,48,56,0.6);
+  animation: redlineBlink 0.4s ease infinite alternate;
+}
+@keyframes redlineBlink {
+  from { opacity: 0.75; }
+  to   { opacity: 1; }
+}
+
+/* ================================================================
+   HIGHWAY TRANSITION OVERLAY
+   ================================================================ */
+.highway-transition {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* ================================================================
+   OPTION CARDS — answer buttons
+   ================================================================ */
+.option-card {
+  background: rgba(14,17,24,0.95);
+  border: 1px solid rgba(255,255,255,0.10);
+  padding: 18px 20px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #9298A5;
+  text-align: left;
+  transition: all 0.15s ease;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  position: relative;
+}
+.option-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: #FF3038;
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform 0.15s ease;
+}
+.option-card:hover {
+  background: rgba(255,48,56,0.06);
+  border-color: rgba(255,48,56,0.35);
+  color: #F5F5F5;
+}
+.option-card:hover::before { transform: scaleY(1); }
+
+.option-card.correct {
+  background: rgba(34,197,94,0.08);
+  border-color: rgba(34,197,94,0.5);
+  color: #22C55E;
+}
+.option-card.correct::before {
+  background: #22C55E;
+  transform: scaleY(1);
+}
+.option-card.wrong {
+  background: rgba(255,48,56,0.06);
+  border-color: rgba(255,48,56,0.3);
+  color: rgba(255,48,56,0.5);
+  text-decoration: line-through;
+}
+.option-card.dimmed { opacity: 0.35; pointer-events: none; }
+
+/* ================================================================
+   STEP INDICATORS
+   ================================================================ */
+.step-indicator {
+  width: 34px; height: 34px;
+  border: 1px solid rgba(255,255,255,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Orbitron', monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #5A6070;
+  transform: rotate(45deg);
+  transition: all 0.25s ease;
+  position: relative;
+}
+.step-indicator > span { transform: rotate(-45deg); }
+.step-indicator.done {
+  border-color: rgba(34,197,94,0.5);
+  color: #22C55E;
+  background: rgba(34,197,94,0.08);
+}
+.step-indicator.active {
+  border-color: #FF3038;
+  color: #FF3038;
+  background: rgba(255,48,56,0.08);
+  box-shadow: 0 0 16px rgba(255,48,56,0.2);
+}
+
+/* ================================================================
+   TOAST NOTIFICATIONS
+   ================================================================ */
+.toast-success {
+  background: rgba(8,9,13,0.98);
+  border-left: 3px solid #22C55E;
+  color: #22C55E;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  font-family: 'Orbitron', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+}
+.toast-error {
+  background: rgba(8,9,13,0.98);
+  border-left: 3px solid #FF3038;
+  color: #FF3038;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  font-family: 'Orbitron', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+}
+
+/* ================================================================
+   BOOT SCREEN TERMINAL
+   ================================================================ */
+.terminal-text {
+  font-family: 'Orbitron', monospace;
+  color: #FF6B2C;
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  line-height: 2.2;
+  opacity: 0.9;
+}
+
+/* ================================================================
+   CAMERA VIEWFINDER
+   ================================================================ */
+.cam-noise {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.10'/%3E%3C/svg%3E");
+}
+.cam-scanlines::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px, transparent 3px,
+    rgba(0,0,0,0.1) 3px, rgba(0,0,0,0.1) 4px
+  );
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Camera corner brackets */
+.cam-bracket::before,
+.cam-bracket::after {
+  content: '';
+  position: absolute;
+  width: 20px; height: 20px;
+  border-color: rgba(255,107,44,0.7);
+  border-style: solid;
+}
+.cam-bracket::before { top: 10px; left: 10px; border-width: 2px 0 0 2px; }
+.cam-bracket::after  { bottom: 10px; right: 10px; border-width: 0 2px 2px 0; }
+
+/* REC indicator */
+.rec-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'Orbitron', monospace;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #FF3038;
+  letter-spacing: 0.15em;
+}
+.rec-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #FF3038;
+  animation: recBlink 1s ease infinite;
+}
+@keyframes recBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.2; }
+}
+
+/* ================================================================
+   RANGE SLIDERS
+   ================================================================ */
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%;
+  background: transparent;
+  outline: none;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  height: 3px;
+  background: rgba(255,255,255,0.12);
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 20px;
+  width: 10px;
+  background: #FF6B2C;
+  margin-top: -9px;
+  cursor: pointer;
+  clip-path: polygon(0 15%, 100% 0, 100% 85%, 0 100%);
+  transition: background 0.15s;
+}
+input[type=range]:hover::-webkit-slider-thumb { background: #FF3038; }
+
+/* ================================================================
+   CHECKBOX
+   ================================================================ */
+input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px; height: 22px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.04);
+  position: relative;
+  cursor: pointer;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+  transition: all 0.15s;
+}
+input[type="checkbox"]:checked {
+  background: rgba(0,200,255,0.15);
+  border-color: #00C8FF;
+}
+input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  color: #00C8FF;
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* ================================================================
+   SYSTEM ASSIST — hint panel
+   ================================================================ */
+.sys-assist {
+  background: rgba(0,200,255,0.04);
+  border-left: 2px solid rgba(0,200,255,0.4);
+  padding: 8px 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.78rem;
+  color: rgba(0,200,255,0.8);
+  letter-spacing: 0.02em;
+  line-height: 1.6;
+}
+
+/* ================================================================
+   RADAR BAR
+   ================================================================ */
+.radar-bar {
+  background: rgba(8,9,13,0.95);
+  border: 1px solid rgba(255,255,255,0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+/* ================================================================
+   CHALLAN TICKET
+   ================================================================ */
+.challan-paper {
+  background: #F5F0E8;
+  color: #111;
+  font-family: 'Courier New', monospace;
+  position: relative;
+  overflow: hidden;
+}
+.challan-paper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg, transparent 0, transparent 23px,
+    rgba(0,0,0,0.05) 23px, rgba(0,0,0,0.05) 24px
+  );
+}
+.challan-stamp {
+  position: absolute;
+  top: 38%; left: 50%;
+  transform: translate(-50%, -50%) rotate(-18deg);
+  border: 3px solid;
+  padding: 5px 14px;
+  font-family: 'Orbitron', monospace;
+  font-size: 1.4rem;
+  font-weight: 900;
+  border-radius: 3px;
+}
+
+/* ================================================================
+   FINISH LINE / OUTRO
+   ================================================================ */
+.finish-line-bar {
+  height: 18px;
+  background: repeating-linear-gradient(
+    90deg, #000 0, #000 24px, #fff 24px, #fff 48px
+  );
+  opacity: 0.85;
+}
+
+.rank-card {
+  background: #0E1118;
+  border: 1px solid rgba(255,255,255,0.10);
+  position: relative;
+  overflow: hidden;
+}
+.rank-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #FF3038, #FF6B2C, transparent);
+}
+
+/* ================================================================
+   DRAG RACE LIGHTS
+   ================================================================ */
+.drag-light {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #1A1E28;
+  border: 1px solid rgba(255,255,255,0.1);
+  transition: all 0.08s;
+}
+.drag-light.yellow {
+  background: #F59E0B;
+  box-shadow: 0 0 10px rgba(245,158,11,0.6);
+  border-color: #F59E0B;
+}
+.drag-light.green {
+  background: #22C55E;
+  box-shadow: 0 0 10px rgba(34,197,94,0.6);
+  border-color: #22C55E;
+}
+.drag-light.red {
+  background: #FF3038;
+  box-shadow: 0 0 10px rgba(255,48,56,0.6);
+  border-color: #FF3038;
+}
+
+/* ================================================================
+   SCROLLBAR
+   ================================================================ */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
+::-webkit-scrollbar-thumb { background: rgba(255,48,56,0.4); }
+
+/* ================================================================
+   UTILITY ANIMATIONS
+   ================================================================ */
+@keyframes redlinePulse {
+  0%, 100% { opacity: 0.85; }
+  50%       { opacity: 1; }
+}
+
+@keyframes roadScroll {
+  from { background-position: 0 0; }
+  to   { background-position: 80px 0; }
+}
