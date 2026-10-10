@@ -2,18 +2,14 @@ export default function OutputIndicator({
   safeOutput,
   isCircuitValid,
   isBypassActive = false,
-  slotBGateType = "OR",
+  slotBGateType = "AND",
 }) {
   // Real signal level on the wire
   const isHigh = safeOutput === 1 && !isBypassActive;
-  
-  // Interlock verification is only fully valid when circuit logic is nominal AND signal is HIGH
-  const isFullySafe = isHigh && isCircuitValid;
-  const isGateAnd = slotBGateType === "AND";
 
   return (
     <div
-      className={`ws4-output-box ${isFullySafe ? "ws4-out-safe" : "ws4-out-unsafe"}`}
+      className={`ws4-output-box ${isHigh ? "ws4-out-safe" : "ws4-out-unsafe"}`}
       id="ws4-safe-output-box"
     >
       <div className="ws4-output-title">SAFE_OUTPUT</div>
@@ -39,30 +35,26 @@ export default function OutputIndicator({
             display: "block",
             fontWeight: "800",
             fontSize: "11px",
-            color: isFullySafe ? "var(--ws4-neon-green)" : isGateAnd ? "var(--ws4-amber-warn)" : "var(--ws4-crimson-alert)",
+            color: isHigh ? "var(--ws4-neon-green)" : "var(--ws4-crimson-alert)",
             marginTop: "2px",
           }}
         >
           {isBypassActive
             ? "BYPASS FORCED LOW"
-            : isFullySafe
+            : isHigh
             ? "✓ SAFE / NOMINAL"
-            : !isGateAnd
-            ? "⚠ LOGIC FAULT (UNVERIFIED)"
-            : "FAIL-SAFE (INPUTS LOW)"}
+            : "FAIL-SAFE (OUTPUT LOW)"}
         </span>
-        {!isFullySafe && !isBypassActive && (
+        {!isHigh && !isBypassActive && (
           <span
             style={{
               fontSize: "8.5px",
-              color: isGateAnd ? "var(--ws4-amber-warn)" : "#f87171",
+              color: "var(--ws4-amber-warn)",
               display: "block",
               marginTop: "2px",
             }}
           >
-            {isGateAnd
-              ? "GATE 02 REPAIRED ✓ // TURN ALL 4 INPUTS [ON] (1)"
-              : `GATE 02 IS ${slotBGateType} (REQUIRES AND GATE)`}
+            TURN REQUIRED INPUTS [ON] (1)
           </span>
         )}
       </div>

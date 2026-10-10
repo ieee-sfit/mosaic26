@@ -256,7 +256,7 @@
 
 .ws4-main-grid {
   display: grid;
-  grid-template-columns: 260px 1fr 280px;
+  grid-template-columns: 260px 1fr;
   grid-template-rows: 1fr auto;
   flex: 1;
   min-height: calc(100vh - 120px);
@@ -310,14 +310,14 @@
 
 @media (max-width: 1280px) {
   .ws4-main-grid {
-    grid-template-columns: 230px 1fr 250px;
+    grid-template-columns: 240px 1fr;
   }
 }
 
 @media (max-width: 1024px) {
   .ws4-main-grid {
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto auto;
+    grid-template-rows: auto auto auto;
   }
 }
 
@@ -788,6 +788,8 @@
   position: relative;
   box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.9);
   overflow-x: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .ws4-circuit-board-header {
@@ -802,20 +804,22 @@
 }
 
 .ws4-circuit-canvas-wrap {
-  min-width: 680px;
-  position: relative;
+  width: 780px;
+  min-width: 780px;
   height: 380px;
+  position: relative;
+  margin: 0 auto;
 }
 
 /* Input Toggles Column */
 .ws4-inputs-col {
   position: absolute;
   left: 0;
-  top: 10px;
+  top: 12px;
   width: 170px;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 20px;
   z-index: 10;
 }
 
@@ -828,6 +832,7 @@
   flex-direction: column;
   gap: 6px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  position: relative;
 }
 
 .ws4-input-header {
@@ -900,44 +905,68 @@
   z-index: 5;
 }
 
-.ws4-wire-path {
+/* Circuit Wire Layers & Flow Animations */
+.ws4-wire-track {
   fill: none;
-  stroke-width: 3.5;
+  stroke: #0c141e;
+  stroke-width: 6;
   stroke-linecap: round;
   stroke-linejoin: round;
-  transition: stroke 0.25s ease, stroke-width 0.25s ease;
 }
 
-.ws4-wire-path.ws4-wire-high {
+.ws4-wire-dim {
+  fill: none;
+  stroke: #1b2635;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ws4-wire-active-glow {
+  fill: none;
   stroke: var(--ws4-neon-green);
-  filter: drop-shadow(0 0 4px var(--ws4-neon-green));
+  stroke-width: 6;
+  stroke-opacity: 0.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: url(#ws4Glow);
 }
 
-.ws4-wire-path.ws4-wire-low {
-  stroke: #1f2937;
+.ws4-wire-active-flow {
+  fill: none;
+  stroke: #00ff7f;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 8 6;
+  animation: ws4SignalFlow 0.65s linear infinite;
+  filter: drop-shadow(0 0 5px #00ff7f);
 }
 
-.ws4-wire-path.ws4-wire-err {
-  stroke: var(--ws4-crimson-alert);
-  filter: drop-shadow(0 0 4px var(--ws4-crimson-alert));
-}
-
-.ws4-wire-pulse {
-  stroke-dasharray: 6 10;
-  animation: ws4WireFlow 1s linear infinite;
-}
-
-@keyframes ws4WireFlow {
-  to {
-    stroke-dashoffset: -16;
+@keyframes ws4SignalFlow {
+  from {
+    stroke-dashoffset: 28;
   }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.ws4-wire-err-flow {
+  fill: none;
+  stroke: var(--ws4-crimson-alert);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 4 4;
+  filter: drop-shadow(0 0 4px var(--ws4-crimson-alert));
 }
 
 /* Gate Slots on Canvas */
 .ws4-gate-slot {
-  position: absolute;
+  position: relative;
   width: 120px;
-  height: 100px;
+  height: 105px;
   background: #090e14;
   border: 1px solid var(--ws4-border-bright);
   border-radius: 4px;
@@ -947,6 +976,7 @@
   padding: 8px;
   z-index: 10;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .ws4-gate-slot.ws4-slot-target {
@@ -1024,9 +1054,10 @@
 /* Output Indicator Box */
 .ws4-output-box {
   position: absolute;
-  right: 10px;
-  top: 135px;
+  left: 630px;
+  top: 110px;
   width: 140px;
+  min-height: 115px;
   background: #090e14;
   border: 2px solid var(--ws4-border-bright);
   border-radius: 4px;
@@ -1037,6 +1068,7 @@
   gap: 6px;
   z-index: 10;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
+  box-sizing: border-box;
 }
 
 .ws4-output-box.ws4-out-safe {
@@ -1793,4 +1825,570 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+/* ==========================================================================
+   CLEARANCE CIPHER & MISSION ENDING ANIMATIONS
+   ========================================================================== */
+
+@keyframes ws4RadarSpin {
+  0% {
+    transform: rotate(0deg) scale(0.98);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.02);
+  }
+  100% {
+    transform: rotate(360deg) scale(0.98);
+  }
+}
+
+@keyframes ws4PulseGlow {
+  0% {
+    box-shadow: 0 0 14px rgba(0, 229, 255, 0.25);
+  }
+  100% {
+    box-shadow: 0 0 28px rgba(0, 255, 127, 0.45);
+  }
+}
+
+@keyframes ws4Bounce {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-6px);
+  }
+}
+
+/* ==========================================================================
+   10-SECOND CINEMATIC SURVEILLANCE VIDEO CUTSCENE (WORLD WAR Z + LOGIC GATE)
+   ========================================================================== */
+
+.ws4-cinema-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: #000;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  cursor: default;
+}
+
+.ws4-cinema-video-element {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+}
+
+.ws4-cinema-video-frame {
+  position: absolute;
+  inset: -15px;
+  background-size: cover;
+  background-position: center;
+  filter: contrast(1.22) brightness(0.85);
+  animation: ws4CinemaShake 0.4s infinite ease-in-out alternate, ws4CinemaZoom 10s infinite linear;
+  transition: background-image 0.4s ease-in-out;
+  z-index: 1;
+}
+
+@keyframes ws4CinemaShake {
+  0% { transform: translate(0, 0); }
+  33% { transform: translate(-2px, 2px); }
+  66% { transform: translate(2px, -1px); }
+  100% { transform: translate(1px, 2px); }
+}
+
+@keyframes ws4CinemaZoom {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.08); }
+}
+
+.ws4-cinema-strobe {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at center, transparent 35%, rgba(255, 30, 50, 0.4) 85%, rgba(255, 0, 0, 0.8) 100%);
+  animation: ws4CinemaStrobe 0.8s infinite ease-in-out;
+  mix-blend-mode: hard-light;
+  z-index: 3;
+}
+
+@keyframes ws4CinemaStrobe {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.9; }
+}
+
+.ws4-cinema-scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.6) 50%),
+              linear-gradient(90deg, rgba(255, 0, 0, 0.05), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.05));
+  background-size: 100% 4px, 6px 100%;
+  opacity: 0.85;
+  z-index: 4;
+}
+
+/* ==========================================================================
+   MODULE B -> MODULE C: 3-SEGMENT ESCAPE CINEMATIC CUTSCENE
+   ========================================================================== */
+
+.ws4-escape-frame {
+  position: absolute;
+  inset: -25px;
+  background-size: cover;
+  background-position: center;
+  z-index: 1;
+}
+
+/* Segment 1: The Chase (High-speed shaky running POV) */
+.ws4-escape-phase-chase {
+  filter: contrast(1.25) brightness(0.92);
+  animation: ws4ChaseRunning 0.28s infinite ease-in-out alternate, ws4ChaseForward 3.8s linear forwards;
+}
+
+@keyframes ws4ChaseRunning {
+  0% { transform: translate(0, 0) rotate(0deg) scale(1.05); }
+  25% { transform: translate(-8px, 12px) rotate(-1.5deg) scale(1.06); }
+  50% { transform: translate(10px, -6px) rotate(1.2deg) scale(1.07); }
+  75% { transform: translate(-6px, -10px) rotate(-0.8deg) scale(1.08); }
+  100% { transform: translate(8px, 8px) rotate(1.5deg) scale(1.09); }
+}
+
+@keyframes ws4ChaseForward {
+  0% { filter: contrast(1.25) brightness(0.9) blur(0px); }
+  50% { filter: contrast(1.3) brightness(0.95) blur(0.5px); }
+  100% { filter: contrast(1.35) brightness(1.0) blur(0px); }
+}
+
+/* Segment 2: The Question (Focused breathing & terminal flicker) */
+.ws4-escape-phase-question {
+  filter: contrast(1.2) brightness(0.95);
+  animation: ws4TerminalFocus 3.2s ease-in-out forwards;
+}
+
+@keyframes ws4TerminalFocus {
+  0% { transform: scale(1.02) translate(0, 2px); }
+  70% { transform: scale(1.06) translate(0, -2px); }
+  75% { transform: scale(1.07) translate(2px, -3px); filter: contrast(1.4) brightness(1.2); }
+  80% { transform: scale(1.06) translate(0, -2px); filter: contrast(1.25) brightness(1.05); }
+  100% { transform: scale(1.08) translate(0, -4px); filter: contrast(1.2) brightness(1.0); }
+}
+
+/* Segment 3: The Escape (Blast door slamming shut & green lockdown) */
+.ws4-escape-phase-escape {
+  filter: contrast(1.2) brightness(0.9);
+  animation: ws4BlastDoorSlam 3.0s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes ws4BlastDoorSlam {
+  0% { transform: scale(1.1) translate(0, 0); }
+  10% { transform: scale(1.08) translate(-4px, 6px); }
+  15% { transform: scale(1.0) translate(0, 0); }
+  100% { transform: scale(1.04) translate(0, -2px); }
+}
+
+.ws4-escape-strobe {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at center, transparent 30%, rgba(255, 0, 40, 0.45) 85%, rgba(255, 0, 0, 0.85) 100%);
+  animation: ws4EscapeStrobeFlash 0.5s infinite ease-in-out;
+  mix-blend-mode: hard-light;
+  z-index: 3;
+}
+
+@keyframes ws4EscapeStrobeFlash {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.95; }
+}
+
+.ws4-escape-green-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at center, transparent 40%, rgba(0, 255, 127, 0.35) 90%, rgba(0, 255, 127, 0.7) 100%);
+  animation: ws4GreenSafeTransition 3.0s ease-out forwards;
+  mix-blend-mode: screen;
+  z-index: 3;
+}
+
+@keyframes ws4GreenSafeTransition {
+  0% { opacity: 0; }
+  20% { opacity: 0.8; }
+  50% { opacity: 0.5; }
+  100% { opacity: 0.3; }
+}
+
+/* Header Bar */
+.ws4-cinema-header {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0) 100%);
+  padding: 16px 24px;
+}
+
+.ws4-rec-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 51, 68, 0.2);
+  border: 1px solid rgba(255, 51, 68, 0.7);
+  padding: 3px 10px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 900;
+  color: #ff3344;
+  letter-spacing: 1.5px;
+}
+
+.ws4-cinema-transition-tag {
+  background: rgba(0, 229, 255, 0.15);
+  border: 1px solid var(--ws4-cyan-accent);
+  color: var(--ws4-cyan-accent);
+  padding: 3px 10px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+}
+
+.ws4-cinema-camera-id {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ws4-cyan-accent);
+  letter-spacing: 1px;
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.6);
+}
+
+.ws4-cinema-audio-btn {
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(0, 229, 255, 0.6);
+  color: var(--ws4-cyan-accent);
+  font-size: 11px;
+  font-weight: 800;
+  font-family: var(--ws4-font-mono);
+  padding: 6px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  letter-spacing: 0.8px;
+  transition: all 0.2s ease;
+}
+
+.ws4-cinema-audio-btn:hover {
+  background: var(--ws4-cyan-accent);
+  color: #000;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.6);
+}
+
+.ws4-audio-pulse {
+  animation: ws4AudioPulse 1.2s infinite ease-in-out;
+  border-color: var(--ws4-amber-warn);
+  color: var(--ws4-amber-warn);
+}
+
+@keyframes ws4AudioPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 rgba(255, 170, 0, 0); }
+  50% { transform: scale(1.05); box-shadow: 0 0 14px rgba(255, 170, 0, 0.8); }
+}
+
+.ws4-cinema-audio-banner {
+  position: absolute;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 170, 0, 0.92);
+  color: #000;
+  padding: 8px 18px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  cursor: pointer;
+  z-index: 20;
+  box-shadow: 0 0 25px rgba(255, 170, 0, 0.7);
+  animation: ws4CardArrival 0.3s ease-out;
+}
+
+.ws4-cinema-skip-btn {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 51, 68, 0.7);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 800;
+  font-family: var(--ws4-font-mono);
+  padding: 6px 16px;
+  border-radius: 3px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all 0.15s ease;
+}
+
+.ws4-cinema-skip-btn:hover {
+  background: #ff3344;
+  color: #000;
+  box-shadow: 0 0 15px rgba(255, 51, 68, 0.8);
+}
+
+/* Floating Holographic Logic Gate HUD (Scene 2) */
+.ws4-cinema-hud-logic-overlay {
+  position: relative;
+  z-index: 10;
+  max-width: 680px;
+  width: 90%;
+  margin: 0 auto;
+  background: rgba(4, 9, 15, 0.86);
+  border: 1px solid rgba(0, 229, 255, 0.5);
+  box-shadow: 0 0 30px rgba(0, 229, 255, 0.25), inset 0 0 20px rgba(0, 0, 0, 0.9);
+  border-radius: 6px;
+  padding: 12px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  backdrop-filter: blur(5px);
+  animation: ws4CardArrival 0.3s ease-out;
+}
+
+.ws4-cinema-hud-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--ws4-cyan-accent);
+  letter-spacing: 1px;
+  border-bottom: 1px dashed rgba(0, 229, 255, 0.3);
+  padding-bottom: 6px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ws4-cinema-hud-gates {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.ws4-hud-gate {
+  background: #060b11;
+  border: 1px solid var(--ws4-border-bright);
+  border-radius: 4px;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  flex: 1;
+  font-size: 10px;
+}
+
+.ws4-hud-gate-ok {
+  border-color: var(--ws4-neon-green);
+  color: var(--ws4-neon-green);
+  box-shadow: 0 0 12px rgba(0, 255, 127, 0.3);
+}
+
+.ws4-hud-gate-fail {
+  border-color: var(--ws4-crimson-alert);
+  color: var(--ws4-crimson-alert);
+  box-shadow: 0 0 16px rgba(255, 51, 68, 0.5);
+  animation: ws4HoloGlitch 0.25s infinite alternate;
+}
+
+.ws4-hud-gate-lock {
+  border-color: var(--ws4-amber-warn);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(255, 170, 0, 0.3);
+}
+
+.ws4-hud-arrow {
+  color: #64748b;
+  font-weight: 900;
+  font-size: 14px;
+}
+
+/* Directive Badge (Scene 3 & 4) */
+.ws4-cinema-directive-badge {
+  position: relative;
+  z-index: 10;
+  max-width: 650px;
+  width: 90%;
+  margin: 0 auto;
+  background: rgba(4, 18, 12, 0.92);
+  border: 2px solid var(--ws4-neon-green);
+  box-shadow: 0 0 35px rgba(0, 255, 127, 0.45);
+  padding: 16px 20px;
+  border-radius: 6px;
+  text-align: center;
+  animation: ws4CardArrival 0.35s ease-out;
+}
+
+/* Bottom Panel: Subtitles & Video Scrubber */
+.ws4-cinema-bottom-panel {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.96) 0%, rgba(0, 0, 0, 0.75) 70%, rgba(0, 0, 0, 0) 100%);
+  padding: 20px 32px;
+}
+
+.ws4-cinema-subtitles-box {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(4, 7, 12, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-left: 4px solid var(--ws4-cyan-accent);
+  padding: 10px 18px;
+  border-radius: 4px;
+  backdrop-filter: blur(6px);
+}
+
+.ws4-cinema-audio-wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 16px;
+}
+
+.ws4-cinema-audio-wave span {
+  width: 3px;
+  background: var(--ws4-cyan-accent);
+  border-radius: 2px;
+  animation: ws4AudioWave 0.6s infinite ease-in-out alternate;
+}
+
+.ws4-cinema-audio-wave span:nth-child(1) { height: 6px; animation-delay: 0.1s; }
+.ws4-cinema-audio-wave span:nth-child(2) { height: 16px; animation-delay: 0.25s; }
+.ws4-cinema-audio-wave span:nth-child(3) { height: 10px; animation-delay: 0.4s; }
+.ws4-cinema-audio-wave span:nth-child(4) { height: 14px; animation-delay: 0.15s; }
+
+@keyframes ws4AudioWave {
+  0% { transform: scaleY(0.4); }
+  100% { transform: scaleY(1.3); }
+}
+
+.ws4-cinema-subtitles-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.8px;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.9);
+}
+
+.ws4-cinema-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ws4-cinema-play-btn {
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid var(--ws4-cyan-accent);
+  color: var(--ws4-cyan-accent);
+  font-size: 13px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ws4-cinema-play-btn:hover {
+  background: var(--ws4-cyan-accent);
+  color: #000;
+}
+
+.ws4-cinema-time-digits {
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--ws4-cyan-accent);
+  letter-spacing: 1.5px;
+  white-space: nowrap;
+}
+
+.ws4-cinema-timeline-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  position: relative;
+  overflow: visible;
+  cursor: pointer;
+}
+
+.ws4-cinema-timeline-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ffaa00 0%, #ff3344 55%, #00ff7f 100%);
+  border-radius: 4px;
+  box-shadow: 0 0 12px #ff3344;
+  transition: width 0.05s linear;
+}
+
+.ws4-timeline-notch {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 14px;
+  background: #fff;
+  opacity: 0.7;
+}
+
+.ws4-cinema-speed-group {
+  display: flex;
+  gap: 4px;
+}
+
+.ws4-cinema-speed-btn {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 800;
+  font-family: var(--ws4-font-mono);
+  padding: 4px 7px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ws4-cinema-speed-btn:hover {
+  border-color: var(--ws4-cyan-accent);
+  color: var(--ws4-cyan-accent);
+}
+
+.ws4-cinema-speed-btn.ws4-active-speed {
+  border-color: var(--ws4-neon-green);
+  color: var(--ws4-neon-green);
+  background: rgba(0, 255, 127, 0.15);
+}
+
+.ws4-cinema-metrics-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid #1c2635;
+  padding: 4px 10px;
+  border-radius: 3px;
 }

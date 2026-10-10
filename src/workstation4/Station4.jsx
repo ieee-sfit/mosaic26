@@ -4,12 +4,14 @@ import ModuleProgress from "./components/ModuleProgress";
 import ModuleA from "./components/ModuleA";
 import ModuleB from "./components/ModuleB";
 import ModuleC from "./components/ModuleC";
-import OutputStatusPanel from "./components/OutputStatusPanel";
 import SystemLog from "./components/SystemLog";
 import HintPanel from "./components/HintPanel";
 import StartScreen from "./components/StartScreen";
 import SuccessScreen from "./components/SuccessScreen";
 import FailureScreen from "./components/FailureScreen";
+import MissionEndingSequence from "./components/MissionEndingSequence";
+import BreachTransitionCutscene from "./components/BreachTransitionCutscene";
+import EscapeTransitionCutscene from "./components/EscapeTransitionCutscene";
 import DebugDrawer from "./components/DebugDrawer";
 import LeaderboardModal from "./components/LeaderboardModal";
 
@@ -65,7 +67,9 @@ export default function Station4() {
     });
     return init;
   });
-  const [slotBGateType, setSlotBGateType] = useState("OR"); // Initial intentional fault
+  const [slotBGateType, setSlotBGateType] = useState("AND"); // Initial intentional fault
+  const [testedGates, setTestedGates] = useState(() => ["AND"]);
+  const [gateSolveHistory, setGateSolveHistory] = useState(() => []);
   const [isCircuitSolved, setIsCircuitSolved] = useState(false);
   const [wrongGateAttempts, setWrongGateAttempts] = useState(0);
 
@@ -73,7 +77,9 @@ export default function Station4() {
   const [toleranceValues, setToleranceValues] = useState(() => {
     const init = {};
     Object.keys(stationConfig.tolerance).forEach((key) => {
-      init[key] = stationConfig.tolerance[key].initial;
+      const cfg = stationConfig.tolerance[key];
+      // Randomize initial value to be outside the safe range to force user to fix it
+      init[key] = Math.floor(Math.random() * (cfg.min - cfg.sliderMin)) + cfg.sliderMin;
     });
     return init;
   });
@@ -81,6 +87,10 @@ export default function Station4() {
   const [bypassTriggeredCount, setBypassTriggeredCount] = useState(0);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [wrongCodeAttempts, setWrongCodeAttempts] = useState(0);
+  const [isEndingSequenceActive, setIsEndingSequenceActive] = useState(false);
+  const [isBreachCutsceneActive, setIsBreachCutsceneActive] = useState(false);
+  const [isEscapeCutsceneActive, setIsEscapeCutsceneActive] = useState(false);
+  const [activeClearanceCode, setActiveClearanceCode] = useState("1947");
 
   // 7. Scoring, errors & hints
   const [errors, setErrors] = useState(0);
@@ -146,19 +156,20 @@ export default function Station4() {
         isCompleted,
         errors,
         hintsUsed,
+        gateSolveHistory,
       },
       scoreData,
       timeRemaining,
       playerName
     );
-  }, [scoreData, isCompleted, timeRemaining, errors, hintsUsed, playerName]);
+  }, [scoreData, isCompleted, timeRemaining, errors, hintsUsed, playerName, gateSolveHistory]);
 
   // Automatically save gameplay results to workstation4/results.json and localStorage
   useEffect(() => {
     if ((isCompleted || isTimedOut) && shiftStarted && !hasSavedResultRef.current) {
       hasSavedResultRef.current = true;
       const formatted = formatStationResult(
-        { isCompleted, errors, hintsUsed },
+        { isCompleted, errors, hintsUsed, gateSolveHistory },
         scoreData,
         timeRemaining,
         playerName
@@ -178,6 +189,7 @@ export default function Station4() {
     playerName,
     errors,
     hintsUsed,
+    gateSolveHistory,
     addLog,
   ]);
 
@@ -194,11 +206,22 @@ export default function Station4() {
       setIsModuleBCompleted(Boolean(saved.isModuleBCompleted));
       if (saved.circuitInputs) setCircuitInputs(saved.circuitInputs);
       if (saved.slotBGateType) setSlotBGateType(saved.slotBGateType);
+      if (saved.testedGates && Array.isArray(saved.testedGates)) {
+        setTestedGates(saved.testedGates);
+      } else {
+        setTestedGates([]);
+      }
+      if (saved.gateSolveHistory && Array.isArray(saved.gateSolveHistory)) {
+        setGateSolveHistory(saved.gateSolveHistory);
+      } else {
+        setGateSolveHistory([]);
+      }
       setIsCircuitSolved(Boolean(saved.isCircuitSolved));
       if (saved.toleranceValues) setToleranceValues(saved.toleranceValues);
       setIsBypassActive(Boolean(saved.isBypassActive));
       setBypassTriggeredCount(saved.bypassTriggeredCount || 0);
-      setIsAuthorized(Boolean(saved.isAuthorized));
+      if (saved.activeClearanceCode) setActiveClearanceCode(saved.activeClearanceCode);
+      if (saved.isAuthorized) setIsAuthorized(Boolean(saved.isAuthorized));
       setErrors(saved.errors || 0);
       setHintsUsed(saved.hintsUsed || []);
       setWrongGateAttempts(saved.wrongGateAttempts || 0);
@@ -217,7 +240,7 @@ export default function Station4() {
   };
 
   const handleRestartShift = () => {
-    clearStationState();
+    handleRestartStation();
     setResumePromptVisible(false);
   };
 
@@ -266,11 +289,14 @@ export default function Station4() {
       isModuleBCompleted,
       circuitInputs,
       slotBGateType,
+      testedGates,
+      gateSolveHistory,
       isCircuitSolved,
       toleranceValues,
       isBypassActive,
       bypassTriggeredCount,
       isAuthorized,
+      activeClearanceCode,
       errors,
       hintsUsed,
       wrongGateAttempts,
@@ -292,11 +318,14 @@ export default function Station4() {
     isModuleBCompleted,
     circuitInputs,
     slotBGateType,
+    testedGates,
+    gateSolveHistory,
     isCircuitSolved,
     toleranceValues,
     isBypassActive,
     bypassTriggeredCount,
     isAuthorized,
+    activeClearanceCode,
     errors,
     hintsUsed,
     wrongGateAttempts,
@@ -334,6 +363,37 @@ export default function Station4() {
     setStartTimestamp(now);
     setShiftStarted(true);
     setTimeRemaining(stationConfig.totalDurationSeconds);
+    setCurrentModule("A");
+    setModuleAAnswers({});
+    setModuleBAnswers({});
+    setModuleCAnswers({});
+    setIsModuleACompleted(false);
+    setIsModuleBCompleted(false);
+    setSlotBGateType("AND");
+    setTestedGates(["AND"]);
+    setGateSolveHistory([]);
+    setIsCircuitSolved(false);
+    setCircuitInputs(() => {
+      const init = {};
+      circuitConfig.inputs.forEach((inp) => {
+        init[inp.id] = 0;
+      });
+      return init;
+    });
+    setToleranceValues(() => {
+      const init = {};
+      Object.keys(stationConfig.tolerance).forEach((key) => {
+        const cfg = stationConfig.tolerance[key];
+        init[key] = Math.floor(Math.random() * (cfg.min - cfg.sliderMin)) + cfg.sliderMin;
+      });
+      return init;
+    });
+    setIsBypassActive(false);
+    setIsAuthorized(false);
+    setErrors(0);
+    setHintsUsed([]);
+    setWrongGateAttempts(0);
+    setWrongCodeAttempts(0);
     addLog(`SHIFT INITIALIZED FOR [${finalName}] // 12:00 COUNTDOWN RUNNING`, "info");
     addLog("MODULE A ACTIVATED: SYSTEM KNOWLEDGE CHECK", "info");
   };
@@ -363,8 +423,13 @@ export default function Station4() {
 
   const handleCompleteModuleA = () => {
     setIsModuleACompleted(true);
+    setIsBreachCutsceneActive(true);
+    addLog("MODULE A KNOWLEDGE CHECK PASSED // BACKROOMS CONTAINMENT BREACH CUTSCENE TRIGGERED", "warn");
+  };
+
+  const handleBreachCutsceneComplete = () => {
+    setIsBreachCutsceneActive(false);
     setCurrentModule("B");
-    addLog("MODULE A KNOWLEDGE CHECK PASSED // PROCEEDING TO MODULE B", "success");
     addLog("MODULE B ACTIVATED: EMERGENCY INTERLOCK SCHEMATIC LOADED", "info");
   };
 
@@ -389,25 +454,87 @@ export default function Station4() {
   };
 
   const handleChangeSlotBGate = (newGateType) => {
-    if (newGateType === slotBGateType) return;
     setSlotBGateType(newGateType);
-    if (newGateType === "AND") {
-      addLog("GATE 02 INSTALLED: AND GATE CONNECTED", "info");
-      // Auto-verify if all 4 inputs are HIGH
+    addLog(`GATE 02 CHANGED TO ${newGateType} GATE`, "info");
+
+    // When the user returns to see a completed/submitted gate, show what they submitted
+    const prevSubmittedRecord = gateSolveHistory.find((h) => h.gateType === newGateType);
+    if (prevSubmittedRecord && prevSubmittedRecord.inputsState) {
+      setCircuitInputs({ ...prevSubmittedRecord.inputsState });
       if (
-        circuitInputs.DOOR_LOCKED &&
-        circuitInputs.FIRE_CLEAR &&
-        circuitInputs.POWER_STABLE &&
-        circuitInputs.SECURITY_AUTHORIZED
+        newGateType === "AND" &&
+        prevSubmittedRecord.inputsState.DOOR_LOCKED &&
+        prevSubmittedRecord.inputsState.FIRE_CLEAR &&
+        prevSubmittedRecord.inputsState.POWER_STABLE &&
+        prevSubmittedRecord.inputsState.SECURITY_AUTHORIZED
       ) {
         setIsCircuitSolved(true);
-        addLog("LOGIC INTEGRITY VERIFIED // SAFE OUTPUT = HIGH (1)", "success");
+      } else {
+        setIsCircuitSolved(false);
       }
     } else {
+      // Gate not yet submitted: start fresh with all inputs OFF (0)
+      setCircuitInputs({
+        DOOR_LOCKED: 0,
+        FIRE_CLEAR: 0,
+        POWER_STABLE: 0,
+        SECURITY_AUTHORIZED: 0,
+      });
       setIsCircuitSolved(false);
-      setWrongGateAttempts((prev) => prev + 1);
-      setErrors((prev) => prev + 1);
-      addLog(`GATE 02 REPLACED WITH ${newGateType} // LOGIC FAILURE DETECTED`, "warn");
+    }
+  };
+
+  const handleSubmitGate = (gateType) => {
+    const currentEval = evaluateCircuit(circuitInputs, gateType);
+    // Require SAFE_OUTPUT = HIGH / 1 (green box) to submit
+    if (currentEval.safeOutput !== 1) {
+      addLog(`CANNOT SUBMIT GATE [${gateType}]: SAFE_OUTPUT MUST BE HIGH (1)`, "warn");
+      return;
+    }
+
+    const now = new Date();
+    const isNominalCorrect = gateType === "AND";
+
+    const record = {
+      gateType,
+      solvedAt: now.toISOString(),
+      formattedTime: now.toLocaleTimeString("en-GB"),
+      timeRemainingSeconds: timeRemaining,
+      timeRemainingFormatted: `${String(Math.floor(timeRemaining / 60)).padStart(2, "0")}:${String(timeRemaining % 60).padStart(2, "0")}`,
+      isCorrect: isNominalCorrect,
+      safeOutput: 1,
+      inputsState: { ...circuitInputs },
+    };
+
+    setGateSolveHistory((prev) => {
+      const filtered = prev.filter((g) => g.gateType !== gateType);
+      return [...filtered, record];
+    });
+
+    setTestedGates((prev) => {
+      if (prev.includes(gateType)) return prev;
+      return [...prev, gateType];
+    });
+
+    // Reset all inputs to OFF (0) after submission
+    setCircuitInputs({
+      DOOR_LOCKED: 0,
+      FIRE_CLEAR: 0,
+      POWER_STABLE: 0,
+      SECURITY_AUTHORIZED: 0,
+    });
+
+    if (isNominalCorrect) {
+      setIsCircuitSolved(true);
+      addLog(
+        `GATE [${gateType}] REPAIR EVALUATION SUBMITTED (SAFE_OUTPUT = 1) // ARCHIVED IN JSON`,
+        "success"
+      );
+    } else {
+      addLog(
+        `GATE [${gateType}] EVALUATION SUBMITTED (SAFE_OUTPUT = 1) // ARCHIVED IN JSON`,
+        "info"
+      );
     }
   };
 
@@ -445,8 +572,13 @@ export default function Station4() {
 
   const handleCompleteModuleB = () => {
     setIsModuleBCompleted(true);
+    setIsEscapeCutsceneActive(true);
+    addLog("MODULE B COMPLETED // THE CHASE & BLAST DOOR ESCAPE CUTSCENE TRIGGERED", "warn");
+  };
+
+  const handleEscapeCutsceneComplete = () => {
+    setIsEscapeCutsceneActive(false);
     setCurrentModule("C");
-    addLog("MODULE B COMPLETED // PROCEEDING TO MODULE C AUTHORIZATION", "success");
     addLog("MODULE C ACTIVATED: TOLERANCE MATRIX & CLEARANCE KEYPAD ONLINE", "info");
   };
 
@@ -472,9 +604,11 @@ export default function Station4() {
     });
   };
 
-  const handleAuthorized = () => {
+  const handleAuthorized = (code) => {
     setIsAuthorized(true);
-    addLog("CLEARANCE CODE 1947 VERIFIED // AUTHORIZATION ACCEPTED", "success");
+    const resolvedCode = code || "1947";
+    setActiveClearanceCode(resolvedCode);
+    addLog(`CLEARANCE CODE [${resolvedCode}] VERIFIED // AUTHORIZATION ACCEPTED`, "success");
   };
 
   const handleFailedAuthAttempt = () => {
@@ -506,13 +640,16 @@ export default function Station4() {
   };
 
   const handleTriggerFinalAuthorization = () => {
-    setIsCompleted(true);
-    addLog("ALL SYSTEMS NOMINAL // FACILITY AUTHORIZATION GRANTED", "success");
+    setIsEndingSequenceActive(true);
+    addLog("AUTHENTICATION CONFIRMED // INITIATING FACILITY LOCKDOWN SEQUENCE", "success");
   };
 
   const handleRestartStation = () => {
     clearStationState();
     hasSavedResultRef.current = false;
+    setIsEndingSequenceActive(false);
+    setIsBreachCutsceneActive(false);
+    setIsEscapeCutsceneActive(false);
     setIsCompleted(false);
     setIsTimedOut(false);
     setShiftStarted(false);
@@ -524,7 +661,9 @@ export default function Station4() {
     setModuleCAnswers({});
     setIsModuleACompleted(false);
     setIsModuleBCompleted(false);
-    setSlotBGateType("OR");
+    setSlotBGateType("AND");
+    setTestedGates(["AND"]);
+    setGateSolveHistory([]);
     setIsCircuitSolved(false);
     setCircuitInputs(() => {
       const init = {};
@@ -536,7 +675,8 @@ export default function Station4() {
     setToleranceValues(() => {
       const init = {};
       Object.keys(stationConfig.tolerance).forEach((key) => {
-        init[key] = stationConfig.tolerance[key].initial;
+        const cfg = stationConfig.tolerance[key];
+        init[key] = Math.floor(Math.random() * (cfg.min - cfg.sliderMin)) + cfg.sliderMin;
       });
       return init;
     });
@@ -574,6 +714,7 @@ export default function Station4() {
     },
     autoSolveCircuit: () => {
       setSlotBGateType("AND");
+      setTestedGates(["OR", "AND", "XOR", "NOT"]);
       setCircuitInputs({
         DOOR_LOCKED: 1,
         FIRE_CLEAR: 1,
@@ -659,6 +800,7 @@ export default function Station4() {
         }
         onDebugClick={() => setDebugOpen(true)}
         onOpenLeaderboard={() => setLeaderboardOpen(true)}
+        onWatchVideo={() => setIsBreachCutsceneActive(true)}
       />
 
       {/* Main 3-Column Industrial Layout */}
@@ -671,8 +813,17 @@ export default function Station4() {
             moduleBCompleted={isEffectiveModuleBCompleted}
             moduleCCompleted={isCompleted}
             score={scoreData.totalScore}
+            maxScore={scoreData.maxScore}
             errors={errors}
-            onSelectModule={(modId) => setCurrentModule(modId)}
+            onSelectModule={(modId) => {
+              if (modId === "B" && currentModule === "A" && isEffectiveModuleACompleted && !isModuleBCompleted) {
+                setIsBreachCutsceneActive(true);
+              } else if (modId === "C" && currentModule === "B" && isEffectiveModuleBCompleted && !isCompleted) {
+                setIsEscapeCutsceneActive(true);
+              } else {
+                setCurrentModule(modId);
+              }
+            }}
           />
 
           <HintPanel
@@ -700,7 +851,11 @@ export default function Station4() {
               slotBGateType={slotBGateType}
               onChangeSlotBGate={handleChangeSlotBGate}
               onCircuitVerified={handleVerifyCircuit}
+              onSubmitGate={handleSubmitGate}
+              gateSolveHistory={gateSolveHistory}
+              timeRemaining={timeRemaining}
               isCircuitSolved={isCircuitSolved}
+              testedGates={testedGates}
               moduleAnswers={moduleBAnswers}
               onSubmitAnswer={handleSubmitModuleBAnswer}
               onModuleCompleted={handleCompleteModuleB}
@@ -727,18 +882,11 @@ export default function Station4() {
               isCircuitSolved={isCircuitRepairedEffective}
               safeOutput={isBypassActive ? 0 : 1}
               onTriggerFinalAuthorization={handleTriggerFinalAuthorization}
+              clearanceCode={activeClearanceCode}
+              onSetClearanceCode={setActiveClearanceCode}
             />
           </div>
         )}
-
-        {/* Right Column: Live Telemetry Status Panel */}
-        <OutputStatusPanel
-          inputs={circuitInputs}
-          safeOutput={currentCircuitEval.safeOutput}
-          isCircuitValid={currentCircuitValidation.isValid}
-          isBypassActive={isBypassActive}
-          allTolerancesSafe={allTolerancesSafe}
-        />
 
         {/* Bottom Panel: Live Terminal Event Log */}
         <SystemLog logs={logs} />
@@ -785,10 +933,40 @@ export default function Station4() {
         </div>
       )}
 
+      {/* Backrooms / World War Z Containment Breach Cutscene (Module A -> Module B) */}
+      {isBreachCutsceneActive && (
+        <BreachTransitionCutscene
+          fromModule="A"
+          toModule="B"
+          onComplete={handleBreachCutsceneComplete}
+        />
+      )}
+
+      {/* 3-Segment Escape & Blast Door Lockdown Cutscene (Module B -> Module C) */}
+      {isEscapeCutsceneActive && (
+        <EscapeTransitionCutscene
+          onComplete={handleEscapeCutsceneComplete}
+        />
+      )}
+
+      {/* Animated Mission Ending Sequence */}
+      {isEndingSequenceActive && (
+        <MissionEndingSequence
+          clearanceCode={activeClearanceCode}
+          playerName={playerName}
+          onComplete={() => {
+            setIsEndingSequenceActive(false);
+            setIsCompleted(true);
+            addLog("ALL SYSTEMS NOMINAL // FACILITY AUTHORIZATION GRANTED // MISSION ACCOMPLISHED", "success");
+          }}
+        />
+      )}
+
       {/* Success Modal */}
-      {isCompleted && (
+      {isCompleted && !isEndingSequenceActive && (
         <SuccessScreen
           score={scoreData.totalScore}
+          maxScore={scoreData.maxScore}
           timeRemaining={timeRemaining}
           errors={errors}
           hintsUsedCount={hintsUsed.length}
@@ -803,6 +981,7 @@ export default function Station4() {
       {isTimedOut && !isCompleted && (
         <FailureScreen
           score={scoreData.totalScore}
+          maxScore={scoreData.maxScore}
           modulesCompletedCount={modulesCompletedCount}
           errors={errors}
           timeUsedSeconds={stationConfig.totalDurationSeconds - timeRemaining}

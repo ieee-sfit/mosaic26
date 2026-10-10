@@ -116,11 +116,11 @@ export default function QuestionCard({
               onClick={onNext}
               id="ws4-next-question-btn"
             >
-              NEXT QUESTION \u2192
+              NEXT QUESTION ➔
             </button>
           ) : (
             <div className="ws4-badge-done" style={{ padding: "6px 12px", fontSize: "11px" }}>
-              \u2713 KNOWLEDGE VERIFIED
+              ✓ KNOWLEDGE VERIFIED
             </div>
           )}
         </div>

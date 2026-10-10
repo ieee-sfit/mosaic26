@@ -16,40 +16,40 @@ export function calculateScore(state) {
     wrongCodeAttempts = 0,
   } = state;
 
-  // MODULE A (Max 20 points)
-  // 5 questions * 4 points = 20 points base
+  // MODULE A (5 questions)
+  // +1 point per correct answer, -1 point per wrong attempt
   const qListA = questions.moduleA;
   const correctACount = qListA.filter((q) => moduleAAnswers[q.id]?.isCorrect).length;
-  const baseScoreA = correctACount * 4;
+  const baseScoreA = correctACount * 1;
   const wrongAAttempts = qListA.reduce(
     (sum, q) => sum + (moduleAAnswers[q.id]?.wrongAttempts || 0),
     0
   );
-  const penaltyA = wrongAAttempts * stationConfig.penalties.wrongQuestionAnswer;
+  const penaltyA = wrongAAttempts * (stationConfig.penalties.wrongQuestionAnswer ?? 1);
   const scoreA = Math.max(0, Math.min(stationConfig.moduleWeights.moduleA, baseScoreA - penaltyA));
 
-  // MODULE B (Max 35 points)
-  // Circuit solved = 25 points, Verification Question = 10 points
+  // MODULE B (Max 26 points)
+  // Circuit solved = 25 points, Verification Question = 1 point (+1 correct, -1 wrong attempt)
   const isCircuitRepaired = Boolean(circuitSolved || state.slotBGateType === "AND");
   let baseScoreB = 0;
   if (isCircuitRepaired) {
     baseScoreB += 25;
   }
   if (moduleBAnswers.q_mod_b_1?.isCorrect) {
-    baseScoreB += 10;
+    baseScoreB += 1;
   }
   const wrongBQuestionAttempts = moduleBAnswers.q_mod_b_1?.wrongAttempts || 0;
   const wrongGateAttemptsVal = wrongGateAttempts || state.wrongGateAttempts || 0;
   const penaltyB =
-    wrongBQuestionAttempts * stationConfig.penalties.wrongQuestionAnswer +
-    wrongGateAttemptsVal * stationConfig.penalties.wrongGatePlacement;
+    wrongBQuestionAttempts * (stationConfig.penalties.wrongQuestionAnswer ?? 1) +
+    wrongGateAttemptsVal * (stationConfig.penalties.wrongGatePlacement ?? 1);
   const scoreB = Math.max(0, Math.min(stationConfig.moduleWeights.moduleB, baseScoreB - penaltyB));
 
-  // MODULE C (Max 45 points)
+  // MODULE C (Max 30 points)
   // Tolerances in safe range = 15 points
   // Passcode authorization = 10 points
-  // 5 Fail-safe questions * 4 points = 20 points
-  // Total base = 15 + 10 + 20 = 45 points
+  // 5 Fail-safe questions * 1 point = 5 points (+1 correct, -1 wrong attempt)
+  // Total base = 15 + 10 + 5 = 30 points
   let baseScoreC = 0;
   if (tolerancesSafe) {
     baseScoreC += 15;
@@ -59,7 +59,7 @@ export function calculateScore(state) {
   }
   const qListC = questions.moduleC;
   const correctCCount = qListC.filter((q) => moduleCAnswers[q.id]?.isCorrect).length;
-  baseScoreC += correctCCount * 4;
+  baseScoreC += correctCCount * 1;
 
   const wrongCQuestionAttempts = qListC.reduce(
     (sum, q) => sum + (moduleCAnswers[q.id]?.wrongAttempts || 0),
@@ -67,8 +67,8 @@ export function calculateScore(state) {
   );
   const wrongCodeAttemptsVal = wrongCodeAttempts || state.wrongCodeAttempts || 0;
   const penaltyC =
-    wrongCQuestionAttempts * stationConfig.penalties.wrongQuestionAnswer +
-    wrongCodeAttemptsVal * stationConfig.penalties.wrongPasscodeAttempt +
+    wrongCQuestionAttempts * (stationConfig.penalties.wrongQuestionAnswer ?? 1) +
+    wrongCodeAttemptsVal * (stationConfig.penalties.wrongPasscodeAttempt ?? 1) +
     (bypassTriggered ? stationConfig.penalties.bypassActivation : 0);
   const scoreC = Math.max(0, Math.min(stationConfig.moduleWeights.moduleC, baseScoreC - penaltyC));
 
@@ -82,10 +82,15 @@ export function calculateScore(state) {
   });
 
   const rawTotal = scoreA + scoreB + scoreC - hintDeduction;
-  const totalScore = Math.max(0, Math.min(100, Math.round(rawTotal)));
+  const maxPossible =
+    stationConfig.moduleWeights.moduleA +
+    stationConfig.moduleWeights.moduleB +
+    stationConfig.moduleWeights.moduleC;
+  const totalScore = Math.max(0, Math.min(maxPossible, Math.round(rawTotal)));
 
   return {
     totalScore,
+    maxScore: maxPossible,
     moduleA: {
       score: scoreA,
       max: stationConfig.moduleWeights.moduleA,
@@ -130,7 +135,7 @@ export function formatStationResult(state, scoreData, timeRemaining, playerName 
     completed: Boolean(state.isCompleted),
     status: state.isCompleted ? "COMPLETED" : "TIMED_OUT",
     score: scoreData.totalScore,
-    maxScore: 100,
+    maxScore: scoreData.maxScore || 100,
     timeRemainingSeconds: safeTime,
     timeRemainingFormatted: `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`,
     timeUsedSeconds: timeUsed,
@@ -149,6 +154,7 @@ export function formatStationResult(state, scoreData, timeRemaining, playerName 
       score: scoreData.moduleB.score,
       max: scoreData.moduleB.max,
       circuitSolved: scoreData.moduleB.circuitSolved,
+      gateSolveHistory: state.gateSolveHistory || [],
     },
 
     moduleC: {
@@ -157,5 +163,7 @@ export function formatStationResult(state, scoreData, timeRemaining, playerName 
       max: scoreData.moduleC.max,
       authorized: scoreData.moduleC.authorized,
     },
+
+    gateSolveHistory: state.gateSolveHistory || [],
   };
 }

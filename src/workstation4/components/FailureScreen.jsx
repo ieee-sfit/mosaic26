@@ -1,5 +1,6 @@
 export default function FailureScreen({
   score,
+  maxScore = 100,
   modulesCompletedCount,
   errors,
   timeUsedSeconds,
@@ -49,7 +50,7 @@ export default function FailureScreen({
             <tr>
               <td>FINAL ACCUMULATED SCORE</td>
               <td style={{ color: "var(--ws4-amber-warn)", fontSize: "18px" }}>
-                {score} / 100
+                {score} / {maxScore}
               </td>
             </tr>
             <tr>

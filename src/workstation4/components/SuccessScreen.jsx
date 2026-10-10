@@ -1,5 +1,6 @@
 export default function SuccessScreen({
   score,
+  maxScore = 100,
   timeRemaining,
   errors,
   hintsUsedCount,
@@ -65,7 +66,7 @@ export default function SuccessScreen({
             <tr>
               <td>TEAM FINAL SCORE</td>
               <td style={{ color: "var(--ws4-neon-green)", fontSize: "20px" }}>
-                {score} / 100
+                {score} / {maxScore}
               </td>
             </tr>
             <tr>

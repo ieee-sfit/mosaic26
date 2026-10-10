@@ -4,6 +4,7 @@ export default function ModuleProgress({
   moduleBCompleted,
   moduleCCompleted,
   score,
+  maxScore = 100,
   errors,
   onSelectModule,
 }) {
@@ -86,7 +87,7 @@ export default function ModuleProgress({
             <div className="ws4-stat-box">
               <span className="ws4-stat-title">SCORE</span>
               <span className="ws4-stat-val ws4-green" id="ws4-stat-score">
-                {score} <span style={{ fontSize: "11px", color: "#8b9bb4" }}>/100</span>
+                {score} <span style={{ fontSize: "11px", color: "#8b9bb4" }}>/{maxScore}</span>
               </span>
             </div>
 

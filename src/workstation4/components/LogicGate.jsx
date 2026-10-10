@@ -39,25 +39,36 @@ export default function LogicGate({
     }
   };
 
+  const isHigh = outputSignal === 1;
+
   return (
     <div
       className={`ws4-gate-slot ${isReplaceable ? "ws4-slot-target" : ""} ${
         isDragTarget ? "ws4-slot-dragover" : ""
-      } ${isFaulty ? "ws4-slot-faulty" : ""} ${isRepaired ? "ws4-slot-repaired" : ""}`}
+      } ${isFaulty ? "ws4-slot-faulty" : ""} ${isRepaired || isHigh ? "ws4-slot-repaired" : ""}`}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       id={`ws4-gate-${slotId.toLowerCase()}`}
     >
       <div className="ws4-gate-slot-tag">
         <span>{label}</span>
-        {isReplaceable && (
+        {isReplaceable ? (
           <span
             style={{
-              color: isRepaired ? "var(--ws4-neon-green)" : "var(--ws4-crimson-alert)",
+              color: isFaulty ? "var(--ws4-crimson-alert)" : isHigh || isRepaired ? "var(--ws4-neon-green)" : "var(--ws4-text-secondary)",
               fontSize: "8.5px",
             }}
           >
-            {isRepaired ? "✓ VALID" : "⚠ FAULT"}
+            {isFaulty ? "⚠ FAULT" : isHigh ? "✓ HIGH (1)" : "LOW (0)"}
+          </span>
+        ) : (
+          <span
+            style={{
+              color: isHigh ? "var(--ws4-neon-green)" : "var(--ws4-text-muted)",
+              fontSize: "8.5px",
+            }}
+          >
+            {isHigh ? "✓ HIGH" : "LOW"}
           </span>
         )}
       </div>
@@ -68,15 +79,14 @@ export default function LogicGate({
       </div>
 
       <div className="ws4-slot-actions">
-        {isReplaceable ? (
-          <span style={{ fontSize: "9px", color: "var(--ws4-text-secondary)" }}>
-            {isRepaired ? "AND GATE LOCKED" : "DROP GATE TO REPLACE"}
-          </span>
-        ) : (
-          <span style={{ fontSize: "9px", color: "var(--ws4-text-muted)" }}>
-            OUT: {outputSignal ? "HIGH (1)" : "LOW (0)"}
-          </span>
-        )}
+        <span
+          style={{
+            fontSize: "9px",
+            color: isHigh ? "var(--ws4-neon-green)" : "var(--ws4-text-secondary)",
+          }}
+        >
+          OUT: {isHigh ? "HIGH (1)" : "LOW (0)"}
+        </span>
       </div>
     </div>
   );

@@ -5,7 +5,7 @@ export default function OutputStatusPanel({
   isBypassActive,
   allTolerancesSafe,
 }) {
-  const isSafe = safeOutput === 1 && isCircuitValid && !isBypassActive;
+  const isSafe = safeOutput === 1 && !isBypassActive;
 
   const items = [
     {
