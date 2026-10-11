@@ -1,0 +1,46 @@
+
+.lb-root {
+  --cyan: #00e5ff; --red: #ff3038; --yellow: #ffd23f; --green: #22c55e;
+  min-height: 100vh; padding: 20px 24px 48px; box-sizing: border-box;
+  background: #07090d radial-gradient(ellipse at top, #0f1822 0%, #07090d 70%);
+  color: #e6edf3; font-family: 'JetBrains Mono', monospace;
+}
+.lb-header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; margin-bottom: 20px; }
+.lb-title { font-family: 'Chakra Petch', sans-serif; font-size: 1.4rem; letter-spacing: .2em; margin: 0; text-align: center; }
+.lb-back, .lb-search {
+  font-family: 'Chakra Petch', sans-serif; letter-spacing: .12em; color: var(--cyan);
+  background: #0b1118; border: 1px solid rgba(0,229,255,.45); padding: 10px 16px;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  justify-self: start; font-size: .85rem; cursor: pointer;
+}
+.lb-back:hover { background: rgba(0,229,255,.12); }
+.lb-search { justify-self: end; width: 260px; text-align: center; font-family: 'JetBrains Mono', monospace; outline: none; }
+.lb-search:focus { box-shadow: 0 0 14px rgba(0,229,255,.4); }
+.lb-error { color: var(--red); border: 1px solid var(--red); padding: 10px 14px; margin-bottom: 16px; font-size: .8rem; }
+.lb-pinned {
+  border: 1px solid var(--cyan); background: rgba(0,229,255,.06); padding: 16px 20px; margin-bottom: 20px;
+  clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px);
+}
+.lb-pinned-tag { font-family: 'Chakra Petch', sans-serif; color: var(--cyan); letter-spacing: .2em; font-size: .75rem; margin-bottom: 8px; }
+.lb-pinned-main { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; font-size: 1.1rem; margin-bottom: 8px; }
+.lb-pinned-sub { font-size: .75rem; opacity: .7; margin-bottom: 10px; }
+.lb-legend { display: flex; gap: 16px; justify-content: flex-end; font-size: .72rem; margin-bottom: 8px; }
+.lb-dot { display: inline-block; width: 10px; height: 10px; margin-right: 6px; }
+.lb-table { border: 1px solid rgba(255,255,255,.1); background: rgba(10,14,20,.8); }
+.lb-row { display: grid; grid-template-columns: 56px minmax(260px, 1.4fr) 140px 2fr 110px; gap: 16px; align-items: center; padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,.06); font-size: .85rem; }
+.lb-head { font-family: 'Chakra Petch', sans-serif; letter-spacing: .15em; font-size: .7rem; opacity: .6; }
+.lb-hit { background: rgba(0,229,255,.1); outline: 1px solid var(--cyan); }
+.lb-rank { font-family: 'Chakra Petch', sans-serif; font-weight: 700; color: var(--cyan); }
+.lb-badge { font-family: 'Chakra Petch', sans-serif; font-size: .75rem; border: 1px solid var(--yellow); color: var(--yellow); padding: 2px 8px; justify-self: start; white-space: nowrap; }
+.lb-score { font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 1.1rem; text-align: right; }
+.lb-bar { display: flex; height: 14px; background: #131a22; width: 100%; overflow: hidden; }
+.lb-seg { height: 100%; transition: width .6s ease; }
+.seg-s1 { background: var(--cyan); } .seg-s2 { background: var(--red); }
+.seg-s3 { background: var(--yellow); } .seg-s4 { background: var(--green); }
+.seg-empty { background: #1c2530; }
+.lb-empty { padding: 24px; text-align: center; opacity: .6; letter-spacing: .15em; font-size: .8rem; }
+@media (max-width: 900px) {
+  .lb-header { grid-template-columns: 1fr; justify-items: center; }
+  .lb-row { grid-template-columns: 40px 1fr 90px; }
+  .lb-row > .lb-bar { grid-column: 1 / -1; }
+}
