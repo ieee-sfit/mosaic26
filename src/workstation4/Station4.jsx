@@ -31,7 +31,10 @@ import {
 
 import "./station4.css";
 
-export default function Station4() {
+export default function Station4({
+  onNavigateStation,
+  onOpenStationChooser,
+}) {
   // 1. Shift lifecycle states
   const [shiftStarted, setShiftStarted] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
@@ -971,7 +974,11 @@ export default function Station4() {
           errors={errors}
           hintsUsedCount={hintsUsed.length}
           playerName={playerName}
-          onCompleteStation={handleRestartStation}
+          onRestartStation={handleRestartStation}
+          onOpenStationChooser={() => {
+            handleRestartStation();
+            if (onOpenStationChooser) onOpenStationChooser();
+          }}
           onOpenLeaderboard={() => setLeaderboardOpen(true)}
           onExportJSON={() => downloadResultsAsJSON()}
         />
@@ -987,6 +994,10 @@ export default function Station4() {
           timeUsedSeconds={stationConfig.totalDurationSeconds - timeRemaining}
           playerName={playerName}
           onRestartStation={handleRestartStation}
+          onOpenStationChooser={() => {
+            handleRestartStation();
+            if (onOpenStationChooser) onOpenStationChooser();
+          }}
           onOpenLeaderboard={() => setLeaderboardOpen(true)}
           onExportJSON={() => downloadResultsAsJSON()}
         />

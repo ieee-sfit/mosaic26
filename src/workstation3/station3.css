@@ -508,19 +508,22 @@
 }
 
 /* ================================================================
-   RANGE SLIDERS
+   RANGE SLIDERS (Scoped to Station 3)
    ================================================================ */
-input[type=range] {
+.ws3-screen input[type=range],
+.station3-root input[type=range] {
   -webkit-appearance: none;
   width: 100%;
   background: transparent;
   outline: none;
 }
-input[type=range]::-webkit-slider-runnable-track {
+.ws3-screen input[type=range]::-webkit-slider-runnable-track,
+.station3-root input[type=range]::-webkit-slider-runnable-track {
   height: 3px;
   background: rgba(255,255,255,0.12);
 }
-input[type=range]::-webkit-slider-thumb {
+.ws3-screen input[type=range]::-webkit-slider-thumb,
+.station3-root input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
   height: 20px;
   width: 10px;
@@ -530,7 +533,8 @@ input[type=range]::-webkit-slider-thumb {
   clip-path: polygon(0 15%, 100% 0, 100% 85%, 0 100%);
   transition: background 0.15s;
 }
-input[type=range]:hover::-webkit-slider-thumb { background: #FF3038; }
+.ws3-screen input[type=range]:hover::-webkit-slider-thumb,
+.station3-root input[type=range]:hover::-webkit-slider-thumb { background: #FF3038; }
 
 /* ================================================================
    CHECKBOX

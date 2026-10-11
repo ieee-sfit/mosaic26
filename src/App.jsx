@@ -25,8 +25,11 @@ function App() {
     return true;
   });
 
+  const [stationKey, setStationKey] = useState(0);
+
   const handleSelectStation = (stNum) => {
     setActiveStation(stNum);
+    setStationKey((prev) => prev + 1);
     setShowChooser(false);
     if (typeof window !== 'undefined' && window.history) {
       const url = new URL(window.location);
@@ -37,45 +40,6 @@ function App() {
 
   return (
     <>
-      {/* Top Station Navigation Bar */}
-      <div className="mosaic-station-selector-bar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span className="mosaic-nav-brand">MOSAIC TECHNICAL ARENA</span>
-          <button
-            type="button"
-            className="mosaic-nav-btn"
-            onClick={() => setShowChooser(true)}
-            style={{ borderColor: 'rgba(0, 229, 255, 0.4)', color: '#00e5ff' }}
-            title="Open Station Selector Dialog"
-          >
-            ⚡ CHANGE STATION
-          </button>
-        </div>
-        <div className="mosaic-nav-buttons">
-          <button
-            type="button"
-            className={`mosaic-nav-btn ${activeStation === 1 ? 'active' : ''}`}
-            onClick={() => handleSelectStation(1)}
-          >
-            STATION 01: F1 0-LAG STREAM
-          </button>
-          <button
-            type="button"
-            className={`mosaic-nav-btn ${activeStation === 3 ? 'active' : ''}`}
-            onClick={() => handleSelectStation(3)}
-          >
-            STATION 03: ECHALLAN POLICE
-          </button>
-          <button
-            type="button"
-            className={`mosaic-nav-btn ${activeStation === 4 ? 'active' : ''}`}
-            onClick={() => handleSelectStation(4)}
-          >
-            STATION 04: AREA51 FACILITY LOCKDOWN
-          </button>
-        </div>
-      </div>
-
       {/* Initial Station Chooser Pop-up Modal */}
       {showChooser && (
         <div className="mosaic-station-modal-overlay">
@@ -202,13 +166,25 @@ function App() {
 
       {/* Render Active Station */}
       {activeStation === 1 && (
-        <Station1 onNavigateStation={handleSelectStation} />
+        <Station1
+          key={`st1_${stationKey}`}
+          onNavigateStation={handleSelectStation}
+          onOpenStationChooser={() => setShowChooser(true)}
+        />
       )}
       {activeStation === 3 && (
-        <Station3 onNavigateStation={handleSelectStation} />
+        <Station3
+          key={`st3_${stationKey}`}
+          onNavigateStation={handleSelectStation}
+          onOpenStationChooser={() => setShowChooser(true)}
+        />
       )}
       {activeStation === 4 && (
-        <Station4 onNavigateStation={handleSelectStation} />
+        <Station4
+          key={`st4_${stationKey}`}
+          onNavigateStation={handleSelectStation}
+          onOpenStationChooser={() => setShowChooser(true)}
+        />
       )}
     </>
   )

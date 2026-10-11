@@ -65,16 +65,24 @@ export default function TolerancePanel({
                 -
               </button>
 
-              <input
-                type="range"
-                className="ws4-tol-slider"
-                min={param.sliderMin}
-                max={param.sliderMax}
-                step={param.step}
-                value={val}
-                onChange={(e) => handleSliderChange(param.id, e)}
-                aria-label={`${param.label} slider`}
-              />
+              {(() => {
+                const min = param.sliderMin ?? 0;
+                const max = param.sliderMax ?? 100;
+                const pct = Math.max(0, Math.min(100, ((val - min) / (max - min)) * 100));
+                return (
+                  <input
+                    type="range"
+                    className={`ws4-tol-slider ${isInRange ? "ws4-slider-safe" : "ws4-slider-danger"}`}
+                    min={param.sliderMin}
+                    max={param.sliderMax}
+                    step={param.step}
+                    value={val}
+                    style={{ "--slider-pct": `${pct}%` }}
+                    onChange={(e) => handleSliderChange(param.id, e)}
+                    aria-label={`${param.label} slider`}
+                  />
+                );
+              })()}
 
               <button
                 type="button"

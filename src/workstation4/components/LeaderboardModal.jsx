@@ -53,7 +53,7 @@ export default function LeaderboardModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="ws4-fullscreen-overlay" style={{ zIndex: 1100 }}>
+    <div className="ws4-fullscreen-overlay" style={{ zIndex: 10001 }}>
       <div
         className="ws4-screen-card"
         style={{
@@ -342,17 +342,7 @@ export default function LeaderboardModal({ isOpen, onClose }) {
           }}
         >
           <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-            <button
-              type="button"
-              className="ws4-btn ws4-btn-primary"
-              onClick={handleDownload}
-              disabled={results.length === 0}
-              style={{ fontSize: "11px", padding: "8px 14px" }}
-              title="Download results.json to your computer"
-            >
-              📥 EXPORT results.json
-            </button>
-
+           
             <button
               type="button"
               className="ws4-btn ws4-btn-secondary"
@@ -364,38 +354,6 @@ export default function LeaderboardModal({ isOpen, onClose }) {
           </div>
 
           <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-            {!confirmClear ? (
-              <button
-                type="button"
-                className="ws4-btn ws4-btn-danger"
-                onClick={() => setConfirmClear(true)}
-                disabled={results.length === 0}
-                style={{ fontSize: "11px", padding: "8px 12px", opacity: 0.8 }}
-              >
-                RESET HISTORY
-              </button>
-            ) : (
-              <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                <span style={{ fontSize: "11px", color: "var(--ws4-crimson-alert)" }}>CONFIRM?</span>
-                <button
-                  type="button"
-                  className="ws4-btn ws4-btn-danger"
-                  onClick={handleClear}
-                  style={{ fontSize: "10px", padding: "4px 8px" }}
-                >
-                  YES, CLEAR
-                </button>
-                <button
-                  type="button"
-                  className="ws4-btn ws4-btn-secondary"
-                  onClick={() => setConfirmClear(false)}
-                  style={{ fontSize: "10px", padding: "4px 8px" }}
-                >
-                  CANCEL
-                </button>
-              </div>
-            )}
-
             <button
               type="button"
               className="ws4-btn ws4-btn-primary"
