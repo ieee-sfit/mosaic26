@@ -3,6 +3,7 @@ import { CHEAT_SHEET_COLUMNS, SCORING } from '../mockStation1Data';
 import { useShake } from '../hooks/useScreenShake';
 import { scoreQuestion } from '../utils/scoring';
 import type { McqQuestion, QuestionResult } from '../types';
+import { HintButton } from './HintButton';
 import { HudPanel, TeleChip } from './HudPanel';
 import { ModuleHeader } from './ModuleHeader';
 import { StarshipWireframe } from './StarshipWireframe';
@@ -80,9 +81,6 @@ export function ModuleA({ questions, operators, onRecord, onComplete }: Props) {
     }
   };
 
-  const hintLabel = q.hints === 0 ? '[REQUEST INTEL - HINT 1]' : q.hints === 1 ? '[REQUEST INTEL - HINT 2]' : '[INTEL EXHAUSTED]';
-  const hintDisabled = solved || q.hints >= 2;
-
   return (
     <div className="flex min-h-screen flex-col">
       <ModuleHeader code="MODULE A" title="Flight Telemetry Checks" tag="SENSOR_BUS_ANOMALY" operators={operators} steps={3} active={0} />
@@ -131,6 +129,16 @@ export function ModuleA({ questions, operators, onRecord, onComplete }: Props) {
             })}
           </div>
 
+          <div>
+            <HintButton stage={q.hints} onClick={requestIntel} disabled={solved} />
+            {q.hints >= 1 && (
+              <div key={`${question.id}-inline`} className="goat-slide-in mt-2 border-l-2 border-goat-gold bg-goat-gold/10 px-2.5 py-1.5 font-tele text-[11px] uppercase tracking-wider text-goat-gold" role="status">
+                ▲ INTEL: CHEAT SHEET COLUMN <b className="text-white">{question.cheatSheetColumn}</b> · {column?.label ?? 'UNKNOWN'}
+                {q.hints === 2 && <span className="block text-goat-crimson">ANSWER AUTO-SELECTED · 0 PTS</span>}
+              </div>
+            )}
+          </div>
+
           <div className="mt-auto flex flex-wrap gap-x-4 gap-y-1 border-t border-white/5 pt-2">
             <TeleChip label="HINT_1" value="-40% SCORE" tone="gold" />
             <TeleChip label="HINT_2" value="AUTO-SOLVE · 0 PTS" tone="crimson" />
@@ -143,14 +151,7 @@ export function ModuleA({ questions, operators, onRecord, onComplete }: Props) {
       <footer className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-goat-gold/60 bg-goat-void/95">
         <div className="hazard-stripe h-1 w-full opacity-70" aria-hidden />
         <div className="flex flex-wrap items-center gap-3 px-3 py-2.5">
-          <button
-            type="button"
-            onClick={requestIntel}
-            disabled={hintDisabled}
-            className={`tac-btn px-5 py-3 text-xs font-bold ${hintDisabled ? 'bg-goat-mute/20 text-goat-mute' : 'bg-goat-gold text-goat-void'}`}
-          >
-            {hintLabel}
-          </button>
+          <HintButton stage={q.hints} onClick={requestIntel} disabled={solved} size="strip" />
 
           {/* docked cheat-sheet pointer (Hint 1) */}
           <div className="min-h-[44px] flex-1">

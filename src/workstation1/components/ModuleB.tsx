@@ -21,6 +21,7 @@ export function ModuleB({ operators, onRecord, onComplete }: Props) {
   const shake = useShake();
   const [done, setDone] = useState<[number, number]>([0, 0]);
   const [wrong, setWrong] = useState<number[][]>(() => LOOKUP_PROBLEMS.map(() => Array(STEPS_PER_PROBLEM).fill(0)));
+  const [hints, setHints] = useState<(0 | 1 | 2)[][]>(() => LOOKUP_PROBLEMS.map(() => Array(STEPS_PER_PROBLEM).fill(0)));
   const [flash, setFlash] = useState<{ kind: 'bad' | 'ok'; n: number } | null>(null);
 
   const answers = useMemo(() => LOOKUP_PROBLEMS.map((p) => resolveProblem(TELEMETRY_SHEET, p)), []);
@@ -37,7 +38,8 @@ export function ModuleB({ operators, onRecord, onComplete }: Props) {
         problemId: LOOKUP_PROBLEMS[p].id,
         stepIndex: step,
         wrongAttempts: attempts,
-        points: scoreStep(SCORING.moduleB, attempts),
+        hintsUsed: hints[p][step],
+        points: scoreStep(SCORING.moduleB, attempts, hints[p][step]),
         maxPoints: SCORING.moduleB.pointsPerStep,
       });
       setDone((d) => (p === 0 ? [d[0] + 1, d[1]] : [d[0], d[1] + 1]));
@@ -50,13 +52,22 @@ export function ModuleB({ operators, onRecord, onComplete }: Props) {
     return false;
   };
 
+  /** Hint 1 reveals the column; Hint 2 returns the answer to pre-fill (step then scores 0). */
+  const hint = (p: number, step: number): string | null => {
+    const stage = hints[p][step];
+    if (stage >= 2) return null;
+    const next = (stage + 1) as 1 | 2;
+    setHints((h) => h.map((row, i) => (i === p ? row.map((v, s) => (s === step ? next : v)) : row)));
+    return next === 2 ? answers[p][step] : null;
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
       <ModuleHeader code="MODULE B" title="Tokamak Plasma Diagnostic" tag="CONFINEMENT_FIELD" operators={operators} steps={3} active={1} />
       {flash && <div key={`${flash.kind}${flash.n}`} className={flash.kind === 'bad' ? 'hull-flash' : 'ok-flash'} />}
 
       <div className="grid flex-1 items-stretch gap-3 p-3 pb-24 lg:grid-cols-[minmax(300px,1fr)_minmax(340px,1.15fr)_minmax(300px,1fr)]">
-        <Datapad problem={LOOKUP_PROBLEMS[0]} columns={TELEMETRY_SHEET.columns} answers={answers[0]} done={done[0]} wrong={wrong[0]} accent="cyan" onSubmit={(s, v) => submit(0, s, v)} />
+        <Datapad problem={LOOKUP_PROBLEMS[0]} columns={TELEMETRY_SHEET.columns} answers={answers[0]} done={done[0]} wrong={wrong[0]} hints={hints[0]} hintCost={SCORING.moduleB.hint1Penalty} onHint={(s) => hint(0, s)} accent="cyan" onSubmit={(s, v) => submit(0, s, v)} />
 
         <HudPanel
           title="Reactor Core"
@@ -87,7 +98,7 @@ export function ModuleB({ operators, onRecord, onComplete }: Props) {
           </div>
         </HudPanel>
 
-        <Datapad problem={LOOKUP_PROBLEMS[1]} columns={TELEMETRY_SHEET.columns} answers={answers[1]} done={done[1]} wrong={wrong[1]} accent="gold" onSubmit={(s, v) => submit(1, s, v)} />
+        <Datapad problem={LOOKUP_PROBLEMS[1]} columns={TELEMETRY_SHEET.columns} answers={answers[1]} done={done[1]} wrong={wrong[1]} hints={hints[1]} hintCost={SCORING.moduleB.hint1Penalty} onHint={(s) => hint(1, s)} accent="gold" onSubmit={(s, v) => submit(1, s, v)} />
       </div>
 
       <footer className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-goat-gold/60 bg-goat-void/95">
