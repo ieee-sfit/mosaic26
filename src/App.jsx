@@ -1,5 +1,3 @@
-import { useState } from 'react'
-import Station1 from './workstation1'
 import Station4 from './workstation4'
 import './App.css'
 
@@ -25,33 +23,10 @@ function App() {
 
   return (
     <>
-      <div className="mosaic-station-selector-bar">
-        <span className="mosaic-nav-brand">MOSAIC TECHNICAL ARENA</span>
-        <div className="mosaic-nav-buttons">
-          <button
-            type="button"
-            className={`mosaic-nav-btn ${activeStation === 1 ? 'active' : ''}`}
-            onClick={() => handleSelectStation(1)}
-          >
-            STATION 01: F1 0-LAG STREAM
-          </button>
-          <button
-            type="button"
-            className={`mosaic-nav-btn ${activeStation === 4 ? 'active' : ''}`}
-            onClick={() => handleSelectStation(4)}
-          >
-            STATION 04: LOGIC INTERLOCK
-          </button>
-        </div>
-      </div>
-
-      {activeStation === 1 ? (
-        <Station1 onNavigateStation={handleSelectStation} />
-      ) : (
-        <Station4 onNavigateStation={handleSelectStation} />
-      )}
+      <Station4 />
     </>
   )
 }
 
 export default App
+
