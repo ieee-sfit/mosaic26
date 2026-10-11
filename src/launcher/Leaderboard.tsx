@@ -25,23 +25,29 @@ const SEGMENTS = [
   { key: 's4_score', label: 'S4', cls: 'seg-s4' },
 ] as const
 
-function ScoreBar({ row }: { row: Standing }) {
+/** Bar length is proportional to the raw total (relative to the board's best), split into station segments. */
+function ScoreBar({ row, scale }: { row: Standing; scale: number }) {
   const total = SEGMENTS.reduce((a, s) => a + (row[s.key] || 0), 0)
+  const pct = scale > 0 ? Math.max(2, (total / scale) * 100) : 2
   return (
-    <div className="lb-bar" role="img" aria-label="Score distribution across stations">
-      {total === 0 && <div className="lb-seg seg-empty" style={{ width: '100%' }} />}
-      {SEGMENTS.map((s) => {
-        const v = row[s.key] || 0
-        if (!v) return null
-        return (
-          <div
-            key={s.key}
-            className={`lb-seg ${s.cls}`}
-            style={{ width: `${(v / total) * 100}%` }}
-            title={`${s.label}: ${v}`}
-          />
-        )
-      })}
+    <div className="lb-track" role="img" aria-label="Score distribution across stations">
+      <div className="lb-bar" style={{ width: `${pct}%` }}>
+        {total === 0 && <div className="lb-seg seg-empty" style={{ width: '100%' }} />}
+        {SEGMENTS.map((s) => {
+          const v = row[s.key] || 0
+          if (!v) return null
+          return (
+            <div
+              key={s.key}
+              className={`lb-seg ${s.cls}`}
+              style={{ width: `${(v / total) * 100}%` }}
+              title={`${s.label}: ${v}`}
+            >
+              {v}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -97,7 +103,8 @@ export default function Leaderboard({ onBack }: { onBack: () => void }) {
   useEffect(() => () => clearTimeout(timer.current), [])
 
   const ranked = useMemo(() => rows.map((r, i) => ({ ...r, rank: i + 1 })), [rows])
-  const match = query ? ranked.find((r) => r.op1 === query || r.op2 === query) : undefined
+  const matches = query ? ranked.filter((r) => r.op1 === query || r.op2 === query) : []
+  const scale = Math.max(0, ...ranked.map((r) => SEGMENTS.reduce((a, g) => a + (r[g.key] || 0), 0)))
   const top = ranked.slice(0, 50)
 
   return (
@@ -120,23 +127,25 @@ export default function Leaderboard({ onBack }: { onBack: () => void }) {
 
       {query && (
         <section className="lb-pinned">
-          {match ? (
-            <>
-              <div className="lb-pinned-tag">OPERATOR {query} LOCATED</div>
-              <div className="lb-pinned-main">
-                <span className="lb-rank">#{match.rank}</span>
-                <span className="lb-ids">OPERATOR: {query}</span>
-                <Badge row={match} />
-                <span className="lb-score">{Number(match.final_score).toLocaleString()}</span>
-              </div>
-              <div className="lb-pinned-sub">
-                STATIONS CLEARED {match.stations_cleared}/4 · MULTIPLIER {multiplier(match.stations_cleared).toFixed(2)}x
-              </div>
-              <ScoreBar row={match} />
-            </>
-          ) : (
-            <div className="lb-pinned-tag">NO TEAM FOUND FOR OPERATOR {query}</div>
-          )}
+          <div className="lb-pinned-tag">
+            {matches.length
+              ? `OPERATOR ${query} LOCATED · ${matches.length} ${matches.length === 1 ? 'ENTRY' : 'ENTRIES'}`
+              : `NO TEAM FOUND FOR OPERATOR ${query}`}
+          </div>
+          <div className="lb-legend">
+            {SEGMENTS.map((g) => (
+              <span key={g.key}><i className={`lb-dot ${g.cls}`} />{g.label}</span>
+            ))}
+          </div>
+          {matches.map((m) => (
+            <div key={`${m.op1}-${m.op2}`} className="lb-row lb-hit">
+              <span className="lb-rank">#{m.rank}</span>
+              <span className="lb-ids">OPERATOR: {query}</span>
+              <Badge row={m} />
+              <ScoreBar row={m} scale={scale} />
+              <span className="lb-score">{Number(m.final_score).toLocaleString()}</span>
+            </div>
+          ))}
         </section>
       )}
 
@@ -153,11 +162,11 @@ export default function Leaderboard({ onBack }: { onBack: () => void }) {
         {!loaded && <div className="lb-empty">ACQUIRING TELEMETRY…</div>}
         {loaded && top.length === 0 && !error && <div className="lb-empty">NO RUNS RECORDED YET</div>}
         {top.map((r) => (
-          <div key={`${r.op1}-${r.op2}`} className={`lb-row${match?.rank === r.rank ? ' lb-hit' : ''}`}>
+          <div key={`${r.op1}-${r.op2}`} className="lb-row">
             <span className="lb-rank">{r.rank}</span>
             <span className="lb-ids">OP1: {r.op1} | OP2: {r.op2}</span>
             <Badge row={r} />
-            <ScoreBar row={r} />
+            <ScoreBar row={r} scale={scale} />
             <span className="lb-score">{Number(r.final_score).toLocaleString()}</span>
           </div>
         ))}

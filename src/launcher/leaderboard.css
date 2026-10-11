@@ -24,18 +24,19 @@
 }
 .lb-pinned-tag { font-family: 'Chakra Petch', sans-serif; color: var(--cyan); letter-spacing: .2em; font-size: .75rem; margin-bottom: 8px; }
 .lb-pinned-main { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; font-size: 1.1rem; margin-bottom: 8px; }
-.lb-pinned-sub { font-size: .75rem; opacity: .7; margin-bottom: 10px; }
 .lb-legend { display: flex; gap: 16px; justify-content: flex-end; font-size: .72rem; margin-bottom: 8px; }
 .lb-dot { display: inline-block; width: 10px; height: 10px; margin-right: 6px; }
 .lb-table { border: 1px solid rgba(255,255,255,.1); background: rgba(10,14,20,.8); }
 .lb-row { display: grid; grid-template-columns: 56px minmax(260px, 1.4fr) 140px 2fr 110px; gap: 16px; align-items: center; padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,.06); font-size: .85rem; }
 .lb-head { font-family: 'Chakra Petch', sans-serif; letter-spacing: .15em; font-size: .7rem; opacity: .6; }
-.lb-hit { background: rgba(0,229,255,.1); outline: 1px solid var(--cyan); }
+.lb-pinned .lb-row { border-bottom: 1px solid rgba(0,242,254,.2); }
+.lb-pinned .lb-row:last-child { border-bottom: 0; }
 .lb-rank { font-family: 'Chakra Petch', sans-serif; font-weight: 700; color: var(--cyan); }
 .lb-badge { font-family: 'Chakra Petch', sans-serif; font-size: .75rem; border: 1px solid var(--yellow); color: var(--yellow); padding: 2px 8px; justify-self: start; white-space: nowrap; }
 .lb-score { font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 1.1rem; text-align: right; }
-.lb-bar { display: flex; height: 14px; background: #131a22; width: 100%; overflow: hidden; }
-.lb-seg { height: 100%; transition: width .6s ease; }
+.lb-track { width: 100%; background: #0d131a; height: 22px; }
+.lb-bar { display: flex; height: 100%; overflow: hidden; transition: width .6s ease; }
+.lb-seg { height: 100%; display: flex; align-items: center; justify-content: center; font-size: .65rem; font-weight: 700; color: #07090d; overflow: hidden; transition: width .6s ease; }
 .seg-s1 { background: var(--cyan); } .seg-s2 { background: var(--red); }
 .seg-s3 { background: var(--yellow); } .seg-s4 { background: var(--green); }
 .seg-empty { background: #1c2530; }
