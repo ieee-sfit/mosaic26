@@ -11,7 +11,7 @@
  *    column up in BIOHAZARD_MATRIX, so the table and the answers can't drift.
  *  - Module C sockets reference sources by id. A source is either an input id
  *    or the id of an EARLIER socket (so circuits are always acyclic).
- *  - Every circuit round must be solvable in both phases; run
+ *  - Every circuit round must be solvable in phase 1 (forward = 1); phase 2 is always solvable by toggling an input or swapping a gate.
  */
 
 export type GateType = 'AND' | 'OR' | 'NOT'
