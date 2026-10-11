@@ -125,7 +125,7 @@ export default function Leaderboard({ onBack }: { onBack: () => void }) {
               <div className="lb-pinned-tag">OPERATOR {query} LOCATED</div>
               <div className="lb-pinned-main">
                 <span className="lb-rank">#{match.rank}</span>
-                <span className="lb-ids">OP1: {match.op1} | OP2: {match.op2}</span>
+                <span className="lb-ids">OPERATOR: {query}</span>
                 <Badge row={match} />
                 <span className="lb-score">{Number(match.final_score).toLocaleString()}</span>
               </div>
@@ -140,13 +140,13 @@ export default function Leaderboard({ onBack }: { onBack: () => void }) {
         </section>
       )}
 
-      <div className="lb-legend">
+      {!query && <div className="lb-legend">
         {SEGMENTS.map((s) => (
           <span key={s.key}><i className={`lb-dot ${s.cls}`} />{s.label}</span>
         ))}
-      </div>
+      </div>}
 
-      <div className="lb-table">
+      {!query && <div className="lb-table">
         <div className="lb-row lb-head">
           <span>#</span><span>OPERATORS</span><span>CLEARED</span><span>SCORE DISTRIBUTION</span><span>FINAL</span>
         </div>
@@ -161,7 +161,7 @@ export default function Leaderboard({ onBack }: { onBack: () => void }) {
             <span className="lb-score">{Number(r.final_score).toLocaleString()}</span>
           </div>
         ))}
-      </div>
+      </div>}
     </div>
   )
 }
