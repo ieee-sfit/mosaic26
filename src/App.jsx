@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Station1 from './workstation1'
+import GoatAnc from './workstation2'
 import Station3 from './workstation3/Station3'
 import Station4 from './workstation4'
 import './App.css'
@@ -10,6 +11,7 @@ function App() {
       const params = new URLSearchParams(window.location.search);
       const st = params.get('station');
       if (st === '4') return 4;
+      if (st === '2') return 2;
       if (st === '3') return 3;
       if (st === '1') return 1;
     }
@@ -83,6 +85,38 @@ function App() {
                   onClick={(e) => { e.stopPropagation(); handleSelectStation(1); }}
                 >
                   <span>INITIALIZE STATION 01</span>
+                  <span className="mosaic-btn-arrow">➔</span>
+                </button>
+              </div>
+
+              {/* Workstation 2 · GOAT ANC (Station 1 — Guardians theme) */}
+              <div className="mosaic-station-card card-st2" onClick={() => handleSelectStation(2)}>
+                <div className="mosaic-card-glow-bg" />
+                <div className="mosaic-card-banner" style={{ background: 'linear-gradient(135deg, #060813 0%, #0b0f19 55%, #06b6d4 140%)' }}>
+                  <span className="mosaic-banner-badge">MILANO BRIDGE</span>
+                </div>
+                <div className="mosaic-card-head">
+                  <div className="mosaic-card-head-left">
+                    <span className="mosaic-card-icon">🛰</span>
+                    <span className="mosaic-card-id">WORKSTATION 02</span>
+                  </div>
+                  <span className="mosaic-card-type">ANC HUD</span>
+                </div>
+                <h3 className="mosaic-card-name">GOAT ANC</h3>
+                <p className="mosaic-card-desc">
+                  Guardians of the Galaxy cockpit HUD. Flight telemetry, Tokamak plasma diagnostics and noise-cancelling wave interception on a 12-minute clock.
+                </p>
+                <div className="mosaic-card-tags">
+                  <span className="mosaic-tag">TELEMETRY</span>
+                  <span className="mosaic-tag">TOKAMAK</span>
+                  <span className="mosaic-tag">WAVE LOCK</span>
+                </div>
+                <button
+                  type="button"
+                  className="mosaic-card-play-btn"
+                  onClick={(e) => { e.stopPropagation(); handleSelectStation(2); }}
+                >
+                  <span>INITIALIZE GOAT ANC</span>
                   <span className="mosaic-btn-arrow">➔</span>
                 </button>
               </div>
@@ -171,6 +205,9 @@ function App() {
           onNavigateStation={handleSelectStation}
           onOpenStationChooser={() => setShowChooser(true)}
         />
+      )}
+      {activeStation === 2 && (
+        <GoatAnc key={`st2_${stationKey}`} />
       )}
       {activeStation === 3 && (
         <Station3

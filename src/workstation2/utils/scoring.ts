@@ -1,0 +1,42 @@
+import type { QuestionResult, RoundResult, ScoringConfig, StepResult } from '../types';
+
+const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+
+/** Hint 2 forfeits everything; Hint 1 costs a flat fraction; wrong picks cost extra. */
+export function scoreQuestion(
+  cfg: ScoringConfig['moduleA'],
+  hintsUsed: 0 | 1 | 2,
+  wrongAttempts: number,
+): number {
+  if (hintsUsed === 2) return 0;
+  const lost = (hintsUsed === 1 ? cfg.hint1Penalty : 0) + wrongAttempts * cfg.wrongAttemptPenalty;
+  return Math.round(cfg.pointsPerQuestion * clamp01(1 - lost));
+}
+
+export function scoreStep(cfg: ScoringConfig['moduleB'], wrongAttempts: number): number {
+  return Math.round(cfg.pointsPerStep * clamp01(1 - wrongAttempts * cfg.wrongAttemptPenalty));
+}
+
+export function scoreRound(cfg: ScoringConfig['moduleC'], misses: number): number {
+  return Math.round(cfg.pointsPerRound * clamp01(1 - misses * cfg.missPenalty));
+}
+
+export const sum = (xs: { points: number }[]) => xs.reduce((a, x) => a + x.points, 0);
+
+export function maxTotals(cfg: ScoringConfig) {
+  const a = cfg.moduleA.questionCount * cfg.moduleA.pointsPerQuestion;
+  const b = 8 * cfg.moduleB.pointsPerStep;
+  const c = 3 * cfg.moduleC.pointsPerRound;
+  return { a, b, c, total: a + b + c };
+}
+
+export function gradeFor(total: number, max: number): string {
+  const r = max === 0 ? 0 : total / max;
+  if (r >= 0.9) return 'S';
+  if (r >= 0.75) return 'A';
+  if (r >= 0.55) return 'B';
+  if (r >= 0.35) return 'C';
+  return 'D';
+}
+
+export type AnyResult = QuestionResult | StepResult | RoundResult;

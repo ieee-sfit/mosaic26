@@ -317,7 +317,7 @@
 
 .mosaic-station-cards-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 20px;
   padding: 32px 36px;
 }
@@ -630,3 +630,11 @@
   50% { opacity: 0.4; transform: scale(0.8); }
 }
 
+
+/* Workstation 2 · GOAT ANC chooser card */
+.card-st2 .mosaic-card-glow-bg { background: radial-gradient(circle at 50% 0%, rgba(0, 242, 254, 0.18) 0%, transparent 70%); }
+.mosaic-station-card.card-st2::before { background: #00f2fe; box-shadow: 0 0 10px #00f2fe; }
+.mosaic-station-card.card-st2:hover { border-color: rgba(0, 242, 254, 0.6); box-shadow: 0 12px 30px rgba(0, 242, 254, 0.22), inset 0 0 20px rgba(0, 242, 254, 0.05); }
+.card-st2 .mosaic-card-type { background: rgba(0, 242, 254, 0.12); color: #00f2fe; border: 1px solid rgba(0, 242, 254, 0.35); }
+.card-st2 .mosaic-card-play-btn { background: #00f2fe; color: #04070c; box-shadow: 0 4px 14px rgba(0, 242, 254, 0.35); }
+.card-st2 .mosaic-card-play-btn:hover { background: #67f8ff; box-shadow: 0 0 20px rgba(0, 242, 254, 0.7); }
