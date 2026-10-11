@@ -2,7 +2,7 @@ import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import babel from '@rolldown/plugin-babel'
 import { defineConfig } from 'vite'
 import { workstation4ResultsPlugin } from './src/workstation4/utils/resultsServerPlugin.js'
-import { workstation1ResultsPlugin } from './src/workstation1/utils/resultsServerPlugin.js'
+import { workstation1ResultsPlugin } from './src/legacy-f1-stream/utils/resultsServerPlugin.js'
 
 // https://vite.dev/config/
 export default defineConfig({
