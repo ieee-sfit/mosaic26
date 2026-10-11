@@ -76,7 +76,7 @@ export default function SummaryScreen({
           </button>
           {onOpenStationChooser && (
             <button type="button" className="ws3-btn ws3-btn--ghost" onClick={onOpenStationChooser}>
-              [RETURN TO ARENA]
+              [RETURN TO LAUNCHER]
             </button>
           )}
         </div>

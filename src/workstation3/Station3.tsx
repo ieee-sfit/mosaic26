@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './station3.css';
+import { useSession } from '../session/sessionContext';
 import { CONFIG } from './mockStation3Data';
 import { clamp, type Fx, type Station3Summary } from './utils';
 import { StationHeader, StationTimer } from './components/Hud';
@@ -18,6 +19,13 @@ interface Scores {
 
 const CAPS: Scores = { a: 15, b: 40, c: 45 };
 const STORAGE_KEY = 'ws3_last_session';
+const ID_RE = /^\d{6}$/;
+
+/** Operator IDs handed over by the launcher's shared session (if any). */
+interface LauncherSession {
+  p1_id?: string;
+  p2_id?: string;
+}
 
 interface Station3Props {
   onNavigateStation?: (stNum: number) => void;
@@ -27,8 +35,15 @@ interface Station3Props {
 }
 
 export default function Station3({ onOpenStationChooser, onComplete }: Station3Props) {
-  const [phase, setPhase] = useState<Phase>('start');
-  const [ids, setIds] = useState({ p1: '', p2: '' });
+  // Launched via the arcade launcher → IDs already captured, skip the login screen.
+  const session = useSession() as LauncherSession | null;
+  const sessionIds =
+    session && ID_RE.test(session.p1_id ?? '') && ID_RE.test(session.p2_id ?? '')
+      ? { p1: session.p1_id as string, p2: session.p2_id as string }
+      : null;
+
+  const [phase, setPhase] = useState<Phase>(sessionIds ? 'A' : 'start');
+  const [ids, setIds] = useState(sessionIds ?? { p1: '', p2: '' });
   const [timeLeft, setTimeLeft] = useState<number>(CONFIG.totalSeconds);
   const [scores, setScores] = useState<Scores>({ a: 0, b: 0, c: 0 });
   const [result, setResult] = useState<Breakdown | null>(null);
@@ -119,9 +134,10 @@ export default function Station3({ onOpenStationChooser, onComplete }: Station3P
     setTimeLeft(CONFIG.totalSeconds);
     setScores({ a: 0, b: 0, c: 0 });
     setResult(null);
-    setIds({ p1: '', p2: '' });
-    idsRef.current = { p1: '', p2: '' };
-    setPhase('start');
+    const next = sessionIds ?? { p1: '', p2: '' };
+    setIds(next);
+    idsRef.current = next;
+    setPhase(sessionIds ? 'A' : 'start');
   };
 
   const total = scores.a + scores.b + scores.c;

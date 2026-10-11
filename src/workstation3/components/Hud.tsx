@@ -32,7 +32,7 @@ export function StationHeader({
       <div className="ws3-brand">
         {onOpenStationChooser && (
           <button type="button" className="ws3-btn ws3-btn--ghost ws3-arena-btn" onClick={onOpenStationChooser}>
-            ◂ ARENA
+            ◂ LAUNCHER
           </button>
         )}
         <div>
