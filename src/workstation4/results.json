@@ -2279,5 +2279,519 @@
         }
       }
     ]
+  },
+  {
+    "id": "ws4_1791616361617_akcgp",
+    "playerName": "Operator Alpha",
+    "stationId": "station-4",
+    "stationName": "Area51 Facility Lockdown",
+    "timestamp": "2026-10-10T07:12:41.617Z",
+    "formattedDate": "10/10/2026, 12:42:41",
+    "completed": true,
+    "status": "COMPLETED",
+    "score": 36,
+    "maxScore": 61,
+    "timeRemainingSeconds": 611,
+    "timeRemainingFormatted": "10:11",
+    "timeUsedSeconds": 109,
+    "timeUsedFormatted": "01:49",
+    "errors": 0,
+    "hintsUsedCount": 0,
+    "moduleA": {
+      "completed": true,
+      "score": 5,
+      "max": 5
+    },
+    "moduleB": {
+      "completed": false,
+      "score": 1,
+      "max": 26,
+      "circuitSolved": false,
+      "gateSolveHistory": [
+        {
+          "gateType": "AND",
+          "solvedAt": "2026-10-10T07:11:35.927Z",
+          "formattedTime": "12:41:35",
+          "timeRemainingSeconds": 677,
+          "timeRemainingFormatted": "11:17",
+          "isCorrect": true,
+          "safeOutput": 1,
+          "inputsState": {
+            "DOOR_LOCKED": 1,
+            "FIRE_CLEAR": 1,
+            "POWER_STABLE": 1,
+            "SECURITY_AUTHORIZED": 1
+          }
+        },
+        {
+          "gateType": "OR",
+          "solvedAt": "2026-10-10T07:11:44.826Z",
+          "formattedTime": "12:41:44",
+          "timeRemainingSeconds": 668,
+          "timeRemainingFormatted": "11:08",
+          "isCorrect": false,
+          "safeOutput": 1,
+          "inputsState": {
+            "DOOR_LOCKED": 1,
+            "FIRE_CLEAR": 1,
+            "POWER_STABLE": 1,
+            "SECURITY_AUTHORIZED": 0
+          }
+        },
+        {
+          "gateType": "XOR",
+          "solvedAt": "2026-10-10T07:11:50.293Z",
+          "formattedTime": "12:41:50",
+          "timeRemainingSeconds": 663,
+          "timeRemainingFormatted": "11:03",
+          "isCorrect": false,
+          "safeOutput": 1,
+          "inputsState": {
+            "DOOR_LOCKED": 1,
+            "FIRE_CLEAR": 1,
+            "POWER_STABLE": 1,
+            "SECURITY_AUTHORIZED": 0
+          }
+        },
+        {
+          "gateType": "NOT",
+          "solvedAt": "2026-10-10T07:11:55.985Z",
+          "formattedTime": "12:41:55",
+          "timeRemainingSeconds": 657,
+          "timeRemainingFormatted": "10:57",
+          "isCorrect": false,
+          "safeOutput": 1,
+          "inputsState": {
+            "DOOR_LOCKED": 1,
+            "FIRE_CLEAR": 1,
+            "POWER_STABLE": 0,
+            "SECURITY_AUTHORIZED": 0
+          }
+        }
+      ]
+    },
+    "moduleC": {
+      "completed": true,
+      "score": 30,
+      "max": 30,
+      "authorized": true
+    },
+    "gateSolveHistory": [
+      {
+        "gateType": "AND",
+        "solvedAt": "2026-10-10T07:11:35.927Z",
+        "formattedTime": "12:41:35",
+        "timeRemainingSeconds": 677,
+        "timeRemainingFormatted": "11:17",
+        "isCorrect": true,
+        "safeOutput": 1,
+        "inputsState": {
+          "DOOR_LOCKED": 1,
+          "FIRE_CLEAR": 1,
+          "POWER_STABLE": 1,
+          "SECURITY_AUTHORIZED": 1
+        }
+      },
+      {
+        "gateType": "OR",
+        "solvedAt": "2026-10-10T07:11:44.826Z",
+        "formattedTime": "12:41:44",
+        "timeRemainingSeconds": 668,
+        "timeRemainingFormatted": "11:08",
+        "isCorrect": false,
+        "safeOutput": 1,
+        "inputsState": {
+          "DOOR_LOCKED": 1,
+          "FIRE_CLEAR": 1,
+          "POWER_STABLE": 1,
+          "SECURITY_AUTHORIZED": 0
+        }
+      },
+      {
+        "gateType": "XOR",
+        "solvedAt": "2026-10-10T07:11:50.293Z",
+        "formattedTime": "12:41:50",
+        "timeRemainingSeconds": 663,
+        "timeRemainingFormatted": "11:03",
+        "isCorrect": false,
+        "safeOutput": 1,
+        "inputsState": {
+          "DOOR_LOCKED": 1,
+          "FIRE_CLEAR": 1,
+          "POWER_STABLE": 1,
+          "SECURITY_AUTHORIZED": 0
+        }
+      },
+      {
+        "gateType": "NOT",
+        "solvedAt": "2026-10-10T07:11:55.985Z",
+        "formattedTime": "12:41:55",
+        "timeRemainingSeconds": 657,
+        "timeRemainingFormatted": "10:57",
+        "isCorrect": false,
+        "safeOutput": 1,
+        "inputsState": {
+          "DOOR_LOCKED": 1,
+          "FIRE_CLEAR": 1,
+          "POWER_STABLE": 0,
+          "SECURITY_AUTHORIZED": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "ws4_1791634910734_1866n",
+    "playerName": "Operator Alpha",
+    "stationId": "station-4",
+    "stationName": "Area51 Facility Lockdown",
+    "timestamp": "2026-10-10T12:21:50.734Z",
+    "formattedDate": "10/10/2026, 17:51:50",
+    "completed": true,
+    "status": "COMPLETED",
+    "score": 36,
+    "maxScore": 61,
+    "timeRemainingSeconds": 587,
+    "timeRemainingFormatted": "09:47",
+    "timeUsedSeconds": 133,
+    "timeUsedFormatted": "02:13",
+    "errors": 0,
+    "hintsUsedCount": 0,
+    "moduleA": {
+      "completed": true,
+      "score": 5,
+      "max": 5
+    },
+    "moduleB": {
+      "completed": false,
+      "score": 1,
+      "max": 26,
+      "circuitSolved": false,
+      "gateSolveHistory": [
+        {
+          "gateType": "AND",
+          "solvedAt": "2026-10-10T12:20:17.978Z",
+          "formattedTime": "17:50:17",
+          "timeRemainingSeconds": 680,
+          "timeRemainingFormatted": "11:20",
+          "isCorrect": true,
+          "safeOutput": 1,
+          "inputsState": {
+            "DOOR_LOCKED": 1,
+            "FIRE_CLEAR": 1,
+            "POWER_STABLE": 1,
+            "SECURITY_AUTHORIZED": 1
+          }
+        },
+        {
+          "gateType": "OR",
+          "solvedAt": "2026-10-10T12:20:40.931Z",
+          "formattedTime": "17:50:40",
+          "timeRemainingSeconds": 657,
+          "timeRemainingFormatted": "10:57",
+          "isCorrect": false,
+          "safeOutput": 1,
+          "inputsState": {
+            "DOOR_LOCKED": 1,
+            "FIRE_CLEAR": 1,
+            "POWER_STABLE": 1,
+            "SECURITY_AUTHORIZED": 0
+          }
+        },
+        {
+          "gateType": "XOR",
+          "solvedAt": "2026-10-10T12:20:48.746Z",
+          "formattedTime": "17:50:48",
+          "timeRemainingSeconds": 649,
+          "timeRemainingFormatted": "10:49",
+          "isCorrect": false,
+          "safeOutput": 1,
+          "inputsState": {
+            "DOOR_LOCKED": 1,
+            "FIRE_CLEAR": 1,
+            "POWER_STABLE": 1,
+            "SECURITY_AUTHORIZED": 0
+          }
+        },
+        {
+          "gateType": "NOT",
+          "solvedAt": "2026-10-10T12:20:57.763Z",
+          "formattedTime": "17:50:57",
+          "timeRemainingSeconds": 640,
+          "timeRemainingFormatted": "10:40",
+          "isCorrect": false,
+          "safeOutput": 1,
+          "inputsState": {
+            "DOOR_LOCKED": 1,
+            "FIRE_CLEAR": 1,
+            "POWER_STABLE": 0,
+            "SECURITY_AUTHORIZED": 0
+          }
+        }
+      ]
+    },
+    "moduleC": {
+      "completed": true,
+      "score": 30,
+      "max": 30,
+      "authorized": true
+    },
+    "gateSolveHistory": [
+      {
+        "gateType": "AND",
+        "solvedAt": "2026-10-10T12:20:17.978Z",
+        "formattedTime": "17:50:17",
+        "timeRemainingSeconds": 680,
+        "timeRemainingFormatted": "11:20",
+        "isCorrect": true,
+        "safeOutput": 1,
+        "inputsState": {
+          "DOOR_LOCKED": 1,
+          "FIRE_CLEAR": 1,
+          "POWER_STABLE": 1,
+          "SECURITY_AUTHORIZED": 1
+        }
+      },
+      {
+        "gateType": "OR",
+        "solvedAt": "2026-10-10T12:20:40.931Z",
+        "formattedTime": "17:50:40",
+        "timeRemainingSeconds": 657,
+        "timeRemainingFormatted": "10:57",
+        "isCorrect": false,
+        "safeOutput": 1,
+        "inputsState": {
+          "DOOR_LOCKED": 1,
+          "FIRE_CLEAR": 1,
+          "POWER_STABLE": 1,
+          "SECURITY_AUTHORIZED": 0
+        }
+      },
+      {
+        "gateType": "XOR",
+        "solvedAt": "2026-10-10T12:20:48.746Z",
+        "formattedTime": "17:50:48",
+        "timeRemainingSeconds": 649,
+        "timeRemainingFormatted": "10:49",
+        "isCorrect": false,
+        "safeOutput": 1,
+        "inputsState": {
+          "DOOR_LOCKED": 1,
+          "FIRE_CLEAR": 1,
+          "POWER_STABLE": 1,
+          "SECURITY_AUTHORIZED": 0
+        }
+      },
+      {
+        "gateType": "NOT",
+        "solvedAt": "2026-10-10T12:20:57.763Z",
+        "formattedTime": "17:50:57",
+        "timeRemainingSeconds": 640,
+        "timeRemainingFormatted": "10:40",
+        "isCorrect": false,
+        "safeOutput": 1,
+        "inputsState": {
+          "DOOR_LOCKED": 1,
+          "FIRE_CLEAR": 1,
+          "POWER_STABLE": 0,
+          "SECURITY_AUTHORIZED": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "ws4_1791695864195_hujyc",
+    "playerName": "Operator Alpha",
+    "stationId": "station-4",
+    "stationName": "Area51 Facility Lockdown",
+    "timestamp": "2026-10-11T05:17:44.195Z",
+    "formattedDate": "11/10/2026, 10:47:44",
+    "completed": false,
+    "status": "TIMED_OUT",
+    "score": 25,
+    "maxScore": 61,
+    "timeRemainingSeconds": 0,
+    "timeRemainingFormatted": "00:00",
+    "timeUsedSeconds": 720,
+    "timeUsedFormatted": "12:00",
+    "errors": 0,
+    "hintsUsedCount": 0,
+    "moduleA": {
+      "completed": false,
+      "score": 0,
+      "max": 5
+    },
+    "moduleB": {
+      "completed": false,
+      "score": 25,
+      "max": 26,
+      "circuitSolved": true,
+      "gateSolveHistory": []
+    },
+    "moduleC": {
+      "completed": false,
+      "score": 0,
+      "max": 30,
+      "authorized": false
+    },
+    "gateSolveHistory": []
+  },
+  {
+    "id": "ws4_1791696514127_w7864",
+    "playerName": "Operator Alpha",
+    "stationId": "station-4",
+    "stationName": "Area51 Facility Lockdown",
+    "timestamp": "2026-10-11T05:28:34.127Z",
+    "formattedDate": "11/10/2026, 10:58:34",
+    "completed": true,
+    "status": "COMPLETED",
+    "score": 36,
+    "maxScore": 61,
+    "timeRemainingSeconds": 575,
+    "timeRemainingFormatted": "09:35",
+    "timeUsedSeconds": 145,
+    "timeUsedFormatted": "02:25",
+    "errors": 0,
+    "hintsUsedCount": 0,
+    "moduleA": {
+      "completed": true,
+      "score": 5,
+      "max": 5
+    },
+    "moduleB": {
+      "completed": false,
+      "score": 1,
+      "max": 26,
+      "circuitSolved": false,
+      "gateSolveHistory": [
+        {
+          "gateType": "AND",
+          "solvedAt": "2026-10-11T05:27:21.385Z",
+          "formattedTime": "10:57:21",
+          "timeRemainingSeconds": 647,
+          "timeRemainingFormatted": "10:47",
+          "isCorrect": true,
+          "safeOutput": 1,
+          "inputsState": {
+            "DOOR_LOCKED": 1,
+            "FIRE_CLEAR": 1,
+            "POWER_STABLE": 1,
+            "SECURITY_AUTHORIZED": 1
+          }
+        },
+        {
+          "gateType": "OR",
+          "solvedAt": "2026-10-11T05:27:27.620Z",
+          "formattedTime": "10:57:27",
+          "timeRemainingSeconds": 641,
+          "timeRemainingFormatted": "10:41",
+          "isCorrect": false,
+          "safeOutput": 1,
+          "inputsState": {
+            "DOOR_LOCKED": 1,
+            "FIRE_CLEAR": 1,
+            "POWER_STABLE": 1,
+            "SECURITY_AUTHORIZED": 0
+          }
+        },
+        {
+          "gateType": "XOR",
+          "solvedAt": "2026-10-11T05:27:35.671Z",
+          "formattedTime": "10:57:35",
+          "timeRemainingSeconds": 633,
+          "timeRemainingFormatted": "10:33",
+          "isCorrect": false,
+          "safeOutput": 1,
+          "inputsState": {
+            "DOOR_LOCKED": 1,
+            "FIRE_CLEAR": 1,
+            "POWER_STABLE": 1,
+            "SECURITY_AUTHORIZED": 0
+          }
+        },
+        {
+          "gateType": "NOT",
+          "solvedAt": "2026-10-11T05:27:41.302Z",
+          "formattedTime": "10:57:41",
+          "timeRemainingSeconds": 627,
+          "timeRemainingFormatted": "10:27",
+          "isCorrect": false,
+          "safeOutput": 1,
+          "inputsState": {
+            "DOOR_LOCKED": 1,
+            "FIRE_CLEAR": 1,
+            "POWER_STABLE": 0,
+            "SECURITY_AUTHORIZED": 0
+          }
+        }
+      ]
+    },
+    "moduleC": {
+      "completed": true,
+      "score": 30,
+      "max": 30,
+      "authorized": true
+    },
+    "gateSolveHistory": [
+      {
+        "gateType": "AND",
+        "solvedAt": "2026-10-11T05:27:21.385Z",
+        "formattedTime": "10:57:21",
+        "timeRemainingSeconds": 647,
+        "timeRemainingFormatted": "10:47",
+        "isCorrect": true,
+        "safeOutput": 1,
+        "inputsState": {
+          "DOOR_LOCKED": 1,
+          "FIRE_CLEAR": 1,
+          "POWER_STABLE": 1,
+          "SECURITY_AUTHORIZED": 1
+        }
+      },
+      {
+        "gateType": "OR",
+        "solvedAt": "2026-10-11T05:27:27.620Z",
+        "formattedTime": "10:57:27",
+        "timeRemainingSeconds": 641,
+        "timeRemainingFormatted": "10:41",
+        "isCorrect": false,
+        "safeOutput": 1,
+        "inputsState": {
+          "DOOR_LOCKED": 1,
+          "FIRE_CLEAR": 1,
+          "POWER_STABLE": 1,
+          "SECURITY_AUTHORIZED": 0
+        }
+      },
+      {
+        "gateType": "XOR",
+        "solvedAt": "2026-10-11T05:27:35.671Z",
+        "formattedTime": "10:57:35",
+        "timeRemainingSeconds": 633,
+        "timeRemainingFormatted": "10:33",
+        "isCorrect": false,
+        "safeOutput": 1,
+        "inputsState": {
+          "DOOR_LOCKED": 1,
+          "FIRE_CLEAR": 1,
+          "POWER_STABLE": 1,
+          "SECURITY_AUTHORIZED": 0
+        }
+      },
+      {
+        "gateType": "NOT",
+        "solvedAt": "2026-10-11T05:27:41.302Z",
+        "formattedTime": "10:57:41",
+        "timeRemainingSeconds": 627,
+        "timeRemainingFormatted": "10:27",
+        "isCorrect": false,
+        "safeOutput": 1,
+        "inputsState": {
+          "DOOR_LOCKED": 1,
+          "FIRE_CLEAR": 1,
+          "POWER_STABLE": 0,
+          "SECURITY_AUTHORIZED": 0
+        }
+      }
+    ]
   }
 ]

@@ -1,0 +1,182 @@
+[
+  {
+    "id": "ws1_f1_1791614327596_kxugf",
+    "stationId": "station-1",
+    "stationName": "F1 0-Lag Stream",
+    "operator": "Alpha Flight Team",
+    "completed": false,
+    "score": 20,
+    "finalLatency": 1.79,
+    "timeRemaining": 0,
+    "timeRemainingSeconds": 0,
+    "timeUsedSeconds": 720,
+    "errors": 0,
+    "hintsUsed": 0,
+    "hintsUsedCount": 0,
+    "timestamp": "2026-10-10T06:38:47.596Z",
+    "moduleA": {
+      "completed": true,
+      "score": 20
+    },
+    "moduleB": {
+      "completed": false,
+      "score": 0,
+      "latencyTargetAchieved": false
+    },
+    "moduleC": {
+      "completed": false,
+      "score": 0,
+      "broadcastVerified": false
+    }
+  },
+  {
+    "id": "ws1_f1_1791640003075_nbuzp",
+    "stationId": "station-1",
+    "stationName": "F1 0-Lag Stream",
+    "operator": "Alpha Flight Team",
+    "completed": false,
+    "score": 0,
+    "finalLatency": 1.79,
+    "timeRemaining": 0,
+    "timeRemainingSeconds": 0,
+    "timeUsedSeconds": 720,
+    "errors": 0,
+    "hintsUsed": 0,
+    "hintsUsedCount": 0,
+    "timestamp": "2026-10-10T13:46:43.075Z",
+    "moduleA": {
+      "completed": false,
+      "score": 0
+    },
+    "moduleB": {
+      "completed": false,
+      "score": 0,
+      "latencyTargetAchieved": false
+    },
+    "moduleC": {
+      "completed": false,
+      "score": 0,
+      "broadcastVerified": false
+    }
+  },
+  {
+    "id": "ws1_f1_1791641911213_el3ha",
+    "stationId": "station-1",
+    "stationName": "F1 0-Lag Stream",
+    "operator": "Shelby F1 Pit Wall",
+    "completed": true,
+    "score": 85,
+    "finalLatency": 0.95,
+    "timeRemaining": 663,
+    "timeRemainingSeconds": 663,
+    "timeUsedSeconds": 57,
+    "errors": 3,
+    "hintsUsed": 0,
+    "hintsUsedCount": 0,
+    "timestamp": "2026-10-10T14:18:31.213Z",
+    "moduleA": {
+      "completed": true,
+      "score": 20
+    },
+    "moduleB": {
+      "completed": true,
+      "score": 35,
+      "latencyTargetAchieved": true
+    },
+    "moduleC": {
+      "completed": true,
+      "score": 30,
+      "broadcastVerified": true
+    }
+  },
+  {
+    "id": "ws1_f1_1791641964204_l6jym",
+    "stationId": "station-1",
+    "stationName": "F1 0-Lag Stream",
+    "operator": "Shelby F1 Pit Wall",
+    "completed": true,
+    "score": 85,
+    "finalLatency": 0.95,
+    "timeRemaining": 611,
+    "timeRemainingSeconds": 611,
+    "timeUsedSeconds": 109,
+    "errors": 3,
+    "hintsUsed": 0,
+    "hintsUsedCount": 0,
+    "timestamp": "2026-10-10T14:19:24.204Z",
+    "moduleA": {
+      "completed": true,
+      "score": 20
+    },
+    "moduleB": {
+      "completed": true,
+      "score": 35,
+      "latencyTargetAchieved": true
+    },
+    "moduleC": {
+      "completed": true,
+      "score": 30,
+      "broadcastVerified": true
+    }
+  },
+  {
+    "id": "ws1_f1_1791692835333_jllq1",
+    "stationId": "station-1",
+    "stationName": "F1 0-Lag Stream",
+    "operator": "Akash",
+    "completed": true,
+    "score": 65,
+    "finalLatency": 0.95,
+    "timeRemaining": 659,
+    "timeRemainingSeconds": 659,
+    "timeUsedSeconds": 61,
+    "errors": 7,
+    "hintsUsed": 0,
+    "hintsUsedCount": 0,
+    "timestamp": "2026-10-11T04:27:15.333Z",
+    "moduleA": {
+      "completed": true,
+      "score": 5
+    },
+    "moduleB": {
+      "completed": true,
+      "score": 30,
+      "latencyTargetAchieved": true
+    },
+    "moduleC": {
+      "completed": true,
+      "score": 30,
+      "broadcastVerified": true
+    }
+  },
+  {
+    "id": "ws1_f1_1791696649709_89ker",
+    "stationId": "station-1",
+    "stationName": "F1 0-Lag Stream",
+    "operator": "Shelby F1 Pit Wall",
+    "completed": true,
+    "score": 100,
+    "finalLatency": 0.95,
+    "timeRemaining": 605,
+    "timeRemainingSeconds": 605,
+    "timeUsedSeconds": 115,
+    "errors": 0,
+    "hintsUsed": 0,
+    "hintsUsedCount": 0,
+    "timestamp": "2026-10-11T05:30:49.709Z",
+    "moduleA": {
+      "completed": true,
+      "score": 20
+    },
+    "moduleB": {
+      "completed": true,
+      "score": 35,
+      "latencyTargetAchieved": true
+    },
+    "moduleC": {
+      "completed": true,
+      "score": 45,
+      "broadcastVerified": true
+    }
+  }
+]

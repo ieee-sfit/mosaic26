@@ -11,9 +11,6 @@ export default function StationHeader({
   return (
     <header className="ws4-header">
       <div className="ws4-header-branding">
-        <div className="ws4-facility-badge" onClick={onDebugClick} title="Facility Classification Level 5">
-          AREA 51 // SEC-LVL 5
-        </div>
         <div className="ws4-header-titles">
           <h1 className="ws4-header-title">
             AREA51 FACILITY LOCKDOWN
@@ -26,24 +23,6 @@ export default function StationHeader({
       </div>
 
       <div className="ws4-header-status-group" style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-        {onWatchVideo && (
-          <button
-            type="button"
-            className="ws4-btn ws4-btn-secondary"
-            onClick={onWatchVideo}
-            style={{
-              fontSize: "11px",
-              padding: "6px 12px",
-              letterSpacing: "1px",
-              borderColor: "var(--ws4-cyan-accent)",
-              color: "var(--ws4-cyan-accent)",
-            }}
-            id="ws4-header-video-btn"
-            title="Watch CCTV Breach Transition Video"
-          >
-            📹 CCTV VIDEO FEED
-          </button>
-        )}
 
         {onOpenLeaderboard && (
           <button
