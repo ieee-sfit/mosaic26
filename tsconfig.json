@@ -13,5 +13,5 @@
     "noUnusedParameters": true,
     "types": ["vite/client"]
   },
-  "include": ["src/workstation2"]
+  "include": ["src/workstation1"]
 }

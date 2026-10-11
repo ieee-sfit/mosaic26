@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import Station1 from './workstation1'
-import GoatAnc from './workstation2'
 import Station3 from './workstation3/Station3'
 import Station4 from './workstation4'
 import './App.css'
@@ -11,7 +10,6 @@ function App() {
       const params = new URLSearchParams(window.location.search);
       const st = params.get('station');
       if (st === '4') return 4;
-      if (st === '2') return 2;
       if (st === '3') return 3;
       if (st === '1') return 1;
     }
@@ -55,42 +53,8 @@ function App() {
             </div>
 
             <div className="mosaic-station-cards-grid">
-              {/* Station 1 Card */}
+              {/* Station 1 · GOAT ANC */}
               <div className="mosaic-station-card card-st1" onClick={() => handleSelectStation(1)}>
-                <div className="mosaic-card-glow-bg" />
-                <div className="mosaic-card-banner">
-                  <img src="/f1_stream.jpg" alt="F1 0-Lag Stream" className="mosaic-banner-img" />
-                  <div className="mosaic-banner-overlay" />
-                  <span className="mosaic-banner-badge">CIRCUIT 01</span>
-                </div>
-                <div className="mosaic-card-head">
-                  <div className="mosaic-card-head-left">
-                    <span className="mosaic-card-icon">⚡</span>
-                    <span className="mosaic-card-id">STATION 01</span>
-                  </div>
-                  <span className="mosaic-card-type">STREAM SIM</span>
-                </div>
-                <h3 className="mosaic-card-name">F1 0-LAG STREAM</h3>
-                <p className="mosaic-card-desc">
-                  Ford vs Ferrari live pit-wall broadcast. Calibrate bandwidth, CDN routing, and low-latency buffer interlocks.
-                </p>
-                <div className="mosaic-card-tags">
-                  <span className="mosaic-tag">CDN ROUTING</span>
-                  <span className="mosaic-tag">BITRATE</span>
-                  <span className="mosaic-tag">OSCILLOSCOPE</span>
-                </div>
-                <button
-                  type="button"
-                  className="mosaic-card-play-btn"
-                  onClick={(e) => { e.stopPropagation(); handleSelectStation(1); }}
-                >
-                  <span>INITIALIZE STATION 01</span>
-                  <span className="mosaic-btn-arrow">➔</span>
-                </button>
-              </div>
-
-              {/* Workstation 2 · GOAT ANC (Station 1 — Guardians theme) */}
-              <div className="mosaic-station-card card-st2" onClick={() => handleSelectStation(2)}>
                 <div className="mosaic-card-glow-bg" />
                 <div className="mosaic-card-banner" style={{ background: 'linear-gradient(135deg, #060813 0%, #0b0f19 55%, #06b6d4 140%)' }}>
                   <span className="mosaic-banner-badge">MILANO BRIDGE</span>
@@ -98,7 +62,7 @@ function App() {
                 <div className="mosaic-card-head">
                   <div className="mosaic-card-head-left">
                     <span className="mosaic-card-icon">🛰</span>
-                    <span className="mosaic-card-id">WORKSTATION 02</span>
+                    <span className="mosaic-card-id">STATION 01</span>
                   </div>
                   <span className="mosaic-card-type">ANC HUD</span>
                 </div>
@@ -114,7 +78,7 @@ function App() {
                 <button
                   type="button"
                   className="mosaic-card-play-btn"
-                  onClick={(e) => { e.stopPropagation(); handleSelectStation(2); }}
+                  onClick={(e) => { e.stopPropagation(); handleSelectStation(1); }}
                 >
                   <span>INITIALIZE GOAT ANC</span>
                   <span className="mosaic-btn-arrow">➔</span>
@@ -200,14 +164,7 @@ function App() {
 
       {/* Render Active Station */}
       {activeStation === 1 && (
-        <Station1
-          key={`st1_${stationKey}`}
-          onNavigateStation={handleSelectStation}
-          onOpenStationChooser={() => setShowChooser(true)}
-        />
-      )}
-      {activeStation === 2 && (
-        <GoatAnc key={`st2_${stationKey}`} />
+        <Station1 key={`st1_${stationKey}`} />
       )}
       {activeStation === 3 && (
         <Station3
