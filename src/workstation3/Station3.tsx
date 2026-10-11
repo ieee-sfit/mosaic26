@@ -266,7 +266,7 @@ function Station3({
   const [phase, setPhase] = useState(0);
   const [team,  setTeam]  = useState({ name: '', size: 3 });
   const [score, setScore] = useState({ a:0, ap:0, b:0, bp:0, c:0, cp:0, bon:0 });
-  const [time,  setTime]  = useState(900);
+  const [time,  setTime]  = useState(720);
   const [shake, setShake] = useState(false);
   const [toast, setToast] = useState<{msg:string; err:boolean}|null>(null);
   const [transitioning, setTransitioning] = useState(false);
@@ -276,7 +276,7 @@ function Station3({
     setPhase(0);
     setTeam({ name: '', size: 3 });
     setScore({ a: 0, ap: 0, b: 0, bp: 0, c: 0, cp: 0, bon: 0 });
-    setTime(900);
+    setTime(720);
   };
 
   const fxFail = () => { setShake(true); setTimeout(() => setShake(false), 500); };
@@ -308,13 +308,13 @@ function Station3({
 
   /* Auto-advance phases when time gates are crossed */
   useEffect(() => {
-    if (phase === 2 && time <= 780) goToPhase(3);
-    if (phase === 3 && time <= 480) goToPhase(4);
+    if (phase === 2 && time <= 600) goToPhase(3);
+    if (phase === 3 && time <= 360) goToPhase(4);
     if (phase === 4 && time === 0)   goToPhase(5);
   }, [time, phase]);
 
   const totScore    = Math.max(0, score.a - score.ap + score.b - score.bp + score.c - score.cp + score.bon);
-  const timeProgress = (900 - time) / 900;
+  const timeProgress = (720 - time) / 720;
   const isRedline   = time <= 60;
 
   /* ── RENDER ── */
@@ -413,12 +413,12 @@ function Station3({
         {phase === 1 && <BriefingScreen onStart={(t) => { setTeam(t); goToPhase(2); }} />}
         {phase === 2 && (
           <ModuleA score={score} setScore={setScore}
-            onComplete={(t) => { if(!t) setScore((s:any) => ({...s, bon: s.bon + Math.max(0, Math.floor((time-780)/5))})); goToPhase(3); }}
+            onComplete={(t) => { if(!t) setScore((s:any) => ({...s, bon: s.bon + Math.max(0, Math.floor((time-600)/5))})); goToPhase(3); }}
             fxFail={fxFail} />
         )}
         {phase === 3 && (
           <ModuleB score={score} setScore={setScore}
-            onComplete={(t) => { if(!t) setScore((s:any) => ({...s, bon: s.bon + Math.max(0, Math.floor((time-480)/5))})); goToPhase(4); }}
+            onComplete={(t) => { if(!t) setScore((s:any) => ({...s, bon: s.bon + Math.max(0, Math.floor((time-360)/5))})); goToPhase(4); }}
             fxFail={fxFail} showToast={showToast} />
         )}
         {phase === 4 && (
@@ -838,40 +838,6 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }:any) {
                 }
               </div>
 
-              {/* Tactical OCR Detector Reticle */}
-              <div style={{
-                position:'absolute',
-                top:'50%', left:'50%',
-                transform:'translate(-50%, -50%)',
-                width: 260, height: 110,
-                border: `1.5px dashed ${conf >= 85 ? C.green : 'rgba(255,107,44,0.6)'}`,
-                boxShadow: conf >= 85 ? `0 0 20px rgba(34,197,94,0.3)` : 'none',
-                pointerEvents: 'none',
-                transition: 'border-color 0.3s, box-shadow 0.3s',
-                display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-                padding: '6px 8px',
-                zIndex: 15,
-              }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span style={{ color: conf >= 85 ? C.green : C.orange, fontSize:'0.75rem', ...S.orbitron, fontWeight:900, lineHeight:1 }}>⌜</span>
-                  <div style={{ ...S.orbitron, fontSize:'0.52rem', fontWeight:700, color: conf >= 85 ? C.green : C.muted, letterSpacing:'0.12em', background:'rgba(0,0,0,0.65)', padding:'2px 6px' }}>
-                    {conf >= 85 ? 'TARGET ACQUIRED // ROI LOCKED' : 'SEARCHING FOR PLATE ROI...'}
-                  </div>
-                  <span style={{ color: conf >= 85 ? C.green : C.orange, fontSize:'0.75rem', ...S.orbitron, fontWeight:900, lineHeight:1 }}>⌝</span>
-                </div>
-
-                <div style={{ textAlign:'center' }}>
-                  <span style={{ ...S.orbitron, fontSize:'0.58rem', fontWeight:700, color: conf >= 85 ? C.green : C.dim, letterSpacing:'0.15em', background:'rgba(0,0,0,0.55)', padding:'2px 8px' }}>
-                    {conf >= 85 ? 'OCR DETECTOR: LOCKED' : `SIGNAL: ${conf}%`}
-                  </span>
-                </div>
-
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span style={{ color: conf >= 85 ? C.green : C.orange, fontSize:'0.75rem', ...S.orbitron, fontWeight:900, lineHeight:1 }}>⌞</span>
-                  <span style={{ ...S.orbitron, fontSize:'0.45rem', color:C.dim, letterSpacing:'0.1em' }}>ANPR-V2 // OCR DETECTOR</span>
-                  <span style={{ color: conf >= 85 ? C.green : C.orange, fontSize:'0.75rem', ...S.orbitron, fontWeight:900, lineHeight:1 }}>⌟</span>
-                </div>
-              </div>
 
               {/* OCR scan line */}
               {ocrRunning && (
@@ -1030,7 +996,7 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }:any) {
           <div style={{ marginBottom:16 }}>
             <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
               <span style={{ ...S.orbitron, fontSize:'0.55rem', letterSpacing:'0.15em', color:C.muted }}>GAIN (dB)</span>
-              <span style={{ ...S.orbitron, fontSize:'0.65rem', color: (c >= cap.tc[0] && c <= cap.tc[1]) ? C.blue : C.text }}>
+              <span style={{ ...S.orbitron, fontSize:'0.65rem', color: C.text }}>
                 {(c / 10).toFixed(1)}
               </span>
             </div>
@@ -1041,7 +1007,7 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }:any) {
           <div style={{ marginBottom:16 }}>
             <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
               <span style={{ ...S.orbitron, fontSize:'0.55rem', letterSpacing:'0.15em', color:C.muted }}>EXPOSURE (ms)</span>
-              <span style={{ ...S.orbitron, fontSize:'0.65rem', color: (t >= cap.tt[0] && t <= cap.tt[1]) ? C.blue : C.text }}>
+              <span style={{ ...S.orbitron, fontSize:'0.65rem', color: C.text }}>
                 {t}
               </span>
             </div>
@@ -1052,7 +1018,7 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }:any) {
           <div style={{ marginBottom:14 }}>
             <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
               <span style={{ ...S.orbitron, fontSize:'0.55rem', letterSpacing:'0.15em', color:C.muted }}>PLATE SKEW (°)</span>
-              <span style={{ ...S.orbitron, fontSize:'0.65rem', color: Math.abs(skew) <= 2 ? C.blue : C.text }}>
+              <span style={{ ...S.orbitron, fontSize:'0.65rem', color: C.text }}>
                 {skew > 0 ? `+${skew}` : skew}°
               </span>
             </div>
@@ -1066,98 +1032,136 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }:any) {
 }
 
 /* ================================================================
-   MODULE C — TRAFFIC INTERSECTION RED-LIGHT & SPEED TRAP
+   MODULE C — TRAFFIC INTERSECTION RED-LIGHT & SPEED TRAP (5 ROUNDS)
    ================================================================ */
 function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
-  const [cap] = useState(() => pC[Math.floor(Math.random()*pC.length)]);
+  const TOTAL_ROUNDS = 5;
+  const [roundIdx, setRoundIdx] = useState(0);
+
+  // Pick target based on current round (pC has 5 distinct targets)
+  const cap = pC[roundIdx % pC.length];
   
-  // Speed metrics
-  const actualSpeed = cap.dist ? Math.round((cap.dist/cap.t)*3.6) : cap.spd;
+  // Speed metrics — speed increases each round!
+  const baseSpeed = cap.dist ? Math.round((cap.dist/cap.t)*3.6) : cap.spd;
+  const speedBoost = roundIdx * 18;
+  const actualSpeed = baseSpeed + speedBoost;
   const speedLimit = cap.z==='S'?30:cap.z==='R'?40:cap.z==='U'?60:80;
   const excessSpeed = Math.max(0, actualSpeed - speedLimit);
 
-  // Intersection traffic light cycle: 'GREEN' -> 'YELLOW' -> 'RED'
-  const [light, setLight] = useState<'GREEN' | 'YELLOW' | 'RED'>('YELLOW');
-  const [lightTimer, setLightTimer] = useState(2);
+  // Red light duration decreases as speed increases each round!
+  // Round 1: 6s red signal (base speed)
+  // Round 2: 5s red signal (+18 km/h)
+  // Round 3: 4s red signal (+36 km/h)
+  // Round 4: 3s red signal (+54 km/h)
+  // Round 5: 2s red signal (+72 km/h - fastest speed, shortest red light!)
+  const redDuration = Math.max(2, 6 - roundIdx);
+
+  // Intersection traffic light cycle: 'GREEN' (5s) -> 'YELLOW' (3s) -> 'RED' (reduces from 6s down to 2s)
+  const [light, setLight] = useState<'GREEN' | 'YELLOW' | 'RED'>('GREEN');
+  const [lightTimer, setLightTimer] = useState(5);
 
   // Simulation state
-  // Car Y positions: 0% is top of road, 100% is bottom. Cars drive upwards from 110% to -20%
-  // Stop line is at Y = 46%. Zebra crossing is from 46% to 36%.
+  // Car Y positions: 0% is top of road, 100% is bottom. Cars drive upwards from 115% to -25%
+  // Stop line is at Y = 46%. Zebra crossing is from 46% to 34%.
   const [civY, setCivY] = useState(105);
-  const [speederY, setSpeederY] = useState(120);
+  const [speederY, setSpeederY] = useState(115);
   const [isFlashing, setIsFlashing] = useState(false);
   const [captured, setCaptured] = useState(false);
   const [snapshotEvidence, setSnapshotEvidence] = useState<{ speed: number; plate: string; breachDist: number } | null>(null);
   const [showTkt, setTkt] = useState(false);
 
-  // Traffic light sequence
+  // Refs to prevent animation stutter or state desynchronization
+  const lightRef = useRef(light);
+  useEffect(() => {
+    lightRef.current = light;
+  }, [light]);
+
+  const civYRef = useRef(105);
+  const speederYRef = useRef(115);
+  const capturedRef = useRef(false);
+  useEffect(() => {
+    capturedRef.current = captured;
+  }, [captured]);
+
+  // Traffic light sequence with reduced red light duration as car speed increases
   useEffect(() => {
     if (captured) return;
     const interval = setInterval(() => {
       setLightTimer(prev => {
         if (prev <= 1) {
-          setLight(cur => {
-            if (cur === 'GREEN') { return 'YELLOW'; }
-            if (cur === 'YELLOW') { return 'RED'; }
-            return 'GREEN';
-          });
-          return light === 'GREEN' ? 2 : light === 'YELLOW' ? 8 : 4;
+          if (light === 'GREEN') {
+            setLight('YELLOW');
+            return 3; // 3s yellow warning
+          } else if (light === 'YELLOW') {
+            setLight('RED');
+            // When turning RED, place the faster speeder at an optimal approach position
+            // so it runs through the stop line during this tighter red window!
+            const approachY = Math.max(90, 105 - roundIdx * 3);
+            speederYRef.current = approachY;
+            setSpeederY(approachY);
+            return redDuration; // Reduced red signal time based on speed tier!
+          } else {
+            setLight('GREEN');
+            return 5; // 5s green flow
+          }
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [light, captured]);
+  }, [light, captured, redDuration, roundIdx]);
 
-  // Vehicle animation loop
+  // Vehicle animation loop — continuous without restarting when signal changes
   useEffect(() => {
     if (captured) return;
 
     let req: number;
     let lastTime = performance.now();
-    let currentCivY = 105;
-    let currentSpeederY = 125;
 
     const loop = (now: number) => {
       const delta = Math.min(50, now - lastTime) / 1000;
       lastTime = now;
 
-      // Civilian car behavior: slows down & stops at stop line (Y = 54%) when light is YELLOW or RED
-      if (light === 'RED' || light === 'YELLOW') {
-        if (currentCivY > 54) {
-          currentCivY -= delta * 22; // decelerates to stop line
-          if (currentCivY < 54) currentCivY = 54; // stops cleanly behind line
+      const curLight = lightRef.current;
+
+      // Civilian car in Lane 1: slows down and stops cleanly at stop line (Y = 54%) on YELLOW or RED
+      if (curLight === 'RED' || curLight === 'YELLOW') {
+        if (civYRef.current > 54) {
+          civYRef.current -= delta * 24;
+          if (civYRef.current < 54) civYRef.current = 54;
         }
       } else {
-        // Moves forward on green
-        currentCivY -= delta * 30;
-        if (currentCivY < -20) currentCivY = 110;
+        civYRef.current -= delta * 28;
+        if (civYRef.current < -20) civYRef.current = 110;
       }
-      setCivY(currentCivY);
+      setCivY(civYRef.current);
 
-      // Speeder car behavior: rushes through regardless of light at actualSpeed!
-      currentSpeederY -= delta * (actualSpeed * 0.52);
-      if (currentSpeederY < -25) {
-        // Speeder looped without being captured
-        currentSpeederY = 125;
+      // Speeder violator car in Lane 2: rushes through regardless of signal!
+      // Velocity scales with actualSpeed so each round feels visibly faster
+      speederYRef.current -= delta * (actualSpeed * 0.42);
+      if (speederYRef.current < -25) {
+        speederYRef.current = 115;
       }
-      setSpeederY(currentSpeederY);
+      setSpeederY(speederYRef.current);
 
       req = requestAnimationFrame(loop);
     };
 
     req = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(req);
-  }, [light, captured, actualSpeed]);
+  }, [captured, actualSpeed]);
 
   // Snapshot trigger handler
   const handleTriggerSnapshot = () => {
-    if (captured) return;
+    if (capturedRef.current) return;
 
-    // Stop line is at Y = 46%. Capture window is between Y = 32% and Y = 50%
-    const inBreachZone = speederY <= 52 && speederY >= 28;
+    const currentY = speederYRef.current;
+    const curLight = lightRef.current;
 
-    if (light !== 'RED') {
+    // Stop line is at Y = 46%. Enforcement breach window is between Y = 28% and Y = 52%
+    const inBreachZone = currentY <= 52 && currentY >= 28;
+
+    if (curLight !== 'RED') {
       fxFail();
       showToast('INVALID TRIGGER — SIGNAL IS NOT RED! (-3 PTS)', true);
       setScore((s:any) => ({ ...s, cp: s.cp + 3 }));
@@ -1168,9 +1172,10 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
       // SUCCESSFUL SNAPSHOT CAPTURE!
       setIsFlashing(true);
       setCaptured(true);
+      capturedRef.current = true;
       setTimeout(() => setIsFlashing(false), 220);
 
-      const breachMeters = Math.max(1.2, Number(((50 - speederY) * 0.35).toFixed(1)));
+      const breachMeters = Math.max(1.2, Number(((50 - currentY) * 0.35).toFixed(1)));
       setSnapshotEvidence({
         speed: actualSpeed,
         plate: cap.p,
@@ -1178,8 +1183,8 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
       });
 
       setScore((s:any) => ({ ...s, c: s.c + 35 }));
-      showToast('📸 VIOLATION SNAPSHOT SECURED! RED LIGHT BREACH CONFIRMED');
-    } else if (speederY > 52) {
+      showToast(`📸 ROUND ${roundIdx + 1}/5 CAPTURED! RED LIGHT BREACH CONFIRMED (+35 PTS)`);
+    } else if (currentY > 52) {
       fxFail();
       showToast('TOO EARLY — VEHICLE HAS NOT REACHED STOP LINE (-3 PTS)', true);
       setScore((s:any) => ({ ...s, cp: s.cp + 3 }));
@@ -1193,14 +1198,37 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
   // Keyboard shortcut: Spacebar triggers snapshot
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !captured) {
+      if (e.code === 'Space' && !capturedRef.current) {
         e.preventDefault();
         handleTriggerSnapshot();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [captured, speederY, light]);
+  }, []);
+
+  // Advance to next round or finish mission
+  const handleNextRoundOrFinish = () => {
+    if (roundIdx + 1 < TOTAL_ROUNDS) {
+      // Advance to next round
+      setTkt(false);
+      setCaptured(false);
+      capturedRef.current = false;
+      setSnapshotEvidence(null);
+      setLight('GREEN');
+      setLightTimer(5);
+      civYRef.current = 105;
+      setCivY(105);
+      speederYRef.current = 115;
+      setSpeederY(115);
+      setRoundIdx(r => r + 1);
+      const nextRed = Math.max(2, 6 - (roundIdx + 1));
+      showToast(`ROUND ${roundIdx + 2} / 5 — SPEED INCREASED (+18 KM/H), RED SIGNAL REDUCED TO ${nextRed}s!`);
+    } else {
+      // All 5 rounds completed — end game!
+      onComplete();
+    }
+  };
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:14, height:'100%' }}>
@@ -1208,11 +1236,13 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
       {/* Target Data Header */}
       <div style={{ display:'flex', gap:10 }}>
         {[
+          { label:'Round Progress', value:`ROUND ${roundIdx + 1} / 5`, color:C.orange },
           { label:'Target Plate', value:cap.p, color:C.text },
+          { label:'Target Speed', value:`${actualSpeed} KM/H`, color: roundIdx > 0 ? C.red : C.amber },
           { label:'Speed Limit', value:`${speedLimit} KM/H`, color:C.blue },
+          { label:'Red Window', value:`${redDuration}s LIMIT`, color: redDuration <= 3 ? C.red : C.amber },
           { label:'Junction Signal', value:`${light} (${lightTimer}s)`, color: light==='RED'?C.red:light==='YELLOW'?C.amber:C.green },
-          { label:'Sensor Mode', value: light==='RED'?'STOP-LINE ENFORCED':'STANDBY', color: light==='RED'?C.red:C.dim },
-          { label:'Status', value: captured ? 'VIOLATION CAPTURED' : light==='RED'?'AWAITING BREACH':'CYCLING SIGNAL', color: captured?C.green:light==='RED'?C.orange:C.blue },
+          { label:'Status', value: captured ? (roundIdx + 1 < TOTAL_ROUNDS ? `RD ${roundIdx + 1} SECURED` : 'ALL 5 SECURED') : light==='RED'?'AWAITING BREACH':'CYCLING SIGNAL', color: captured?C.green:light==='RED'?C.orange:C.blue },
         ].map((item, i) => (
           <div key={i} style={{ flex:1, background:C.bg2, border:`1px solid ${C.border}`, padding:'10px 14px', display:'flex', flexDirection:'column', alignItems:'center' }}>
             <div style={{ ...S.label, marginBottom:4 }}>{item.label}</div>
@@ -1228,11 +1258,11 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             <span style={{ width:8, height:8, borderRadius:'50%', background: light==='RED'?C.red:C.green, display:'inline-block', boxShadow:`0 0 10px ${light==='RED'?C.red:C.green}` }} />
             <span style={{ ...S.orbitron, fontSize:'0.65rem', color:C.text, letterSpacing:'0.15em' }}>
-              JUNCTION INTERSECTION CAMERA // CAM-04 S.V. ROAD
+              JUNCTION INTERSECTION CAMERA // CAM-04 S.V. ROAD // ROUND {roundIdx + 1} OF 5 // SPEED: {actualSpeed} KM/H // RED WINDOW: {redDuration}s
             </span>
           </div>
           <div style={{ ...S.orbitron, fontSize:'0.6rem', color: light==='RED'?C.red:C.amber }}>
-            {captured ? '📸 EVIDENCE SECURED // CITATION READY' : light==='RED' ? '⚡ RED LIGHT ACTIVE — SNAPSHOT AS SPEEDER RUNS STOP LINE' : 'AWAITING RED LIGHT CYCLE...'}
+            {captured ? (roundIdx + 1 < TOTAL_ROUNDS ? `📸 ROUND ${roundIdx + 1} SECURED // TRANSMIT CITATION TO ADVANCE` : '🏁 ALL 5 TARGETS SECURED // TRANSMIT FINAL CITATION') : light==='RED' ? `⚡ RED LIGHT ACTIVE (${lightTimer}s REMAINING) — SNAPSHOT SPEEDER RUNNING STOP LINE` : `AWAITING RED LIGHT CYCLE... [ROUND ${roundIdx + 1}/5 · RED: ${redDuration}s]`}
           </div>
         </div>
 
@@ -1246,7 +1276,7 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
 
           {/* CCTV Grid & Timestamp HUD */}
           <div style={{ position:'absolute', top:12, left:16, zIndex:15, ...S.orbitron, fontSize:'0.55rem', color:'rgba(0,200,255,0.6)', letterSpacing:'0.15em', pointerEvents:'none' }}>
-            RLVD-SYS // FPS: 60 · ISO 800 · 1/2000s
+            RLVD-SYS // FPS: 60 · ISO 800 · 1/2000s · ROUND {roundIdx + 1}/5
           </div>
           <div style={{ position:'absolute', top:12, right:16, zIndex:15, ...S.orbitron, fontSize:'0.55rem', color:'rgba(255,48,56,0.6)', letterSpacing:'0.15em', pointerEvents:'none' }}>
             ● REC // LIVE JUNCTION SENSOR
@@ -1286,7 +1316,7 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
                 zIndex:4
               }} />
 
-              {/* ZEBRA CROSSING (from Y = 36% to 44%) */}
+              {/* ZEBRA CROSSING (from Y = 34% to 44%) */}
               <div style={{
                 position:'absolute',
                 top:'34%',
@@ -1323,7 +1353,7 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
             <div style={{ position:'absolute', top:'18%', height:'12%', left:0, right:0, background:'rgba(255,255,255,0.02)', borderTop:'1px dashed rgba(255,255,255,0.1)', borderBottom:'1px dashed rgba(255,255,255,0.1)', pointerEvents:'none' }} />
           </div>
 
-          {/* Traffic Signal Post (on the corner at left 18%, top 44%) */}
+          {/* Traffic Signal Post (on the corner at left 15%, top 40%) */}
           <div style={{
             position:'absolute',
             left:'15%',
@@ -1446,7 +1476,7 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
               boxShadow: captured ? '0 0 12px rgba(34,197,94,0.8)' : 'none',
               whiteSpace:'nowrap'
             }}>
-              {captured ? `[CAPTURED: ${actualSpeed} KM/H]` : `SPEEDER // ${cap.p}`}
+              {captured ? `[CAPTURED: ${actualSpeed} KM/H]` : `SPEEDER // ${cap.p} (${actualSpeed} KM/H)`}
             </div>
           </div>
 
@@ -1468,10 +1498,11 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
               }}
             >
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px dashed rgba(255,255,255,0.15)', paddingBottom:6, marginBottom:8 }}>
-                <span style={{ ...S.orbitron, fontSize:'0.65rem', color:C.green, fontWeight:900 }}>EVIDENCE LOGGED</span>
+                <span style={{ ...S.orbitron, fontSize:'0.65rem', color:C.green, fontWeight:900 }}>EVIDENCE LOGGED [RD {roundIdx + 1}/5]</span>
                 <span style={{ ...S.orbitron, fontSize:'0.5rem', color:C.muted }}>CAM-04 SNAPSHOT</span>
               </div>
               <div style={{ display:'flex', flexDirection:'column', gap:5, fontSize:'0.75rem' }}>
+                <div style={{ display:'flex', justifyContent:'space-between' }}><span style={{ color:C.muted }}>ROUND:</span><strong style={{ color:C.orange }}>{roundIdx + 1} OF 5</strong></div>
                 <div style={{ display:'flex', justifyContent:'space-between' }}><span style={{ color:C.muted }}>PLATE:</span><strong style={{ color:C.text }}>{snapshotEvidence.plate}</strong></div>
                 <div style={{ display:'flex', justifyContent:'space-between' }}><span style={{ color:C.muted }}>SPEED:</span><strong style={{ color:C.red }}>{snapshotEvidence.speed} KM/H</strong></div>
                 <div style={{ display:'flex', justifyContent:'space-between' }}><span style={{ color:C.muted }}>LIMIT:</span><strong style={{ color:C.blue }}>{speedLimit} KM/H</strong></div>
@@ -1487,10 +1518,10 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
         <div style={{ padding:'14px 20px', background:C.bg1, borderTop:`1px solid ${C.border}`, display:'flex', alignItems:'center', justifyContent:'space-between', gap:20 }}>
           <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
             <div style={{ ...S.orbitron, fontSize:'0.75rem', fontWeight:800, color: light==='RED'?C.red:C.text }}>
-              {captured ? 'VIOLATION CONFIRMED — CITATION DISPATCH READY' : light==='RED' ? '⚡ LIGHT IS RED: TRIGGER SNAPSHOT AS CAR CROSSES STOP LINE' : 'AWAITING TRAFFIC SIGNAL CYCLE TO RED...'}
+              {captured ? (roundIdx + 1 < TOTAL_ROUNDS ? `ROUND ${roundIdx + 1} OF 5 CONFIRMED — TRANSMIT CITATION TO ADVANCE` : 'ALL 5 ROUNDS COMPLETE! TRANSMIT FINAL CITATION') : light==='RED' ? `⚡ LIGHT IS RED: TRIGGER SNAPSHOT [ROUND ${roundIdx + 1}/5 · ${actualSpeed} KM/H]` : `AWAITING SIGNAL CYCLE TO RED... [ROUND ${roundIdx + 1}/5 · TARGET: ${cap.p}]`}
             </div>
             <div style={{ fontSize:'0.7rem', color:C.muted }}>
-              {captured ? 'Click Transmit eChallan to issue the ₹2,000 fine notice.' : 'Shortcut: Press SPACEBAR or click the button below when the speeder enters the capture zone.'}
+              {captured ? 'Click Transmit eChallan to log the ₹2,000 fine notice.' : 'Shortcut: Press SPACEBAR or click the button below when the speeder enters the capture zone.'}
             </div>
           </div>
 
@@ -1520,7 +1551,7 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
                 }}
                 onClick={() => setTkt(true)}
               >
-                ⚡ TRANSMIT eCHALLAN CITATION
+                {roundIdx + 1 < TOTAL_ROUNDS ? `⚡ TRANSMIT CITATION // ADVANCE TO ROUND ${roundIdx + 2}` : '🏁 TRANSMIT FINAL CITATION & FINISH'}
               </Btn>
             )}
           </div>
@@ -1541,8 +1572,12 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
             <div style={{ textAlign:'center', borderBottom:'2px dashed #bbb', paddingBottom:14, marginBottom:14 }}>
               <div style={{ fontWeight:900, fontSize:'1.1rem', letterSpacing:'0.04em' }}>eCHALLAN CITATION</div>
               <div style={{ fontSize:'0.7rem', color:'#666', marginTop:3 }}>INTERSECTION RED-LIGHT VIOLATION DETECTOR</div>
+              <div style={{ ...S.orbitron, fontSize:'0.65rem', color:C.orange, fontWeight:700, marginTop:4 }}>
+                TARGET ROUND {roundIdx + 1} OF {TOTAL_ROUNDS}
+              </div>
             </div>
             {[
+              ['ROUND',          `${roundIdx + 1} / ${TOTAL_ROUNDS}`],
               ['PLATE',          cap.p],
               ['VIOLATION',      `RED LIGHT RUNNER // RLV-02`],
               ['RECORDED SPEED', `${actualSpeed} KM/H`],
@@ -1568,7 +1603,9 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
           </motion.div>
 
           <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:0.5}}>
-            <Btn style={{ marginTop:28 }} onClick={onComplete}>Clear Dashboard</Btn>
+            <Btn style={{ marginTop:28 }} onClick={handleNextRoundOrFinish}>
+              {roundIdx + 1 < TOTAL_ROUNDS ? `➔ NEXT TARGET // ADVANCE TO ROUND ${roundIdx + 2} OF 5` : '🏁 FINALIZE MISSION & SUBMIT CITATIONS'}
+            </Btn>
           </motion.div>
         </div>
       )}
