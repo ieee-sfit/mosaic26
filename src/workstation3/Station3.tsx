@@ -1,6 +1,12 @@
 import './station3.css';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  saveStation3Result,
+  downloadStation3ResultsAsJSON,
+  formatSeconds,
+  Station3Result,
+} from './utils/resultsManager';
 
 /* ================================================================
    ASSET SYSTEM — unchanged refs
@@ -23,7 +29,13 @@ const pA = [
   {q:"Which plate is valid?",                             a:"MH12AB4721",             w:["MH1AB47212","M12HAB4721","12MHAB4721"]},
   {q:"School zone limit?",                               a:"30 km/h",                w:["40 km/h","50 km/h","20 km/h"]},
   {q:"OCR reads MH 12 A8 4721; which character is misread?", a:"8 is really B",      w:["A is really 4","1 is really I","2 is really Z"]},
-  {q:"Code for a red-light violation?",                  a:"RLV-02",                 w:["SPD-01","RLV-01","RED-02"]}
+  {q:"Code for a red-light violation?",                  a:"RLV-02",                 w:["SPD-01","RLV-01","RED-02"]},
+  {q:"What does ANPR stand for?",                         a:"Automatic Number Plate Recognition", w:["Advanced Network Protocol Reader","Auto Number Processing Register","Automated Network Plate Registry"]},
+  {q:"Which sensor type captures IR-illuminated plates at night?", a:"CCD with IR filter", w:["LIDAR sensor","Thermal camera","Radar gun"]},
+  {q:"Minimum pixel width for reliable OCR on a plate?",  a:"80 px",                  w:["40 px","120 px","200 px"]},
+  {q:"Which algorithm is used for edge detection in plates?", a:"Canny edge detector",  w:["K-means clustering","Hough transform","Sobel only"]},
+  {q:"What fine applies for driving without a valid licence?", a:"Rs 5,000",            w:["Rs 1,000","Rs 2,000","Rs 10,000"]},
+  {q:"Maximum permissible speed on an expressway in India?",   a:"120 km/h",            w:["100 km/h","80 km/h","140 km/h"]}
 ];
 const pB = [
   {id:"N1",p:"MH47R1105", img:"/plate1.jpg",d:0,sc:25,st:65, sd:false,tc:[58,72], tt:[85,108], cg:75, bg:132},
@@ -254,6 +266,13 @@ const SectionLabel = ({ children }: { children: React.ReactNode }) => (
 );
 
 /* ================================================================
+   RADAR GLITCH — Disabled per user request (no black strip overlay)
+   ================================================================ */
+function RadarGlitch() {
+  return null;
+}
+
+/* ================================================================
    STATION 3 ROOT
    ================================================================ */
 function Station3({
@@ -306,11 +325,11 @@ function Station3({
     }
   }, [phase]);
 
-  /* Auto-advance phases when time gates are crossed */
+  /* Auto-advance when global mission timer expires (0:00) */
   useEffect(() => {
-    if (phase === 2 && time <= 600) goToPhase(3);
-    if (phase === 3 && time <= 360) goToPhase(4);
-    if (phase === 4 && time === 0)   goToPhase(5);
+    if (time === 0 && phase >= 2 && phase <= 4) {
+      goToPhase(5);
+    }
   }, [time, phase]);
 
   const totScore    = Math.max(0, score.a - score.ap + score.b - score.bp + score.c - score.cp + score.bon);
@@ -413,17 +432,17 @@ function Station3({
         {phase === 1 && <BriefingScreen onStart={(t) => { setTeam(t); goToPhase(2); }} />}
         {phase === 2 && (
           <ModuleA score={score} setScore={setScore}
-            onComplete={(t) => { if(!t) setScore((s:any) => ({...s, bon: s.bon + Math.max(0, Math.floor((time-600)/5))})); goToPhase(3); }}
+            onComplete={(t) => { if(!t) setScore((s:any) => ({...s, bon: s.bon + Math.max(0, Math.floor(time/30))})); goToPhase(3); }}
             fxFail={fxFail} />
         )}
         {phase === 3 && (
           <ModuleB score={score} setScore={setScore}
-            onComplete={(t) => { if(!t) setScore((s:any) => ({...s, bon: s.bon + Math.max(0, Math.floor((time-360)/5))})); goToPhase(4); }}
+            onComplete={(t) => { if(!t) setScore((s:any) => ({...s, bon: s.bon + Math.max(0, Math.floor(time/25))})); goToPhase(4); }}
             fxFail={fxFail} showToast={showToast} />
         )}
         {phase === 4 && (
           <ModuleC score={score} setScore={setScore}
-            onComplete={() => { setScore((s:any) => ({...s, bon: s.bon + Math.max(0, Math.floor(time/5))})); goToPhase(5); }}
+            onComplete={() => { setScore((s:any) => ({...s, bon: s.bon + Math.max(0, Math.floor(time/15))})); goToPhase(5); }}
             fxFail={fxFail} showToast={showToast} />
         )}
         {phase === 5 && (
@@ -431,6 +450,7 @@ function Station3({
             score={score}
             team={team}
             totScore={totScore}
+            timeRemaining={time}
             onOpenStationChooser={onOpenStationChooser}
             onRestart={handleRestart}
           />
@@ -646,27 +666,60 @@ function BriefingScreen({ onStart }: { onStart: (t:{name:string;size:number}) =>
 }
 
 /* ================================================================
-   MODULE A — System knowledge quiz
+   MODULE A — System knowledge quiz (6 questions, 10s countdown each)
    ================================================================ */
 function ModuleA({ score, setScore, onComplete, fxFail }:any) {
-  const [qs]   = useState(() => [...pA].sort(() => Math.random()-0.5).slice(0,2));
+  const TOTAL_Q = 6;
+  const TIME_PER_Q = 10;
+  const [qs]   = useState(() => [...pA].sort(() => Math.random()-0.5).slice(0,TOTAL_Q));
   const [qIdx, setQIdx] = useState(0);
   const [opts, setOpts] = useState<string[]>([]);
   const [ansd, setAnsd] = useState<string|null>(null);
+  const [qTimer, setQTimer] = useState(TIME_PER_Q);
+  const [streak, setStreak] = useState(0);
 
   useEffect(() => {
-    if (qIdx < 2) setOpts([qs[qIdx].a, ...qs[qIdx].w].sort(() => Math.random()-0.5));
+    if (qIdx < TOTAL_Q) {
+      setOpts([qs[qIdx].a, ...qs[qIdx].w].sort(() => Math.random()-0.5));
+      setQTimer(TIME_PER_Q);
+    }
     else onComplete(false);
   }, [qIdx]);
 
-  if (qIdx >= 2) return null;
+  // 10-second countdown per question — timeout = auto-wrong
+  useEffect(() => {
+    if (qIdx >= TOTAL_Q || ansd) return;
+    if (qTimer <= 0) {
+      // Timeout — penalty!
+      setAnsd('__TIMEOUT__');
+      setScore((s:any) => ({...s, ap: s.ap+5}));
+      fxFail();
+      setTimeout(() => { setAnsd(null); setQIdx(i => i+1); }, 1200);
+      return;
+    }
+    const t = setTimeout(() => setQTimer(prev => prev - 1), 1000);
+    return () => clearTimeout(t);
+  }, [qTimer, ansd, qIdx]);
+
+  if (qIdx >= TOTAL_Q) return null;
   const q = qs[qIdx];
+  const timerPct = (qTimer / TIME_PER_Q) * 100;
+  const timerColor = qTimer <= 3 ? C.red : qTimer <= 5 ? C.amber : C.green;
 
   const handleAns = (opt: string) => {
     if (ansd) return;
     setAnsd(opt);
-    if (opt === q.a) setScore((s:any) => ({...s, a: s.a+10}));
-    else { setScore((s:any) => ({...s, ap: s.ap+3})); fxFail(); }
+    if (opt === q.a) {
+      const newStreak = streak + 1;
+      setStreak(newStreak);
+      // Bonus points for streaks: 10 base + 5 per consecutive correct
+      const bonus = 10 + (newStreak >= 3 ? 5 : 0);
+      setScore((s:any) => ({...s, a: s.a + bonus}));
+    } else {
+      setStreak(0);
+      setScore((s:any) => ({...s, ap: s.ap+5}));
+      fxFail();
+    }
     setTimeout(() => { setAnsd(null); setQIdx(i => i+1); }, 1200);
   };
 
@@ -677,25 +730,54 @@ function ModuleA({ score, setScore, onComplete, fxFail }:any) {
       animate={{ x:0,  opacity:1 }}
       style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', maxWidth:780, margin:'0 auto', width:'100%', gap:20 }}
     >
+      {/* Radar glitch distraction */}
+      <RadarGlitch />
+
       {/* Module header */}
       <div style={{ width:'100%', display:'flex', alignItems:'center', gap:12 }}>
         <div style={{ width:3, height:20, background:C.red }} />
         <span style={{ ...S.orbitron, fontSize:'0.6rem', fontWeight:700, letterSpacing:'0.25em', color:C.muted }}>
-          MODULE A — SYSTEM CHECK {qIdx+1} / 2
+          MODULE A — SYSTEM CHECK {qIdx+1} / {TOTAL_Q}
         </span>
         <div style={{ flex:1, height:1, background:C.border }} />
         {/* Mini progress pips */}
         <div style={{ display:'flex', gap:4 }}>
-          {[0,1].map(i => (
+          {Array.from({length:TOTAL_Q}, (_,i) => (
             <div key={i} style={{ width:16, height:4, background: i < qIdx ? C.green : i === qIdx ? C.orange : C.border, borderRadius:1, transition:'background 0.3s' }} />
           ))}
         </div>
       </div>
 
       <Panel className="w-full">
-        <div style={{ ...S.orbitron, fontSize:'0.55rem', letterSpacing:'0.25em', color:C.dim, marginBottom:16 }}>
-          INTEL QUERY
+        {/* Countdown timer bar */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+          <div style={{ ...S.orbitron, fontSize:'0.55rem', letterSpacing:'0.25em', color:C.dim }}>
+            INTEL QUERY
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            {streak >= 2 && (
+              <span style={{ ...S.orbitron, fontSize:'0.55rem', color:C.orange, fontWeight:700 }}>
+                🔥 STREAK x{streak}
+              </span>
+            )}
+            <div style={{ ...S.orbitron, fontSize:'1.1rem', fontWeight:900, color:timerColor,
+              textShadow: qTimer <= 3 ? `0 0 12px ${C.red}` : 'none',
+              animation: qTimer <= 3 ? 'redlinePulse 0.4s ease infinite alternate' : 'none'
+            }}>
+              {qTimer}s
+            </div>
+          </div>
         </div>
+        {/* Timer progress bar */}
+        <div style={{ width:'100%', height:4, background:'rgba(255,255,255,0.08)', marginBottom:18, borderRadius:2, overflow:'hidden' }}>
+          <motion.div
+            initial={{ width:'100%' }}
+            animate={{ width:`${timerPct}%` }}
+            transition={{ duration:0.3 }}
+            style={{ height:'100%', background:timerColor, borderRadius:2 }}
+          />
+        </div>
+
         <p style={{ ...S.inter, fontSize:'1.35rem', fontWeight:500, color:C.text, marginBottom:28, lineHeight:1.5 }}>
           {q.q}
         </p>
@@ -704,6 +786,7 @@ function ModuleA({ score, setScore, onComplete, fxFail }:any) {
             let cls = 'option-card';
             if (ansd) {
               if (o === q.a) cls += ' correct';
+              else if (ansd === '__TIMEOUT__') cls += (o === q.a ? ' correct' : ' dimmed');
               else if (o === ansd) cls += ' wrong';
               else cls += ' dimmed';
             }
@@ -720,6 +803,15 @@ function ModuleA({ score, setScore, onComplete, fxFail }:any) {
             );
           })}
         </div>
+        {ansd === '__TIMEOUT__' && (
+          <motion.div
+            initial={{ opacity:0, y:8 }}
+            animate={{ opacity:1, y:0 }}
+            style={{ marginTop:14, textAlign:'center', ...S.orbitron, fontSize:'0.8rem', color:C.red, fontWeight:700, letterSpacing:'0.15em' }}
+          >
+            ⏰ TIME OUT! -5 PENALTY
+          </motion.div>
+        )}
       </Panel>
     </motion.div>
   );
@@ -754,7 +846,11 @@ const getVerifyChallenge = (plate: string) => {
 };
 
 function ModuleB({ score, setScore, onComplete, fxFail, showToast }:any) {
-  const [cap]      = useState(() => pB[Math.floor(Math.random()*pB.length)]);
+  const TOTAL_PLATES = 3;
+  const [plateIdx, setPlateIdx] = useState(0);
+  const [plates] = useState(() => [...pB].sort(() => Math.random()-0.5).slice(0, TOTAL_PLATES));
+  const cap = plates[plateIdx];
+
   const [c, setC]  = useState(cap.sc);
   const [t, setT]  = useState(cap.st);
   const [skew, setSkew] = useState(() => (Math.random() > 0.5 ? 1 : -1) * (Math.floor(Math.random() * 6) + 6));
@@ -767,17 +863,16 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }:any) {
   const [selectedChar, setSelectedChar] = useState<string | null>(null);
   const vWrapRef = useRef<HTMLDivElement>(null);
 
-  // Confidence calculation based on contrast (Gain), brightness (Exposure), and Skew
+  // Confidence calculation — tighter tolerance each round!
+  // Round 1: normal, Round 2: ×1.2 penalty, Round 3: ×1.5 penalty
+  const tightnessMultiplier = 1 + plateIdx * 0.25;
   let cf = 100;
-  
-  // Contrast / Brightness penalty
-  if (c < cap.tc[0]) cf -= 0.8*(cap.tc[0]-c); else if (c > cap.tc[1]) cf -= 0.8*(c-cap.tc[1]);
-  if (t < cap.tt[0]) cf -= 0.4*(cap.tt[0]-t); else if (t > cap.tt[1]) cf -= 0.4*(t-cap.tt[1]);
-
-  // Skew / Tilt alignment penalty
+  if (c < cap.tc[0]) cf -= 0.8*tightnessMultiplier*(cap.tc[0]-c); else if (c > cap.tc[1]) cf -= 0.8*tightnessMultiplier*(c-cap.tc[1]);
+  if (t < cap.tt[0]) cf -= 0.4*tightnessMultiplier*(cap.tt[0]-t); else if (t > cap.tt[1]) cf -= 0.4*tightnessMultiplier*(t-cap.tt[1]);
   const skewError = Math.abs(skew);
-  if (skewError > 2) cf -= (skewError - 2) * 1.8;
-
+  if (skewError > 1.5) cf -= (skewError - 1.5) * 2.2 * tightnessMultiplier;
+  // Minimum required confidence increases each round: 85, 88, 90
+  const minConf = 85 + plateIdx * 2;
   const conf = Math.max(0, Math.min(100, Math.floor(cf)));
 
   const handleDrag = (e:any) => {
@@ -793,239 +888,269 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }:any) {
   const cssProc = `${modeFilter} contrast(${c}%) brightness(${t}%)`;
 
   const [scannedConf, setScannedConf] = useState<number | null>(null);
-  const confColor = scannedConf !== null ? (scannedConf>=85 ? C.green : scannedConf>=70 ? C.amber : C.red) : C.dim;
+  const confColor = scannedConf !== null ? (scannedConf>=minConf ? C.green : scannedConf>=70 ? C.amber : C.red) : C.dim;
+
+  // Advance to next plate or finish
+  const advanceOrFinish = () => {
+    if (plateIdx + 1 < TOTAL_PLATES) {
+      const nextCap = plates[plateIdx + 1];
+      setPlateIdx(p => p + 1);
+      setC(nextCap.sc);
+      setT(nextCap.st);
+      setSkew((Math.random() > 0.5 ? 1 : -1) * (Math.floor(Math.random() * 6) + 6));
+      setDiagDone(false);
+      setScannedConf(null);
+      setVerifyChallenge(null);
+      setSelectedChar(null);
+      setImgFailed(false);
+      showToast(`PLATE ${plateIdx + 2}/${TOTAL_PLATES} LOADED — TOLERANCE TIGHTENED!`);
+    } else {
+      onComplete(false);
+    }
+  };
 
   return (
-    <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:16, height:'100%' }}>
+    <div style={{ display:'flex', flexDirection:'column', gap:14, height:'100%' }}>
+      {/* Radar glitch distraction */}
+      <RadarGlitch />
 
-      {/* ── Left column: camera + OCR ── */}
-      <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-        <Panel style={{ flex:1, maxHeight:440 }}>
-          <div style={{ position:'relative', background:'#000', height:'100%', minHeight:300, border:`1px solid ${C.border}`, overflow:'hidden' }}
-            className="cam-bracket cam-scanlines">
-
-            <div style={{ position:'absolute', inset:0, background:'rgba(5,6,8,0.5)', zIndex:1 }} />
-
-            {/* REC badge + Camera ID */}
-            <div style={{ position:'absolute', top:10, left:10, zIndex:10 }}>
-              <div className="rec-indicator"><div className="rec-dot" />REC</div>
-            </div>
-            <div style={{ position:'absolute', top:10, right:10, ...S.orbitron, fontSize:'0.55rem', color:'rgba(0,200,255,0.45)', letterSpacing:'0.15em', zIndex:10 }}>
-              CAM-B // {cap.id} // OPTICAL
-            </div>
-
-            {/* Comparison slider */}
-            <div
-              ref={vWrapRef}
-              className="cam-noise"
-              style={{ position:'relative', width:'100%', height:'100%', zIndex:5, userSelect:'none', overflow:'hidden' }}
-              onMouseMove={e => e.buttons===1 && handleDrag(e)}
-              onTouchMove={handleDrag}
-            >
-              {/* Processed image with Skew correction */}
-              <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'#1a1a22', filter:cssProc, transform:`rotate(${skew}deg)`, transition:'transform 0.1s ease-out' }}>
-                {(!cap.img||imgFailed)
-                  ? <span style={{ ...S.orbitron, fontSize:'3rem', fontWeight:700, color:'#6a6a8a' }}>{cap.p}</span>
-                  : <img src={cap.img} onError={() => setImgFailed(true)} style={{ width:'100%', height:'100%', objectFit:'contain' }} />
-                }
-              </div>
-
-              {/* Raw image clipped */}
-              <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'#1a1a22', filter:cssRaw, transform:`rotate(${skew > 0 ? 8 : -8}deg)`, clipPath:`inset(0 calc(100% - ${sliderX}px) 0 0)` }}>
-                {(!cap.img||imgFailed)
-                  ? <span style={{ ...S.orbitron, fontSize:'3rem', fontWeight:700, color:'#6a6a8a' }}>{cap.p}</span>
-                  : <img src={cap.img} onError={() => setImgFailed(true)} style={{ width:'100%', height:'100%', objectFit:'contain' }} />
-                }
-              </div>
-
-
-              {/* OCR scan line */}
-              {ocrRunning && (
-                <motion.div
-                  initial={{ left:'-4%' }}
-                  animate={{ left:'104%' }}
-                  transition={{ duration:1, ease:'linear' }}
-                  style={{ position:'absolute', top:'-5%', width:5, height:'110%', background:`linear-gradient(180deg, transparent, ${C.blue}, transparent)`, boxShadow:`0 0 16px ${C.blue}`, transform:'skewX(-10deg)', zIndex:20 }}
-                />
-              )}
-
-              {/* Slider handle */}
-              <div
-                style={{ position:'absolute', top:0, bottom:0, left:sliderX, width:1.5, background:C.orange, cursor:'ew-resize' }}
-                onMouseDown={e => e.preventDefault()}
-              >
-                <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', background:C.orange, color:'#000', fontSize:'0.55rem', padding:'2px 6px', ...S.orbitron, whiteSpace:'nowrap', letterSpacing:'0.1em' }}>
-                  ◀▶
-                </div>
-              </div>
-            </div>
-
-            {/* Labels */}
-            <div style={{ position:'absolute', bottom:8, left:12, ...S.orbitron, fontSize:'0.5rem', color:`rgba(255,107,44,0.5)`, letterSpacing:'0.1em', zIndex:10 }}>RAW</div>
-            <div style={{ position:'absolute', bottom:8, right:12, ...S.orbitron, fontSize:'0.5rem', color:`rgba(0,200,255,0.5)`, letterSpacing:'0.1em', zIndex:10 }}>PROCESSED</div>
+      {/* Plate round progress header */}
+      <div style={{ display:'flex', gap:10 }}>
+        {[
+          { label:'Plate Round', value:`${plateIdx + 1} / ${TOTAL_PLATES}`, color:C.orange },
+          { label:'Min Confidence', value:`${minConf}%`, color: plateIdx >= 2 ? C.red : C.amber },
+          { label:'Tolerance', value: plateIdx === 0 ? 'STANDARD' : plateIdx === 1 ? 'TIGHT' : 'EXTREME', color: plateIdx >= 2 ? C.red : C.amber },
+          { label:'Status', value: verifyChallenge ? 'VERIFY CHAR' : diagDone ? 'CALIBRATING' : 'UPLINK NEEDED', color: verifyChallenge ? C.green : diagDone ? C.blue : C.muted },
+        ].map((item, i) => (
+          <div key={i} style={{ flex:1, background:C.bg2, border:`1px solid ${C.border}`, padding:'8px 12px', display:'flex', flexDirection:'column', alignItems:'center' }}>
+            <div style={{ ...S.label, marginBottom:4 }}>{item.label}</div>
+            <div style={{ ...S.orbitron, fontSize:'0.85rem', fontWeight:700, color:item.color }}>{item.value}</div>
           </div>
-        </Panel>
-
-        {/* Confidence gauge + OCR trigger / Manual Verification */}
-        <Panel style={{ display:'flex', alignItems:'center', gap:24 }}>
-          {/* Arc gauge */}
-          <div style={{ position:'relative', width:150, height:80, flexShrink:0 }}>
-            <svg width="150" height="80" viewBox="0 0 150 80">
-              <path d="M10 76 A60 60 0 0 1 140 76" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="10" />
-              {scannedConf !== null && (
-                <motion.path
-                  d="M10 76 A60 60 0 0 1 140 76"
-                  fill="none" stroke={confColor} strokeWidth="10"
-                  strokeDasharray="195"
-                  initial={{ strokeDashoffset:195 }}
-                  animate={{ strokeDashoffset: 195 - (scannedConf/100)*195 }}
-                  transition={{ duration:0.7, ease:'easeOut' }}
-                />
-              )}
-            </svg>
-            <div style={{ position:'absolute', bottom:0, width:'100%', textAlign:'center', ...S.orbitron, fontSize:'1.8rem', fontWeight:900, lineHeight:1, color: confColor }}>
-              {scannedConf !== null ? scannedConf : '--'}%
-            </div>
-          </div>
-
-          <div style={{ flex:1 }}>
-            {verifyChallenge ? (
-              /* Manual OCR Confirm Verification Challenge */
-              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span style={{ ...S.orbitron, fontSize:'0.65rem', color:C.orange, fontWeight:700, letterSpacing:'0.1em' }}>
-                    MANUAL OCR CONFIRMATION // SLOT #{verifyChallenge.targetIdx + 1}
-                  </span>
-                  <span style={{ ...S.orbitron, fontSize:'0.55rem', color:C.blue, letterSpacing:'0.1em' }}>
-                    AMBIGUITY CHECK
-                  </span>
-                </div>
-                <div style={{ ...S.orbitron, fontSize:'1.15rem', letterSpacing:'0.2em', color:C.green, background:'rgba(0,0,0,0.6)', padding:'6px 14px', border:`1px solid ${C.green}`, textAlign:'center', fontWeight:900 }}>
-                  {verifyChallenge.maskedPlate}
-                </div>
-                <div style={{ display:'flex', gap:8, marginTop:2 }}>
-                  {verifyChallenge.options.map((opt: string) => (
-                    <Btn
-                      key={opt}
-                      variant={selectedChar === opt ? (opt === verifyChallenge.correctChar ? 'primary' : 'orange') : 'ghost'}
-                      className="flex-1"
-                      style={{ padding:'8px', fontSize:'0.9rem', fontWeight:800 }}
-                      onClick={() => {
-                        setSelectedChar(opt);
-                        if (opt === verifyChallenge.correctChar) {
-                          setScore((s:any) => ({...s, b:s.b+25}));
-                          showToast('PLATE VERIFIED & CONFIRMED — CITATION UPLINK READY');
-                          setTimeout(() => onComplete(false), 1200);
-                        } else {
-                          fxFail();
-                          showToast('VERIFICATION MISMATCH — RETRY', true);
-                          setScore((s:any) => ({...s, cp:s.cp+3}));
-                          setTimeout(() => {
-                            setSelectedChar(null);
-                            setVerifyChallenge(null);
-                            setScannedConf(null);
-                          }, 900);
-                        }
-                      }}
-                    >
-                      {opt}
-                    </Btn>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              /* Normal OCR Send Trigger */
-              <>
-                <div className="sys-assist" style={{ marginBottom:12, fontSize:'0.72rem' }}>
-                  Char gray: <strong style={{color:C.text}}>{cap.cg}</strong> &nbsp;|&nbsp; BG gray: <strong style={{color:C.text}}>{cap.bg}</strong>
-                </div>
-                <Btn variant="primary" className="w-full" onClick={() => {
-                  if (!diagDone || ocrRunning) return;
-                  setScannedConf(null);
-                  setOcr(true);
-                  setTimeout(() => {
-                    setOcr(false);
-                    setScannedConf(conf);
-                    if (conf >= 85) {
-                      setVerifyChallenge(getVerifyChallenge(cap.p));
-                      showToast('TARGET DETECTED — CONFIRM AMBIGUOUS CHARACTER');
-                    } else {
-                      fxFail();
-                      showToast(`CONFIDENCE TOO LOW (${conf}%) — ALIGN GAIN, EXPOSURE & SKEW`, true);
-                      setScore((s:any) => ({...s, cp:s.cp+3}));
-                    }
-                  }, 1100);
-                }}>
-                  SEND TO OCR
-                </Btn>
-              </>
-            )}
-          </div>
-        </Panel>
+        ))}
       </div>
 
-      {/* ── Right column: controls ── */}
-      <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:16, flex:1 }}>
 
-        {/* Diagnostic Lock */}
-        <Panel>
-          <SectionLabel>1 · System Uplink</SectionLabel>
-          <div style={{ display:'flex', gap:10, marginBottom:8 }}>
-            <Btn variant={diagDone ? 'ghost' : 'orange'} className="w-full" style={{ padding:'12px' }} onClick={() => {
-              if (diagDone) return;
-              setDiagDone(true);
-              setScore((s:any) => ({...s,b:s.b+5}));
-              showToast('UPLINK ESTABLISHED');
-            }}>
-              {diagDone ? 'UPLINK ACTIVE' : 'INITIALIZE UPLINK'}
-            </Btn>
-          </div>
-        </Panel>
+        {/* ── Left column: camera + OCR ── */}
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <Panel style={{ flex:1, maxHeight:400 }}>
+            <div style={{ position:'relative', background:'#000', height:'100%', minHeight:280, border:`1px solid ${C.border}`, overflow:'hidden' }}
+              className="cam-bracket cam-scanlines">
 
-        {/* Repair params */}
-        <Panel style={{ flex:1, position:'relative', opacity: diagDone ? 1 : 0.45, pointerEvents: diagDone ? 'auto' : 'none', overflowY:'auto' }}>
-          {!diagDone && (
-            <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', zIndex:10, ...S.orbitron, fontSize:'0.75rem', color:C.red, textAlign:'center', padding:16 }}>
-              ESTABLISH UPLINK FIRST
+              <div style={{ position:'absolute', inset:0, background:'rgba(5,6,8,0.5)', zIndex:1 }} />
+
+              <div style={{ position:'absolute', top:10, left:10, zIndex:10 }}>
+                <div className="rec-indicator"><div className="rec-dot" />REC</div>
+              </div>
+              <div style={{ position:'absolute', top:10, right:10, ...S.orbitron, fontSize:'0.55rem', color:'rgba(0,200,255,0.45)', letterSpacing:'0.15em', zIndex:10 }}>
+                CAM-B // {cap.id} // PLATE {plateIdx + 1}/{TOTAL_PLATES}
+              </div>
+
+              <div
+                ref={vWrapRef}
+                className="cam-noise"
+                style={{ position:'relative', width:'100%', height:'100%', zIndex:5, userSelect:'none', overflow:'hidden' }}
+                onMouseMove={e => e.buttons===1 && handleDrag(e)}
+                onTouchMove={handleDrag}
+              >
+                <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'#1a1a22', filter:cssProc, transform:`rotate(${skew}deg)`, transition:'transform 0.1s ease-out' }}>
+                  {(!cap.img||imgFailed)
+                    ? <span style={{ ...S.orbitron, fontSize:'3rem', fontWeight:700, color:'#6a6a8a' }}>{cap.p}</span>
+                    : <img src={cap.img} onError={() => setImgFailed(true)} style={{ width:'100%', height:'100%', objectFit:'contain' }} />
+                  }
+                </div>
+
+                <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'#1a1a22', filter:cssRaw, transform:`rotate(${skew > 0 ? 8 : -8}deg)`, clipPath:`inset(0 calc(100% - ${sliderX}px) 0 0)` }}>
+                  {(!cap.img||imgFailed)
+                    ? <span style={{ ...S.orbitron, fontSize:'3rem', fontWeight:700, color:'#6a6a8a' }}>{cap.p}</span>
+                    : <img src={cap.img} onError={() => setImgFailed(true)} style={{ width:'100%', height:'100%', objectFit:'contain' }} />
+                  }
+                </div>
+
+                {ocrRunning && (
+                  <motion.div
+                    initial={{ left:'-4%' }}
+                    animate={{ left:'104%' }}
+                    transition={{ duration:1, ease:'linear' }}
+                    style={{ position:'absolute', top:'-5%', width:5, height:'110%', background:`linear-gradient(180deg, transparent, ${C.blue}, transparent)`, boxShadow:`0 0 16px ${C.blue}`, transform:'skewX(-10deg)', zIndex:20 }}
+                  />
+                )}
+
+                <div
+                  style={{ position:'absolute', top:0, bottom:0, left:sliderX, width:1.5, background:C.orange, cursor:'ew-resize' }}
+                  onMouseDown={e => e.preventDefault()}
+                >
+                  <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', background:C.orange, color:'#000', fontSize:'0.55rem', padding:'2px 6px', ...S.orbitron, whiteSpace:'nowrap', letterSpacing:'0.1em' }}>
+                    ◀▶
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ position:'absolute', bottom:8, left:12, ...S.orbitron, fontSize:'0.5rem', color:`rgba(255,107,44,0.5)`, letterSpacing:'0.1em', zIndex:10 }}>RAW</div>
+              <div style={{ position:'absolute', bottom:8, right:12, ...S.orbitron, fontSize:'0.5rem', color:`rgba(0,200,255,0.5)`, letterSpacing:'0.1em', zIndex:10 }}>PROCESSED</div>
             </div>
-          )}
-          
-          <SectionLabel>2 · Signal Tuning</SectionLabel>
+          </Panel>
 
-          {/* Contrast slider */}
-          <div style={{ marginBottom:16 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-              <span style={{ ...S.orbitron, fontSize:'0.55rem', letterSpacing:'0.15em', color:C.muted }}>GAIN (dB)</span>
-              <span style={{ ...S.orbitron, fontSize:'0.65rem', color: C.text }}>
-                {(c / 10).toFixed(1)}
-              </span>
+          {/* Confidence gauge + OCR trigger / Manual Verification */}
+          <Panel style={{ display:'flex', alignItems:'center', gap:24 }}>
+            <div style={{ position:'relative', width:150, height:80, flexShrink:0 }}>
+              <svg width="150" height="80" viewBox="0 0 150 80">
+                <path d="M10 76 A60 60 0 0 1 140 76" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="10" />
+                {scannedConf !== null && (
+                  <motion.path
+                    d="M10 76 A60 60 0 0 1 140 76"
+                    fill="none" stroke={confColor} strokeWidth="10"
+                    strokeDasharray="195"
+                    initial={{ strokeDashoffset:195 }}
+                    animate={{ strokeDashoffset: 195 - (scannedConf/100)*195 }}
+                    transition={{ duration:0.7, ease:'easeOut' }}
+                  />
+                )}
+              </svg>
+              <div style={{ position:'absolute', bottom:0, width:'100%', textAlign:'center', ...S.orbitron, fontSize:'1.8rem', fontWeight:900, lineHeight:1, color: confColor }}>
+                {scannedConf !== null ? scannedConf : '--'}%
+              </div>
             </div>
-            <input type="range" min="10" max="100" step="0.5" value={c} onChange={e => { setC(Number(e.target.value)); setScannedConf(null); }} />
-          </div>
 
-          {/* Brightness/Threshold slider */}
-          <div style={{ marginBottom:16 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-              <span style={{ ...S.orbitron, fontSize:'0.55rem', letterSpacing:'0.15em', color:C.muted }}>EXPOSURE (ms)</span>
-              <span style={{ ...S.orbitron, fontSize:'0.65rem', color: C.text }}>
-                {t}
-              </span>
+            <div style={{ flex:1 }}>
+              {verifyChallenge ? (
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <span style={{ ...S.orbitron, fontSize:'0.65rem', color:C.orange, fontWeight:700, letterSpacing:'0.1em' }}>
+                      MANUAL OCR CONFIRMATION // SLOT #{verifyChallenge.targetIdx + 1}
+                    </span>
+                    <span style={{ ...S.orbitron, fontSize:'0.55rem', color:C.blue, letterSpacing:'0.1em' }}>
+                      AMBIGUITY CHECK
+                    </span>
+                  </div>
+                  <div style={{ ...S.orbitron, fontSize:'1.15rem', letterSpacing:'0.2em', color:C.green, background:'rgba(0,0,0,0.6)', padding:'6px 14px', border:`1px solid ${C.green}`, textAlign:'center', fontWeight:900 }}>
+                    {verifyChallenge.maskedPlate}
+                  </div>
+                  <div style={{ display:'flex', gap:8, marginTop:2 }}>
+                    {verifyChallenge.options.map((opt: string) => (
+                      <Btn
+                        key={opt}
+                        variant={selectedChar === opt ? (opt === verifyChallenge.correctChar ? 'primary' : 'orange') : 'ghost'}
+                        className="flex-1"
+                        style={{ padding:'8px', fontSize:'0.9rem', fontWeight:800 }}
+                        onClick={() => {
+                          setSelectedChar(opt);
+                          if (opt === verifyChallenge.correctChar) {
+                            setScore((s:any) => ({...s, b:s.b+25}));
+                            showToast(`PLATE ${plateIdx + 1}/${TOTAL_PLATES} VERIFIED ✓`);
+                            setTimeout(() => advanceOrFinish(), 1200);
+                          } else {
+                            fxFail();
+                            showToast('VERIFICATION MISMATCH — RETRY', true);
+                            setScore((s:any) => ({...s, cp:s.cp+5}));
+                            setTimeout(() => {
+                              setSelectedChar(null);
+                              setVerifyChallenge(null);
+                              setScannedConf(null);
+                            }, 900);
+                          }
+                        }}
+                      >
+                        {opt}
+                      </Btn>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="sys-assist" style={{ marginBottom:12, fontSize:'0.72rem' }}>
+                    Plate {plateIdx + 1}/{TOTAL_PLATES} · Min confidence: <strong style={{color: minConf >= 89 ? C.red : C.amber}}>{minConf}%</strong>
+                  </div>
+                  <Btn variant="primary" className="w-full" onClick={() => {
+                    if (!diagDone || ocrRunning) return;
+                    setScannedConf(null);
+                    setOcr(true);
+                    setTimeout(() => {
+                      setOcr(false);
+                      setScannedConf(conf);
+                      if (conf >= minConf) {
+                        setVerifyChallenge(getVerifyChallenge(cap.p));
+                        showToast('TARGET DETECTED — CONFIRM AMBIGUOUS CHARACTER');
+                      } else {
+                        fxFail();
+                        showToast(`CONFIDENCE TOO LOW (${conf}%) — NEED ${minConf}% MIN. RE-TUNE!`, true);
+                        setScore((s:any) => ({...s, cp:s.cp+5}));
+                      }
+                    }, 1100);
+                  }}>
+                    SEND TO OCR
+                  </Btn>
+                </>
+              )}
             </div>
-            <input type="range" min="50" max="200" step="1" value={t} onChange={e => { setT(Number(e.target.value)); setScannedConf(null); }} />
-          </div>
+          </Panel>
+        </div>
 
-          {/* Plate Skew / Tilt alignment slider */}
-          <div style={{ marginBottom:14 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-              <span style={{ ...S.orbitron, fontSize:'0.55rem', letterSpacing:'0.15em', color:C.muted }}>PLATE SKEW (°)</span>
-              <span style={{ ...S.orbitron, fontSize:'0.65rem', color: C.text }}>
-                {skew > 0 ? `+${skew}` : skew}°
-              </span>
+        {/* ── Right column: controls ── */}
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+
+          <Panel>
+            <SectionLabel>1 · System Uplink</SectionLabel>
+            <div style={{ display:'flex', gap:10, marginBottom:8 }}>
+              <Btn variant={diagDone ? 'ghost' : 'orange'} className="w-full" style={{ padding:'12px' }} onClick={() => {
+                if (diagDone) return;
+                setDiagDone(true);
+                setScore((s:any) => ({...s,b:s.b+5}));
+                showToast('UPLINK ESTABLISHED');
+              }}>
+                {diagDone ? 'UPLINK ACTIVE' : 'INITIALIZE UPLINK'}
+              </Btn>
             </div>
-            <input type="range" min="-15" max="15" step="0.5" value={skew} onChange={e => { setSkew(Number(e.target.value)); setScannedConf(null); }} />
-          </div>
+          </Panel>
 
-        </Panel>
+          {/* Tuning sliders — VALUES HIDDEN for difficulty! */}
+          <Panel style={{ flex:1, position:'relative', opacity: diagDone ? 1 : 0.45, pointerEvents: diagDone ? 'auto' : 'none', overflowY:'auto' }}>
+            {!diagDone && (
+              <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', zIndex:10, ...S.orbitron, fontSize:'0.75rem', color:C.red, textAlign:'center', padding:16 }}>
+                ESTABLISH UPLINK FIRST
+              </div>
+            )}
+            
+            <SectionLabel>2 · Signal Tuning (Blind Mode)</SectionLabel>
+            <div style={{ ...S.orbitron, fontSize:'0.45rem', color:C.dim, letterSpacing:'0.15em', marginBottom:12 }}>
+              ⚠ NUMERIC READOUT UNAVAILABLE — TUNE BY VISUAL JUDGMENT ONLY
+            </div>
+
+            {/* Contrast slider — NO value shown */}
+            <div style={{ marginBottom:16 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                <span style={{ ...S.orbitron, fontSize:'0.55rem', letterSpacing:'0.15em', color:C.muted }}>GAIN (dB)</span>
+                <span style={{ ...S.orbitron, fontSize:'0.65rem', color: C.dim }}>
+                  ██.█
+                </span>
+              </div>
+              <input type="range" min="10" max="100" step="0.5" value={c} onChange={e => { setC(Number(e.target.value)); setScannedConf(null); }} />
+            </div>
+
+            {/* Brightness slider — NO value shown */}
+            <div style={{ marginBottom:16 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                <span style={{ ...S.orbitron, fontSize:'0.55rem', letterSpacing:'0.15em', color:C.muted }}>EXPOSURE (ms)</span>
+                <span style={{ ...S.orbitron, fontSize:'0.65rem', color: C.dim }}>
+                  ███
+                </span>
+              </div>
+              <input type="range" min="50" max="200" step="1" value={t} onChange={e => { setT(Number(e.target.value)); setScannedConf(null); }} />
+            </div>
+
+            {/* Skew slider — NO value shown */}
+            <div style={{ marginBottom:14 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                <span style={{ ...S.orbitron, fontSize:'0.55rem', letterSpacing:'0.15em', color:C.muted }}>PLATE SKEW (°)</span>
+                <span style={{ ...S.orbitron, fontSize:'0.65rem', color: C.dim }}>
+                  ██°
+                </span>
+              </div>
+              <input type="range" min="-15" max="15" step="0.5" value={skew} onChange={e => { setSkew(Number(e.target.value)); setScannedConf(null); }} />
+            </div>
+
+          </Panel>
+        </div>
       </div>
     </div>
   );
@@ -1048,13 +1173,11 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
   const speedLimit = cap.z==='S'?30:cap.z==='R'?40:cap.z==='U'?60:80;
   const excessSpeed = Math.max(0, actualSpeed - speedLimit);
 
-  // Red light duration decreases as speed increases each round!
-  // Round 1: 6s red signal (base speed)
-  // Round 2: 5s red signal (+18 km/h)
-  // Round 3: 4s red signal (+36 km/h)
-  // Round 4: 3s red signal (+54 km/h)
-  // Round 5: 2s red signal (+72 km/h - fastest speed, shortest red light!)
-  const redDuration = Math.max(2, 6 - roundIdx);
+  // Red light duration per user requirement:
+  // Round 1 (roundIdx 0): 4s red signal
+  // Round 2 (roundIdx 1): 3s red signal
+  // Round 3+ (roundIdx >= 2): 2s red signal
+  const redDuration = roundIdx === 0 ? 4 : roundIdx === 1 ? 3 : 2;
 
   // Intersection traffic light cycle: 'GREEN' (5s) -> 'YELLOW' (3s) -> 'RED' (reduces from 6s down to 2s)
   const [light, setLight] = useState<'GREEN' | 'YELLOW' | 'RED'>('GREEN');
@@ -1065,10 +1188,12 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
   // Stop line is at Y = 46%. Zebra crossing is from 46% to 34%.
   const [civY, setCivY] = useState(105);
   const [speederY, setSpeederY] = useState(115);
+  const [decoyY, setDecoyY] = useState(80);
   const [isFlashing, setIsFlashing] = useState(false);
   const [captured, setCaptured] = useState(false);
   const [snapshotEvidence, setSnapshotEvidence] = useState<{ speed: number; plate: string; breachDist: number } | null>(null);
   const [showTkt, setTkt] = useState(false);
+
 
   // Refs to prevent animation stutter or state desynchronization
   const lightRef = useRef(light);
@@ -1078,6 +1203,7 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
 
   const civYRef = useRef(105);
   const speederYRef = useRef(115);
+  const decoyYRef = useRef(80);
   const capturedRef = useRef(false);
   useEffect(() => {
     capturedRef.current = captured;
@@ -1144,6 +1270,13 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
       }
       setSpeederY(speederYRef.current);
 
+      // Decoy car in Lane 1 (sometimes near the speeder to confuse player)
+      decoyYRef.current -= delta * (actualSpeed * 0.35 + Math.sin(now/1000) * 5);
+      if (decoyYRef.current < -25) {
+        decoyYRef.current = 120 + Math.random() * 20;
+      }
+      setDecoyY(decoyYRef.current);
+
       req = requestAnimationFrame(loop);
     };
 
@@ -1196,8 +1329,10 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
   };
 
   // Keyboard shortcut: Spacebar triggers snapshot
+  // Keyboard shortcut: Spacebar triggers snapshot (disabled while typing in input field)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
       if (e.code === 'Space' && !capturedRef.current) {
         e.preventDefault();
         handleTriggerSnapshot();
@@ -1221,8 +1356,10 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
       setCivY(105);
       speederYRef.current = 115;
       setSpeederY(115);
+      decoyYRef.current = 80;
+      setDecoyY(80);
       setRoundIdx(r => r + 1);
-      const nextRed = Math.max(2, 6 - (roundIdx + 1));
+      const nextRed = (roundIdx + 1) === 0 ? 4 : (roundIdx + 1) === 1 ? 3 : 2;
       showToast(`ROUND ${roundIdx + 2} / 5 — SPEED INCREASED (+18 KM/H), RED SIGNAL REDUCED TO ${nextRed}s!`);
     } else {
       // All 5 rounds completed — end game!
@@ -1233,11 +1370,11 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:14, height:'100%' }}>
 
-      {/* Target Data Header */}
+      {/* Target Data Header (No plate number shown) */}
       <div style={{ display:'flex', gap:10 }}>
         {[
           { label:'Round Progress', value:`ROUND ${roundIdx + 1} / 5`, color:C.orange },
-          { label:'Target Plate', value:cap.p, color:C.text },
+          { label:'Target Vehicle', value:'RED COUPE (LANE 2)', color:C.text },
           { label:'Target Speed', value:`${actualSpeed} KM/H`, color: roundIdx > 0 ? C.red : C.amber },
           { label:'Speed Limit', value:`${speedLimit} KM/H`, color:C.blue },
           { label:'Red Window', value:`${redDuration}s LIMIT`, color: redDuration <= 3 ? C.red : C.amber },
@@ -1424,6 +1561,34 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
             </div>
           </div>
 
+          {/* Decoy Vehicle in Lane 1 (Civilian lookalike to test player target recognition) */}
+          <div style={{
+            position:'absolute',
+            left:'36%',
+            top:`${decoyY}%`,
+            transform:'translate(-50%, -50%)',
+            zIndex:9,
+            pointerEvents:'none'
+          }}>
+            <svg width="34" height="64" viewBox="0 0 34 64">
+              <rect x="0" y="7" width="4" height="11" rx="2" fill="#111" />
+              <rect x="30" y="7" width="4" height="11" rx="2" fill="#111" />
+              <rect x="0" y="44" width="4" height="11" rx="2" fill="#111" />
+              <rect x="30" y="44" width="4" height="11" rx="2" fill="#111" />
+              <path d="M 4 10 C 4 3, 30 3, 30 10 L 31 50 C 31 58, 3 58, 3 50 Z" fill="#4A5568" stroke="#718096" strokeWidth="1" />
+              <path d="M 6 16 L 28 16 L 26 26 L 8 26 Z" fill="#1A202C" />
+              <rect x="7" y="26" width="20" height="15" fill="#2D3748" />
+              <path d="M 7 41 L 27 41 L 29 47 L 5 47 Z" fill="#1A202C" />
+              <circle cx="7" cy="8" r="2" fill="#FDE68A" />
+              <circle cx="27" cy="8" r="2" fill="#FDE68A" />
+              <rect x="5" y="52" width="5" height="3" rx="1" fill="#E53E3E" />
+              <rect x="24" y="52" width="5" height="3" rx="1" fill="#E53E3E" />
+            </svg>
+            <div style={{ ...S.orbitron, fontSize:'0.42rem', color: C.muted, textAlign:'center', marginTop:2, background:'rgba(0,0,0,0.7)', borderRadius:2 }}>
+              CIVILIAN (DECOY)
+            </div>
+          </div>
+
           {/* Speeder Violator Vehicle in Lane 2 (Right lane, barreling through upwards) */}
           <div style={{
             position:'absolute',
@@ -1476,7 +1641,7 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
               boxShadow: captured ? '0 0 12px rgba(34,197,94,0.8)' : 'none',
               whiteSpace:'nowrap'
             }}>
-              {captured ? `[CAPTURED: ${actualSpeed} KM/H]` : `SPEEDER // ${cap.p} (${actualSpeed} KM/H)`}
+              {captured ? `[CAPTURED: ${actualSpeed} KM/H]` : `SPEEDER // VIOLATOR (${actualSpeed} KM/H)`}
             </div>
           </div>
 
@@ -1503,7 +1668,7 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
               </div>
               <div style={{ display:'flex', flexDirection:'column', gap:5, fontSize:'0.75rem' }}>
                 <div style={{ display:'flex', justifyContent:'space-between' }}><span style={{ color:C.muted }}>ROUND:</span><strong style={{ color:C.orange }}>{roundIdx + 1} OF 5</strong></div>
-                <div style={{ display:'flex', justifyContent:'space-between' }}><span style={{ color:C.muted }}>PLATE:</span><strong style={{ color:C.text }}>{snapshotEvidence.plate}</strong></div>
+                <div style={{ display:'flex', justifyContent:'space-between' }}><span style={{ color:C.muted }}>TARGET:</span><strong style={{ color:C.text }}>RED SPORTS COUPE</strong></div>
                 <div style={{ display:'flex', justifyContent:'space-between' }}><span style={{ color:C.muted }}>SPEED:</span><strong style={{ color:C.red }}>{snapshotEvidence.speed} KM/H</strong></div>
                 <div style={{ display:'flex', justifyContent:'space-between' }}><span style={{ color:C.muted }}>LIMIT:</span><strong style={{ color:C.blue }}>{speedLimit} KM/H</strong></div>
                 <div style={{ display:'flex', justifyContent:'space-between' }}><span style={{ color:C.muted }}>STOP-LINE BREACH:</span><strong style={{ color:C.orange }}>+{snapshotEvidence.breachDist}m</strong></div>
@@ -1517,11 +1682,17 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
         {/* Action Trigger Bar */}
         <div style={{ padding:'14px 20px', background:C.bg1, borderTop:`1px solid ${C.border}`, display:'flex', alignItems:'center', justifyContent:'space-between', gap:20 }}>
           <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-            <div style={{ ...S.orbitron, fontSize:'0.75rem', fontWeight:800, color: light==='RED'?C.red:C.text }}>
-              {captured ? (roundIdx + 1 < TOTAL_ROUNDS ? `ROUND ${roundIdx + 1} OF 5 CONFIRMED — TRANSMIT CITATION TO ADVANCE` : 'ALL 5 ROUNDS COMPLETE! TRANSMIT FINAL CITATION') : light==='RED' ? `⚡ LIGHT IS RED: TRIGGER SNAPSHOT [ROUND ${roundIdx + 1}/5 · ${actualSpeed} KM/H]` : `AWAITING SIGNAL CYCLE TO RED... [ROUND ${roundIdx + 1}/5 · TARGET: ${cap.p}]`}
+            <div style={{ ...S.orbitron, fontSize:'0.75rem', fontWeight:800, color: !captured ? (light==='RED'?C.red:C.text) : C.green }}>
+              {!captured
+                ? (light==='RED' ? `⚡ LIGHT IS RED: TRIGGER SNAPSHOT [ROUND ${roundIdx + 1}/5 · ${actualSpeed} KM/H]` : `AWAITING SIGNAL CYCLE TO RED... [ROUND ${roundIdx + 1}/5 · SPEED: ${actualSpeed} KM/H]`)
+                : (roundIdx + 1 < TOTAL_ROUNDS ? `📸 ROUND ${roundIdx + 1} OF 5 CAPTURED — TRANSMIT CITATION TO ADVANCE` : `🏁 ALL 5 ROUNDS COMPLETE! TRANSMIT FINAL CITATION`)
+              }
             </div>
             <div style={{ fontSize:'0.7rem', color:C.muted }}>
-              {captured ? 'Click Transmit eChallan to log the ₹2,000 fine notice.' : 'Shortcut: Press SPACEBAR or click the button below when the speeder enters the capture zone.'}
+              {!captured
+                ? 'Shortcut: Press SPACEBAR or click the button below when the speeder enters the capture zone.'
+                : 'Click Transmit eChallan to log the ₹2,000 fine notice.'
+              }
             </div>
           </div>
 
@@ -1614,12 +1785,13 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
 }
 
 /* ================================================================
-   OUTRO SCREEN — Finish line / results
+   OUTRO SCREEN — Finish line / results & JSON telemetry storage
    ================================================================ */
 function OutroScreen({
   score: S,
   team,
   totScore,
+  timeRemaining = 0,
   onOpenStationChooser,
   onRestart,
 }: any) {
@@ -1628,21 +1800,82 @@ function OutroScreen({
   else if (totScore >= 45)  { rank='INSPECTOR'; rankIcon='🏆'; }
   else if (totScore >= 20)  { rank='OFFICER';   rankIcon='🎖'; }
 
+  const [savedStatus, setSavedStatus] = useState<'saving' | 'saved' | 'cached' | 'error'>('saving');
+  const [savedRecord, setSavedRecord] = useState<Station3Result | null>(null);
+  const [showJsonView, setShowJsonView] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const savedRef = useRef(false);
+
+  const timeTaken = Math.max(0, 720 - timeRemaining);
+
+  useEffect(() => {
+    if (savedRef.current) return;
+    savedRef.current = true;
+
+    const now = new Date();
+    const record: Station3Result = {
+      id: `WS3_${Date.now()}`,
+      teamName: team?.name?.trim() || 'ANONYMOUS UNIT',
+      teamSize: Number(team?.size) || 3,
+      completedAt: now.toISOString(),
+      completedTimeFormatted: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      timeRemainingSeconds: timeRemaining,
+      timeRemainingFormatted: formatSeconds(timeRemaining),
+      timeTakenSeconds: timeTaken,
+      timeTakenFormatted: formatSeconds(timeTaken),
+      score: totScore,
+      scoreBreakdown: {
+        moduleABase: S?.a || 0,
+        moduleAPenalty: S?.ap || 0,
+        moduleBBase: S?.b || 0,
+        moduleBPenalty: S?.bp || 0,
+        moduleCBase: S?.c || 0,
+        moduleCPenalty: S?.cp || 0,
+        speedBonus: S?.bon || 0,
+        totalScore: totScore,
+      },
+      rank,
+      station: 'Station 3 - ANPR Speed Trap Surveillance',
+    };
+
+    setSavedRecord(record);
+
+    saveStation3Result(record)
+      .then((ok) => {
+        setSavedStatus(ok ? 'saved' : 'cached');
+      })
+      .catch(() => {
+        setSavedStatus('cached');
+      });
+  }, [timeRemaining, team, totScore, S, rank, timeTaken]);
+
+  const handleCopyJson = () => {
+    if (!savedRecord) return;
+    navigator.clipboard.writeText(JSON.stringify(savedRecord, null, 2)).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }).catch(() => {});
+  };
+
   const rows = [
-    { label:'Sec A Base',    val:S.a,    color:C.muted },
-    { label:'Sec A Penalty', val:`-${S.ap}`, color:C.red   },
-    { label:'Sec B Base',    val:S.b,    color:C.muted },
-    { label:'Sec B Penalty', val:`-${S.bp}`, color:C.red   },
-    { label:'Sec C Base',    val:S.c,    color:C.muted },
-    { label:'Sec C Penalty', val:`-${S.cp}`, color:C.red   },
-    { label:'Speed Bonus',   val:`+${S.bon}`, color:C.blue  },
+    { label:'Officer / Unit',   val: team?.name || 'ANONYMOUS UNIT', color: C.text  },
+    { label:'Completion Time',  val: savedRecord?.completedTimeFormatted || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), color: C.orange },
+    { label:'Time Elapsed',     val: `${formatSeconds(timeTaken)} (of 12:00)`, color: C.blue },
+    { label:'Time Remaining',   val: formatSeconds(timeRemaining), color: C.green },
+    { label:'Sec A Base',       val: S?.a ?? 0,    color: C.muted },
+    { label:'Sec A Penalty',    val: `-${S?.ap ?? 0}`, color: C.red   },
+    { label:'Sec B Base',       val: S?.b ?? 0,    color: C.muted },
+    { label:'Sec B Penalty',    val: `-${S?.bp ?? 0}`, color: C.red   },
+    { label:'Sec C Base',       val: S?.c ?? 0,    color: C.muted },
+    { label:'Sec C Penalty',    val: `-${S?.cp ?? 0}`, color: C.red   },
+    { label:'Speed Bonus',      val: `+${S?.bon ?? 0}`, color: C.blue  },
   ];
 
   return (
     <motion.div
       initial={{ opacity:0 }}
       animate={{ opacity:1 }}
-      style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:20 }}
+      style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:18, paddingBottom: 24 }}
     >
       {/* Checkered flag */}
       <div className="finish-line-bar" style={{ width:'100%' }} />
@@ -1660,53 +1893,105 @@ function OutroScreen({
         />
       </motion.div>
 
+      {/* JSON Persistence notification badge */}
+      <motion.div
+        initial={{ y: 10, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.25 }}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          background: savedStatus === 'saved' ? 'rgba(0, 230, 118, 0.08)' : 'rgba(255, 179, 0, 0.08)',
+          border: `1px solid ${savedStatus === 'saved' ? 'rgba(0, 230, 118, 0.35)' : 'rgba(255, 179, 0, 0.35)'}`,
+          padding: '8px 20px',
+          borderRadius: 4,
+        }}
+      >
+        <span
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            background: savedStatus === 'saved' ? C.green : C.orange,
+            boxShadow: `0 0 10px ${savedStatus === 'saved' ? C.green : C.orange}`,
+            display: 'inline-block',
+          }}
+        />
+        <span style={{ ...S.orbitron, fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.12em', color: savedStatus === 'saved' ? C.green : C.orange }}>
+          {savedStatus === 'saved'
+            ? 'DATABASE RECORD SAVED // results.json'
+            : savedStatus === 'cached'
+            ? 'SESSION CACHED IN LOCAL STORAGE'
+            : 'SAVING SESSION TELEMETRY...'}
+        </span>
+      </motion.div>
+
       {/* Score card */}
       <motion.div
         initial={{ y:28, opacity:0 }}
         animate={{ y:0,  opacity:1 }}
         transition={{ delay:0.3 }}
         className="rank-card panel-clip"
-        style={{ display:'flex', gap:0, width:'min(700px, 95vw)' }}
+        style={{ display:'flex', gap:0, width:'min(720px, 95vw)' }}
       >
         {/* Rank badge column */}
-        <div style={{ width:140, borderRight:`1px solid ${C.border}`, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'24px 16px', gap:10 }}>
-          <div style={{ fontSize:'3rem', lineHeight:1 }}>{rankIcon}</div>
-          <div style={{ ...S.orbitron, fontSize:'0.85rem', fontWeight:700, letterSpacing:'0.08em', color:C.orange, textAlign:'center' }}>{rank}</div>
+        <div style={{ width:150, borderRight:`1px solid ${C.border}`, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'24px 16px', gap:10, background: 'rgba(0,0,0,0.2)' }}>
+          <div style={{ fontSize:'3.2rem', lineHeight:1 }}>{rankIcon}</div>
+          <div style={{ ...S.orbitron, fontSize:'0.9rem', fontWeight:700, letterSpacing:'0.08em', color:C.orange, textAlign:'center' }}>{rank}</div>
           <div style={{ ...S.orbitron, fontSize:'0.45rem', letterSpacing:'0.2em', color:C.dim }}>RANK ACHIEVED</div>
         </div>
 
         {/* Stats table */}
         <div style={{ flex:1, padding:'24px 28px' }}>
-          <div style={{ ...S.orbitron, fontSize:'0.7rem', fontWeight:700, letterSpacing:'0.12em', color:C.muted, borderBottom:`1px solid ${C.border}`, paddingBottom:12, marginBottom:14 }}>
-            OFFICER RECORD — {team.name}
+          <div style={{ ...S.orbitron, fontSize:'0.7rem', fontWeight:700, letterSpacing:'0.12em', color:C.muted, borderBottom:`1px solid ${C.border}`, paddingBottom:12, marginBottom:14, display:'flex', justifyContent:'space-between' }}>
+            <span>OFFICER RECORD — {team.name || 'UNIT'}</span>
+            <span style={{ color: C.dim }}>STATION 3</span>
           </div>
           {rows.map(({ label, val, color }) => (
-            <div key={label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8, paddingBottom:7, borderBottom:`1px solid rgba(255,255,255,0.04)` }}>
-              <span style={{ ...S.inter, fontSize:'0.85rem', color:C.dim }}>{label}</span>
-              <span style={{ ...S.orbitron, fontSize:'0.85rem', fontWeight:700, color }}>{val}</span>
+            <div key={label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:7, paddingBottom:6, borderBottom:`1px solid rgba(255,255,255,0.04)` }}>
+              <span style={{ ...S.inter, fontSize:'0.82rem', color:C.dim }}>{label}</span>
+              <span style={{ ...S.orbitron, fontSize:'0.82rem', fontWeight:700, color }}>{val}</span>
             </div>
           ))}
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:14, paddingTop:14, borderTop:`1px solid ${C.border}` }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:12, paddingTop:12, borderTop:`1px solid ${C.border}` }}>
             <span style={{ ...S.orbitron, fontSize:'0.85rem', fontWeight:700, color:C.muted }}>TOTAL SCORE</span>
-            <span style={{ ...S.orbitron, fontSize:'2rem', fontWeight:900, color:C.green }}>{totScore}</span>
+            <span style={{ ...S.orbitron, fontSize:'2.2rem', fontWeight:900, color:C.green }}>{totScore}</span>
           </div>
         </div>
       </motion.div>
 
       {/* Sync code */}
-      <div style={{ background:C.bg2, border:`1px solid ${C.border}`, padding:'12px 24px', ...S.orbitron, fontSize:'0.65rem', letterSpacing:'0.08em', color:C.dim }}>
+      <div style={{ background:C.bg2, border:`1px solid ${C.border}`, padding:'10px 24px', ...S.orbitron, fontSize:'0.65rem', letterSpacing:'0.08em', color:C.dim, width:'min(720px, 95vw)', textAlign:'center' }}>
         SYNC CODE:{' '}
         <span style={{ color:C.orange, userSelect:'all' }}>
-          {`${team.name} | ${team.size} | ${Math.max(0,S.a+S.b+S.c-S.ap-S.bp-S.cp)} | ${S.bon} | ${totScore}`}
+          {`${team.name || 'UNIT'} | ${team.size} | ${Math.max(0,(S?.a||0)+(S?.b||0)+(S?.c||0)-(S?.ap||0)-(S?.bp||0)-(S?.cp||0))} | ${S?.bon||0} | ${totScore}`}
         </span>
       </div>
 
+      {/* Action buttons bar */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        transition={{ delay: 0.45 }}
+        style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'center', width: 'min(720px, 95vw)' }}
       >
+        <Btn
+          variant="orange"
+          onClick={() => downloadStation3ResultsAsJSON(savedRecord ? [savedRecord] : undefined)}
+          style={{ fontSize: '0.8rem', letterSpacing: '0.1em', padding: '12px 22px' }}
+        >
+          ⬇ DOWNLOAD results.json
+        </Btn>
+
+        <Btn
+          variant="ghost"
+          onClick={() => setShowJsonView(!showJsonView)}
+          style={{ fontSize: '0.8rem', letterSpacing: '0.1em', padding: '12px 22px' }}
+        >
+          {showJsonView ? '✕ HIDE JSON DATA' : '👁 VIEW JSON DATA'}
+        </Btn>
+
         <Btn
           variant="primary"
           onClick={() => {
@@ -1716,11 +2001,55 @@ function OutroScreen({
               onRestart();
             }
           }}
-          style={{ fontSize: '0.9rem', letterSpacing: '0.12em', padding: '14px 34px', fontWeight: 800 }}
+          style={{ fontSize: '0.85rem', letterSpacing: '0.12em', padding: '12px 28px', fontWeight: 800 }}
         >
           ➔ CHOOSE NEXT STATION
         </Btn>
       </motion.div>
+
+      {/* Collapsible JSON Viewer */}
+      <AnimatePresence>
+        {showJsonView && savedRecord && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{ width: 'min(720px, 95vw)', overflow: 'hidden' }}
+          >
+            <div style={{
+              background: '#080a0f',
+              border: `1px solid ${C.border}`,
+              padding: 16,
+              borderRadius: 4,
+              position: 'relative'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingBottom: 8, borderBottom: `1px solid ${C.border}` }}>
+                <span style={{ ...S.orbitron, fontSize: '0.65rem', color: C.muted, letterSpacing: '0.12em' }}>
+                  PAYLOAD STORED IN /src/workstation3/results.json:
+                </span>
+                <Btn
+                  variant="ghost"
+                  onClick={handleCopyJson}
+                  style={{ fontSize: '0.65rem', padding: '4px 12px' }}
+                >
+                  {copied ? '✓ COPIED' : '📋 COPY JSON'}
+                </Btn>
+              </div>
+              <pre style={{
+                margin: 0,
+                fontSize: '0.75rem',
+                color: C.green,
+                fontFamily: 'monospace',
+                overflowX: 'auto',
+                maxHeight: 220,
+                lineHeight: 1.45
+              }}>
+                {JSON.stringify(savedRecord, null, 2)}
+              </pre>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="finish-line-bar" style={{ width:'100%' }} />
     </motion.div>
@@ -1728,3 +2057,4 @@ function OutroScreen({
 }
 
 export default Station3;
+

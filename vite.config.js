@@ -3,6 +3,7 @@ import babel from '@rolldown/plugin-babel'
 import { defineConfig } from 'vite'
 import { workstation4ResultsPlugin } from './src/workstation4/utils/resultsServerPlugin.js'
 import { workstation1ResultsPlugin } from './src/legacy-f1-stream/utils/resultsServerPlugin.js'
+import { workstation3ResultsPlugin } from './src/workstation3/utils/resultsServerPlugin.js'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -10,6 +11,7 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] }),
     workstation1ResultsPlugin(),
+    workstation3ResultsPlugin(),
     workstation4ResultsPlugin(),
   ],
 })
