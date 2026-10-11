@@ -1,781 +1,560 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
-/* ================================================================
-   OPERATION REDLINE — Fast & Furious Cinematic UI System
-   Color spec: FF3038 red / FF6B2C orange / 00C8FF blue / 08090D bg
-   Typography: Orbitron (headings, telemetry) / Inter (body, labels)
-   ================================================================ */
+/* ==========================================================================
+   STATION 3 · eCHALLAN TRACE — midnight patrol terminal / expressway ANPR
+   Everything scoped under .ws3-shell / ws3- prefix. No audio, no rounded
+   cards: chamfered corners only.
+   ========================================================================== */
 
-@theme {
-  /* ── Backgrounds ── */
-  --color-bg-base:       #08090D;
-  --color-bg-secondary:  #12151C;
-  --color-bg-panel:      #0E1118;
-  --color-bg-card:       #1A1E28;
-
-  /* ── Accents ── */
-  --color-red:           #FF3038;   /* Racing red — primary CTA */
-  --color-orange:        #FF6B2C;   /* Electric orange — secondary accent */
-  --color-blue:          #00C8FF;   /* Neon blue — sparingly */
-  --color-green:         #22C55E;   /* Success green */
-  --color-amber:         #F59E0B;   /* Warning amber */
-
-  /* ── Text ── */
-  --color-text-primary:  #F5F5F5;
-  --color-text-secondary:#9298A5;
-  --color-text-muted:    #5A6070;
-
-  /* ── Borders ── */
-  --color-border:        rgba(255,255,255,0.10);
-  --color-border-accent: rgba(255,48,56,0.35);
-
-  /* ── Legacy aliases (do not remove — used in JSX) ── */
-  --color-nos-orange:    #FF6B2C;
-  --color-nos-amber:     #F59E0B;
-  --color-speed-blue:    #00C8FF;
-  --color-acid-green:    #22C55E;
-  --color-danger-red:    #FF3038;
-  --color-neon-cyan:     #00C8FF;
-  --color-neon-magenta:  #FF6B2C;
-
-  /* ── Typography ── */
-  --font-heading: 'Orbitron', 'Consolas', monospace;
-  --font-hud:     'Orbitron', 'Consolas', monospace;
-  --font-plate:   'Orbitron', 'Consolas', monospace;
-  --font-body:    'Inter', 'Segoe UI', sans-serif;
+:root:has(.ws3-shell),
+#root:has(.ws3-shell) {
+  width: 100% !important;
+  max-width: 100vw !important;
+  margin: 0 !important;
+  border-inline: none !important;
+  padding: 0 !important;
+  text-align: left !important;
+  background-color: #090d16 !important;
 }
 
-/* ================================================================
-   BASE
-   ================================================================ */
-@layer base {
-  *, *::before, *::after { box-sizing: border-box; }
+.ws3-shell {
+  --y: #facc15;
+  --y2: #eab308;
+  --cy: #06b6d4;
+  --amb: #f59e0b;
+  --red: #ef4444;
+  --ok: #a3e635;
+  --bg: #090d16;
+  --panel: #0f172a;
+  --panel-2: #0b1220;
+  --edge: #1e3a4a;
+  --text: #e2e8f0;
+  --muted: #7c8ba1;
+  --display: 'Chakra Petch', 'JetBrains Mono', monospace;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
 
-  html, body {
-    margin: 0; padding: 0;
-    background: #08090D;
-    color: #F5F5F5;
-    font-family: 'Inter', 'Segoe UI', sans-serif;
-    font-weight: 400;
-    line-height: 1.5;
-    overflow: hidden;
-    height: 100%;
-    -webkit-font-smoothing: antialiased;
-  }
-
-  ::selection { background: #FF3038; color: #fff; }
-}
-
-/* ================================================================
-   ROOT
-   ================================================================ */
-#root {
-  flex: 1;
+  position: relative;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-  position: relative;
+  color: var(--text);
+  background: var(--bg);
+  font-family: var(--display);
+  font-size: 15px;
+  line-height: 1.45;
+  overflow-x: hidden;
 }
-
-/* ================================================================
-   AMBIENT BACKGROUND LAYERS
-   Three layers: deep base, cinematic vignette, subtle road grid
-   ================================================================ */
-.ambient-layer {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100vw; height: 100vh;
-  pointer-events: none;
+.ws3-shell *,
+.ws3-shell *::before,
+.ws3-shell *::after {
+  box-sizing: border-box;
 }
-
-/* Cinematic dark gradient base */
-.asphalt-bg {
-  z-index: 1;
-  background:
-    radial-gradient(ellipse at 15% 85%, rgba(255,48,56,0.06) 0%, transparent 45%),
-    radial-gradient(ellipse at 85% 15%, rgba(0,200,255,0.04) 0%, transparent 40%),
-    radial-gradient(ellipse at 50% 50%, rgba(18,21,28,0.8) 0%, #08090D 100%);
-}
-
-/* Subtle road grid — barely visible, cinematic not cyberpunk */
-.road-grid {
-  z-index: 2;
-  background-image:
-    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
-  background-size: 80px 80px;
-  animation: gridDrift 20s linear infinite;
-  opacity: 0.6;
-}
-@keyframes gridDrift {
-  from { background-position: 0 0; }
-  to   { background-position: 0 80px; }
-}
-
-/* Cinematic vignette frame */
-.vignette {
-  z-index: 3;
-  box-shadow:
-    inset 0 0 140px rgba(0,0,0,0.85),
-    inset 0 0 40px rgba(0,0,0,0.4);
-}
-
-/* Bottom atmospheric glow — red tint on floor */
-.underglow {
-  z-index: 2;
-  background: radial-gradient(ellipse at 50% 105%, rgba(255,48,56,0.08) 0%, transparent 60%);
-}
-
-/* ================================================================
-   TYPOGRAPHY — Orbitron headings, Inter body
-   ================================================================ */
-.font-heading { font-family: 'Orbitron', monospace !important; }
-.font-hud     { font-family: 'Orbitron', monospace !important; }
-.font-plate   { font-family: 'Orbitron', monospace !important; }
-.font-body    { font-family: 'Inter', sans-serif !important; }
-
-/* ================================================================
-   GLITCH TEXT — controlled, not excessive
-   ================================================================ */
-.glitch-text {
-  position: relative;
-  font-family: 'Orbitron', monospace;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.glitch-text::before,
-.glitch-text::after {
-  content: attr(data-text);
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
+.ws3-shell button {
   font-family: inherit;
-  font-size: inherit;
-  font-weight: inherit;
-  pointer-events: none;
-}
-.glitch-text::before {
-  color: #FF3038;
-  animation: glitchA 4s infinite linear;
-  clip-path: polygon(0 25%, 100% 25%, 100% 45%, 0 45%);
-}
-.glitch-text::after {
-  color: #00C8FF;
-  animation: glitchB 4s infinite linear;
-  clip-path: polygon(0 58%, 100% 58%, 100% 74%, 0 74%);
-}
-@keyframes glitchA {
-  0%, 88%, 100% { transform: translate(0); opacity: 0; }
-  90%           { transform: translate(-4px, 1px); opacity: 0.75; }
-  92%           { transform: translate(3px, -1px); opacity: 0.75; }
-  94%           { transform: translate(0); opacity: 0; }
-}
-@keyframes glitchB {
-  0%, 82%, 100% { transform: translate(0); opacity: 0; }
-  84%           { transform: translate(4px, -1px); opacity: 0.6; }
-  86%           { transform: translate(-2px, 1px); opacity: 0.6; }
-  88%           { transform: translate(0); opacity: 0; }
 }
 
-/* ================================================================
-   CLIP PATHS — angular motorsport geometry
-   ================================================================ */
-.panel-clip {
-  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
-}
-.panel-clip-sm {
-  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
-}
-.btn-clip {
-  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-}
-
-/* ================================================================
-   PANEL — cinematic card base
-   ================================================================ */
-.ff-panel {
-  background: #0E1118;
-  border: 1px solid rgba(255,255,255,0.10);
-  position: relative;
-  overflow: hidden;
-}
-
-/* Top-left red accent bar */
-.ff-panel::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0;
-  width: 48px; height: 2px;
-  background: #FF3038;
-}
-
-/* Bottom-right subtle line */
-.ff-panel::after {
-  content: '';
-  position: absolute;
-  bottom: 0; right: 0;
-  width: 48px; height: 1px;
-  background: rgba(255,255,255,0.08);
-}
-
-/* ================================================================
-   BUTTONS — primary (red), secondary (ghost), danger
-   ================================================================ */
-.ff-btn {
-  font-family: 'Orbitron', monospace;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  padding: 14px 36px;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  transition: all 0.18s ease;
-  border: 1px solid #FF3038;
-  background: rgba(255,48,56,0.12);
-  color: #FF3038;
-}
-
-/* Shimmer sweep on hover */
-.ff-btn::before {
-  content: '';
-  position: absolute;
-  top: 0; left: -100%;
-  width: 100%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,48,56,0.18), transparent);
-  transition: left 0.35s ease;
-}
-.ff-btn:hover {
-  background: rgba(255,48,56,0.22);
-  border-color: #FF3038;
-  color: #fff;
-  box-shadow: 0 0 24px rgba(255,48,56,0.25);
-  transform: translateY(-1px);
-}
-.ff-btn:hover::before { left: 100%; }
-.ff-btn:active { transform: translateY(0) scale(0.98); }
-
-.ff-btn-orange {
-  border-color: #FF6B2C;
-  background: rgba(255,107,44,0.12);
-  color: #FF6B2C;
-}
-.ff-btn-orange:hover {
-  background: rgba(255,107,44,0.22);
-  border-color: #FF6B2C;
-  box-shadow: 0 0 24px rgba(255,107,44,0.25);
-}
-
-.ff-btn-ghost {
-  border-color: rgba(255,255,255,0.15);
-  background: rgba(255,255,255,0.04);
-  color: #9298A5;
-}
-.ff-btn-ghost:hover {
-  border-color: rgba(255,255,255,0.3);
-  background: rgba(255,255,255,0.08);
-  color: #F5F5F5;
-  box-shadow: none;
-}
-
-/* Alias kept for legacy */
-.ff-btn-danger { }
-
-/* ================================================================
-   HUD HEADER
-   ================================================================ */
-.hud-header {
-  background: rgba(8,9,13,0.97);
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-  position: relative;
-}
-/* Red accent line at bottom */
-.hud-header::after {
-  content: '';
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, #FF3038 0%, rgba(255,107,44,0.5) 40%, transparent 70%);
-}
-
-/* ================================================================
-   GEAR PROGRESS BAR
-   ================================================================ */
-.gear-pip {
-  width: 32px; height: 6px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.12);
-  clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
-  transition: all 0.3s ease;
-}
-.gear-pip.active {
-  background: #FF6B2C;
-  border-color: #FF6B2C;
-  box-shadow: 0 0 8px rgba(255,107,44,0.5);
-}
-.gear-pip.redline {
-  background: #FF3038;
-  border-color: #FF3038;
-  box-shadow: 0 0 10px rgba(255,48,56,0.6);
-  animation: redlineBlink 0.4s ease infinite alternate;
-}
-@keyframes redlineBlink {
-  from { opacity: 0.75; }
-  to   { opacity: 1; }
-}
-
-/* ================================================================
-   HIGHWAY TRANSITION OVERLAY
-   ================================================================ */
-.highway-transition {
+/* asphalt grid + horizon glow */
+.ws3-bg {
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  z-index: 0;
   pointer-events: none;
-  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(6, 182, 212, 0.07), transparent 28%),
+    repeating-linear-gradient(90deg, rgba(148, 163, 184, 0.045) 0 1px, transparent 1px 64px),
+    repeating-linear-gradient(0deg, rgba(148, 163, 184, 0.045) 0 1px, transparent 1px 64px),
+    radial-gradient(ellipse at 50% 120%, rgba(250, 204, 21, 0.09), transparent 60%);
+}
+.ws3-header,
+.ws3-main {
+  position: relative;
+  z-index: 1;
 }
 
-/* ================================================================
-   OPTION CARDS — answer buttons
-   ================================================================ */
-.option-card {
-  background: rgba(14,17,24,0.95);
-  border: 1px solid rgba(255,255,255,0.10);
-  padding: 18px 20px;
-  cursor: pointer;
-  font-family: 'Inter', sans-serif;
-  font-size: 1rem;
-  font-weight: 500;
-  color: #9298A5;
-  text-align: left;
-  transition: all 0.15s ease;
-  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
-  position: relative;
+.ws3-shell.is-shaking {
+  animation: ws3-shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97);
 }
-.option-card::before {
+@keyframes ws3-shake {
+  10%, 90% { transform: translate(-2px, 1px); }
+  20%, 80% { transform: translate(4px, -2px); }
+  30%, 50%, 70% { transform: translate(-6px, 2px); }
+  40%, 60% { transform: translate(6px, -1px); }
+}
+
+/* camera strobe flash */
+.ws3-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 45%, #fffef0 0%, #fef08a 45%, rgba(250, 204, 21, 0.4) 100%);
+  animation: ws3-flash 0.6s ease-out forwards;
+}
+@keyframes ws3-flash {
+  0% { opacity: 0; }
+  8% { opacity: 0.95; }
+  100% { opacity: 0; }
+}
+
+/* ---------- chamfered panel ---------- */
+.ws3-panel {
+  --cut: 14px;
+  position: relative;
+  background: var(--edge);
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
+  padding: 18px 18px 16px;
+  min-width: 0;
+}
+.ws3-panel::before {
   content: '';
   position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 2px;
-  background: #FF3038;
-  transform: scaleY(0);
-  transform-origin: bottom;
-  transition: transform 0.15s ease;
+  inset: 1px;
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  clip-path: polygon(calc(var(--cut) - 1px) 0, 100% 0, 100% calc(100% - var(--cut) + 1px), calc(100% - var(--cut) + 1px) 100%, 0 100%, 0 calc(var(--cut) - 1px));
 }
-.option-card:hover {
-  background: rgba(255,48,56,0.06);
-  border-color: rgba(255,48,56,0.35);
-  color: #F5F5F5;
+.ws3-panel > * {
+  position: relative;
+  z-index: 1;
 }
-.option-card:hover::before { transform: scaleY(1); }
+.ws3-panel-tag {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--cy);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+.ws3-panel-tag::before {
+  content: '▌';
+  color: var(--y);
+  margin-right: 6px;
+}
 
-.option-card.correct {
-  background: rgba(34,197,94,0.08);
-  border-color: rgba(34,197,94,0.5);
-  color: #22C55E;
-}
-.option-card.correct::before {
-  background: #22C55E;
-  transform: scaleY(1);
-}
-.option-card.wrong {
-  background: rgba(255,48,56,0.06);
-  border-color: rgba(255,48,56,0.3);
-  color: rgba(255,48,56,0.5);
-  text-decoration: line-through;
-}
-.option-card.dimmed { opacity: 0.35; pointer-events: none; }
-
-/* ================================================================
-   STEP INDICATORS
-   ================================================================ */
-.step-indicator {
-  width: 34px; height: 34px;
-  border: 1px solid rgba(255,255,255,0.15);
+/* ---------- header / timer ---------- */
+.ws3-header {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-family: 'Orbitron', monospace;
-  font-size: 0.75rem;
+  gap: 24px;
+  padding: 14px 210px 14px 20px;
+  border-bottom: 1px solid var(--edge);
+  background: rgba(9, 13, 22, 0.85);
+  backdrop-filter: blur(6px);
+}
+.ws3-brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.ws3-brand-code { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.16em; color: var(--cy); }
+.ws3-brand-title {
+  margin: 0;
+  font-size: 26px;
   font-weight: 700;
-  color: #5A6070;
-  transform: rotate(45deg);
-  transition: all 0.25s ease;
-  position: relative;
-}
-.step-indicator > span { transform: rotate(-45deg); }
-.step-indicator.done {
-  border-color: rgba(34,197,94,0.5);
-  color: #22C55E;
-  background: rgba(34,197,94,0.08);
-}
-.step-indicator.active {
-  border-color: #FF3038;
-  color: #FF3038;
-  background: rgba(255,48,56,0.08);
-  box-shadow: 0 0 16px rgba(255,48,56,0.2);
-}
-
-/* ================================================================
-   TOAST NOTIFICATIONS
-   ================================================================ */
-.toast-success {
-  background: rgba(8,9,13,0.98);
-  border-left: 3px solid #22C55E;
-  color: #22C55E;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-  font-family: 'Orbitron', monospace;
-  font-size: 0.7rem;
   letter-spacing: 0.08em;
+  color: var(--y);
+  text-shadow: 0 0 18px rgba(250, 204, 21, 0.35);
+  line-height: 1.1;
 }
-.toast-error {
-  background: rgba(8,9,13,0.98);
-  border-left: 3px solid #FF3038;
-  color: #FF3038;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-  font-family: 'Orbitron', monospace;
-  font-size: 0.7rem;
+.ws3-steps { display: flex; gap: 6px; margin-left: auto; }
+.ws3-step {
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 8px;
+  padding: 5px 12px;
+  border: 1px solid var(--edge);
+  font-family: var(--mono);
+  font-size: 10px;
   letter-spacing: 0.08em;
+  color: var(--muted);
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  padding-inline: 16px;
 }
+.ws3-step-id { color: inherit; font-weight: 700; }
+.ws3-step-pts { grid-column: 2; text-align: right; }
+.ws3-step-name { grid-column: 1 / -1; order: 3; font-size: 9.5px; opacity: 0.8; }
+.ws3-step.is-active { color: #090d16; background: var(--y); border-color: var(--y); }
+.ws3-step.is-done { color: var(--cy); border-color: rgba(6, 182, 212, 0.6); }
+.ws3-score { display: flex; flex-direction: column; align-items: flex-end; }
+.ws3-score-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; color: var(--muted); }
+.ws3-score-val { font-family: var(--mono); font-size: 24px; font-weight: 700; color: var(--text); line-height: 1; }
 
-/* ================================================================
-   BOOT SCREEN TERMINAL
-   ================================================================ */
-.terminal-text {
-  font-family: 'Orbitron', monospace;
-  color: #FF6B2C;
-  font-size: 0.85rem;
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  line-height: 2.2;
-  opacity: 0.9;
+.ws3-timer {
+  position: fixed;
+  top: 10px;
+  right: 16px;
+  z-index: 60;
+  min-width: 168px;
+  padding: 7px 16px 7px 22px;
+  background: #05070c;
+  border: 1px solid var(--y);
+  clip-path: polygon(12px 0, 100% 0, 100% 100%, 0 100%, 0 12px);
+  box-shadow: 0 0 22px rgba(250, 204, 21, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 }
+.ws3-timer-label { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.2em; color: var(--muted); }
+.ws3-timer-digits { font-family: var(--mono); font-size: 34px; font-weight: 700; letter-spacing: 0.06em; color: var(--y); line-height: 1.05; }
+.ws3-timer--warn { border-color: var(--amb); }
+.ws3-timer--warn .ws3-timer-digits { color: var(--amb); }
+.ws3-timer--crit { border-color: var(--red); animation: ws3-blink 1s steps(2) infinite; }
+.ws3-timer--crit .ws3-timer-digits { color: var(--red); }
+@keyframes ws3-blink { 50% { box-shadow: 0 0 26px rgba(239, 68, 68, 0.7); } }
 
-/* ================================================================
-   CAMERA VIEWFINDER
-   ================================================================ */
-.cam-noise {
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.10'/%3E%3C/svg%3E");
+/* ---------- buttons ---------- */
+.ws3-btn {
+  appearance: none;
+  border: 1px solid var(--cy);
+  background: rgba(6, 182, 212, 0.08);
+  color: var(--cy);
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  padding: 11px 20px;
+  cursor: pointer;
+  border-radius: 0;
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  transition: transform 0.08s, background 0.15s, color 0.15s, box-shadow 0.15s;
 }
-.cam-scanlines::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent 0px, transparent 3px,
-    rgba(0,0,0,0.1) 3px, rgba(0,0,0,0.1) 4px
-  );
-  pointer-events: none;
+.ws3-btn:hover:not(:disabled) { background: rgba(6, 182, 212, 0.2); }
+.ws3-btn:active:not(:disabled) { transform: translateY(2px); }
+.ws3-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.ws3-btn:focus-visible, .ws3-opt:focus-visible, .ws3-filter:focus-visible, .ws3-lock:focus-visible, .ws3-input:focus-visible {
+  outline: 2px solid var(--y);
+  outline-offset: 2px;
+}
+.ws3-btn--primary { background: var(--y); border-color: var(--y); color: #090d16; box-shadow: 0 0 22px rgba(250, 204, 21, 0.3); }
+.ws3-btn--primary:hover:not(:disabled) { background: #fde047; }
+.ws3-btn--ghost { border-color: var(--edge); color: var(--muted); background: transparent; }
+.ws3-btn--hint { border-color: var(--amb); color: var(--amb); background: rgba(245, 158, 11, 0.08); }
+.ws3-btn--hint:hover:not(:disabled) { background: rgba(245, 158, 11, 0.22); }
+.ws3-arena-btn { padding: 8px 12px; font-size: 11px; }
+.ws3-pulse { animation: ws3-pulse 1.1s ease-in-out infinite; }
+@keyframes ws3-pulse { 50% { box-shadow: 0 0 34px rgba(250, 204, 21, 0.75); } }
+
+/* ---------- layout shell ---------- */
+.ws3-main {
+  flex: 1;
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+  align-items: start;
+  max-width: 1760px;
+  width: 100%;
+  margin: 0 auto;
+}
+.ws3-actionbar {
+  position: sticky;
+  bottom: 0;
   z-index: 5;
-}
-
-/* Camera corner brackets */
-.cam-bracket::before,
-.cam-bracket::after {
-  content: '';
-  position: absolute;
-  width: 20px; height: 20px;
-  border-color: rgba(255,107,44,0.7);
-  border-style: solid;
-}
-.cam-bracket::before { top: 10px; left: 10px; border-width: 2px 0 0 2px; }
-.cam-bracket::after  { bottom: 10px; right: 10px; border-width: 0 2px 2px 0; }
-
-/* REC indicator */
-.rec-indicator {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 5px;
-  font-family: 'Orbitron', monospace;
-  font-size: 0.6rem;
-  font-weight: 700;
-  color: #FF3038;
-  letter-spacing: 0.15em;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  background: rgba(5, 7, 12, 0.94);
+  border-top: 1px solid var(--y2);
+  backdrop-filter: blur(6px);
 }
-.rec-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: #FF3038;
-  animation: recBlink 1s ease infinite;
-}
-@keyframes recBlink {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.2; }
-}
+.ws3-bar-info { display: flex; gap: 22px; flex-wrap: wrap; font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.1em; color: var(--muted); }
+.ws3-bar-info span:first-child { color: var(--y); font-weight: 700; }
+.ws3-bar-note { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; color: var(--muted); }
 
-/* ================================================================
-   RANGE SLIDERS (Scoped to Station 3)
-   ================================================================ */
-.ws3-screen input[type=range],
-.station3-root input[type=range] {
-  -webkit-appearance: none;
+/* ---------- start / summary ---------- */
+.ws3-start { place-items: center; grid-template-columns: minmax(0, 620px); justify-content: center; }
+.ws3-start-card { width: 100%; padding: 30px 32px; }
+.ws3-start-title { margin: 0 0 8px; font-size: 32px; font-weight: 700; letter-spacing: 0.04em; line-height: 1.1; }
+.ws3-start-title span { color: var(--y); }
+.ws3-start-lede { color: var(--muted); margin: 0 0 22px; }
+.ws3-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.ws3-field { display: flex; flex-direction: column; gap: 6px; }
+.ws3-field-label { font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; color: var(--cy); }
+.ws3-input {
+  background: #05070c;
+  border: 1px solid var(--edge);
+  border-radius: 0;
+  color: var(--y);
+  font-family: var(--mono);
+  font-size: 22px;
+  letter-spacing: 0.3em;
+  padding: 10px 12px;
   width: 100%;
-  background: transparent;
-  outline: none;
 }
-.ws3-screen input[type=range]::-webkit-slider-runnable-track,
-.station3-root input[type=range]::-webkit-slider-runnable-track {
-  height: 3px;
-  background: rgba(255,255,255,0.12);
-}
-.ws3-screen input[type=range]::-webkit-slider-thumb,
-.station3-root input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  height: 20px;
-  width: 10px;
-  background: #FF6B2C;
-  margin-top: -9px;
-  cursor: pointer;
-  clip-path: polygon(0 15%, 100% 0, 100% 85%, 0 100%);
-  transition: background 0.15s;
-}
-.ws3-screen input[type=range]:hover::-webkit-slider-thumb,
-.station3-root input[type=range]:hover::-webkit-slider-thumb { background: #FF3038; }
+.ws3-input[aria-invalid='true'] { border-color: var(--red); }
+.ws3-field-err { font-family: var(--mono); font-size: 10.5px; color: var(--red); letter-spacing: 0.06em; }
+.ws3-brief { list-style: none; margin: 0 0 24px; padding: 0; display: grid; gap: 6px; font-size: 13.5px; color: var(--text); }
+.ws3-brief li { padding-left: 14px; border-left: 2px solid var(--y2); }
+.ws3-brief b { font-family: var(--mono); color: var(--cy); margin-right: 8px; }
+.ws3-start-go { width: 100%; font-size: 15px; padding: 14px; }
+.ws3-summary-table { margin: 4px 0 22px; }
+.ws3-summary-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.ws3-summary--forfeit .ws3-start-title, .ws3-summary--timeout .ws3-start-title { color: var(--red); }
+.ws3-summary--complete .ws3-start-title { color: var(--ok); }
 
-/* ================================================================
-   CHECKBOX
-   ================================================================ */
-input[type="checkbox"] {
-  -webkit-appearance: none;
+/* ---------- MODULE A ---------- */
+.ws3-modA { grid-template-columns: minmax(0, 1fr) 280px; }
+.ws3-qprogress { display: flex; gap: 8px; margin-bottom: 16px; }
+.ws3-qpip { font-family: var(--mono); font-size: 11px; padding: 2px 12px; border: 1px solid var(--edge); color: var(--muted); }
+.ws3-qpip.is-live { border-color: var(--y); color: var(--y); }
+.ws3-qpip.is-done { border-color: var(--cy); color: var(--cy); background: rgba(6, 182, 212, 0.1); }
+.ws3-qtext { font-size: 22px; font-weight: 600; line-height: 1.35; margin: 0 0 22px; animation: ws3-in 0.35s ease-out; }
+.ws3-qtext--sm { font-size: 16px; margin-bottom: 14px; }
+@keyframes ws3-in { from { opacity: 0; transform: translateX(-10px); } }
+.ws3-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ws3-options--tight { grid-template-columns: 1fr 1fr; gap: 8px; }
+.ws3-opt {
   appearance: none;
-  width: 22px; height: 22px;
-  border: 1px solid rgba(255,255,255,0.2);
-  background: rgba(255,255,255,0.04);
-  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  text-align: left;
+  padding: 0;
+  min-height: 62px;
+  background: #0b1424;
+  color: var(--text);
+  border: 1px solid var(--edge);
+  border-radius: 0;
   cursor: pointer;
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
-  transition: all 0.15s;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  transition: transform 0.08s, border-color 0.15s, background 0.15s, box-shadow 0.08s;
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.45);
 }
-input[type="checkbox"]:checked {
-  background: rgba(0,200,255,0.15);
-  border-color: #00C8FF;
-}
-input[type="checkbox"]:checked::after {
-  content: '✓';
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  color: #00C8FF;
-  font-family: 'Inter', sans-serif;
+.ws3-opt-key {
+  display: grid;
+  place-items: center;
+  min-width: 52px;
+  font-family: var(--mono);
   font-weight: 700;
-  font-size: 14px;
+  color: var(--y);
+  background: rgba(250, 204, 21, 0.08);
+  border-right: 1px solid var(--edge);
 }
-
-/* ================================================================
-   SYSTEM ASSIST — hint panel
-   ================================================================ */
-.sys-assist {
-  background: rgba(0,200,255,0.04);
-  border-left: 2px solid rgba(0,200,255,0.4);
+.ws3-opt-text { padding: 10px 14px; display: flex; align-items: center; font-size: 15px; }
+.ws3-options--tight .ws3-opt { min-height: 48px; }
+.ws3-options--tight .ws3-opt-text { font-family: var(--mono); font-size: 13px; }
+.ws3-opt:hover:not(:disabled) { border-color: var(--y); background: #101c31; }
+.ws3-opt:active:not(:disabled) { transform: translateY(3px); box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.45); }
+.ws3-opt:disabled { cursor: default; }
+.ws3-opt.is-wrong { border-color: var(--red); color: #fca5a5; background: rgba(239, 68, 68, 0.1); text-decoration: line-through; opacity: 0.75; }
+.ws3-opt.is-correct { border-color: var(--ok); background: rgba(163, 230, 53, 0.14); color: #ecfccb; box-shadow: 0 0 20px rgba(163, 230, 53, 0.3); }
+.ws3-opt.is-dim { opacity: 0.35; }
+.ws3-qfeed { min-height: 62px; margin-top: 18px; display: grid; gap: 6px; }
+.ws3-intel {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
   padding: 8px 12px;
-  font-family: 'Inter', sans-serif;
-  font-size: 0.78rem;
-  color: rgba(0,200,255,0.8);
-  letter-spacing: 0.02em;
-  line-height: 1.6;
+  border-left: 3px solid var(--cy);
+  background: rgba(6, 182, 212, 0.08);
+  color: #a5f3fc;
 }
+.ws3-intel b { color: var(--y); }
+.ws3-intel--red { border-color: var(--red); background: rgba(239, 68, 68, 0.1); color: #fca5a5; }
+.ws3-intel--ok { border-color: var(--ok); background: rgba(163, 230, 53, 0.1); color: #d9f99d; }
 
-/* ================================================================
-   RADAR BAR
-   ================================================================ */
-.radar-bar {
-  background: rgba(8,9,13,0.95);
-  border: 1px solid rgba(255,255,255,0.08);
-  position: relative;
-  overflow: hidden;
-}
+.ws3-scope-svg { width: 100%; max-width: 240px; display: block; margin: 0 auto 12px; }
+.ws3-scope-ring { fill: none; stroke: rgba(6, 182, 212, 0.35); }
+.ws3-scope-axis { stroke: rgba(6, 182, 212, 0.25); }
+.ws3-scope-sweep { transform-origin: 100px 100px; animation: ws3-spin 3.6s linear infinite; }
+.ws3-scope-sweep path { fill: rgba(250, 204, 21, 0.22); }
+.ws3-scope-blip { fill: var(--red); animation: ws3-blip 1.8s ease-in-out infinite; }
+.ws3-scope-blip--b { fill: var(--amb); animation-delay: 0.7s; }
+@keyframes ws3-spin { to { transform: rotate(360deg); } }
+@keyframes ws3-blip { 50% { opacity: 0.2; } }
+.ws3-readout { display: flex; justify-content: space-between; gap: 10px; font-family: var(--mono); font-size: 12px; padding: 4px 0; border-bottom: 1px dashed rgba(124, 139, 161, 0.25); }
+.ws3-readout-k { color: var(--muted); letter-spacing: 0.08em; }
+.ws3-readout-v { color: var(--cy); font-weight: 700; }
+.ws3-readout--warn .ws3-readout-v { color: var(--amb); }
+.ws3-readout--bad .ws3-readout-v { color: var(--red); }
+.ws3-readout--ok .ws3-readout-v { color: var(--ok); }
 
-/* ================================================================
-   CHALLAN TICKET
-   ================================================================ */
-.challan-paper {
-  background: #F5F0E8;
-  color: #111;
-  font-family: 'Courier New', monospace;
-  position: relative;
-  overflow: hidden;
-}
-.challan-paper::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg, transparent 0, transparent 23px,
-    rgba(0,0,0,0.05) 23px, rgba(0,0,0,0.05) 24px
-  );
-}
-.challan-stamp {
-  position: absolute;
-  top: 38%; left: 50%;
-  transform: translate(-50%, -50%) rotate(-18deg);
-  border: 3px solid;
-  padding: 5px 14px;
-  font-family: 'Orbitron', monospace;
-  font-size: 1.4rem;
-  font-weight: 900;
-  border-radius: 3px;
-}
+/* ---------- MODULE B ---------- */
+.ws3-modB { grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.8fr) minmax(0, 1fr); }
+.ws3-center { display: flex; flex-direction: column; gap: 8px; align-items: stretch; min-width: 0; }
+.ws3-table-wrap { overflow-x: auto; }
+.ws3-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+.ws3-table th, .ws3-table td { padding: 7px 8px; text-align: left; border-bottom: 1px solid rgba(30, 58, 74, 0.8); white-space: nowrap; }
+.ws3-table thead th { color: var(--cy); font-size: 10.5px; letter-spacing: 0.12em; border-bottom: 1px solid var(--cy); position: sticky; top: 0; }
+.ws3-registry th, .ws3-registry td { padding: 7px 6px; font-size: 11px; }
+.ws3-registry td { color: var(--text); transition: background 0.3s, color 0.3s; }
+.ws3-registry tr.is-target td { background: rgba(250, 204, 21, 0.1); }
+.ws3-registry tr.is-target td:first-child { box-shadow: inset 3px 0 0 var(--y); color: var(--y); font-weight: 700; }
+.ws3-registry td.is-verified { background: rgba(6, 182, 212, 0.25); color: #ecfeff; box-shadow: inset 0 0 0 1px var(--cy); }
+.ws3-legend { display: flex; gap: 10px; margin-top: 12px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; }
+.ws3-legend-chip { padding: 2px 8px; border: 1px solid var(--edge); color: var(--muted); }
+.ws3-legend-chip.is-target { border-color: var(--y); color: var(--y); }
+.ws3-legend-chip.is-verified { border-color: var(--cy); color: var(--cy); }
+.ws3-prob-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; margin-bottom: 12px; color: var(--muted); }
+.ws3-prob-id { background: var(--y); color: #090d16; font-weight: 700; padding: 2px 10px; clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
+.ws3-plate-badge { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 14px; background: #f2efd6; color: #0b0f19; border: 3px solid #0b0f19; margin-bottom: 14px; }
+.ws3-plate-badge span { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; }
+.ws3-plate-badge b { font-family: var(--display); font-size: 26px; letter-spacing: 0.1em; }
+.ws3-steprail { list-style: none; display: flex; gap: 6px; padding: 0; margin: 0 0 16px; font-family: var(--mono); font-size: 11px; }
+.ws3-steprail li { padding: 2px 10px; border: 1px solid var(--edge); color: var(--muted); }
+.ws3-steprail li.is-live { border-color: var(--y); color: var(--y); }
+.ws3-steprail li.is-done { border-color: var(--cy); background: rgba(6, 182, 212, 0.15); color: var(--cy); }
+.ws3-steprail-lock { margin-left: auto; }
+.ws3-interlock { display: grid; gap: 10px; justify-items: start; margin-bottom: 8px; }
+.ws3-reftables { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; }
+.ws3-table--ref caption { text-align: left; font-size: 10px; letter-spacing: 0.12em; color: var(--amb); padding-bottom: 4px; }
+.ws3-table--ref th { color: var(--y); }
+.ws3-table--ref td, .ws3-table--ref th { padding: 4px 6px; font-size: 11px; }
+.ws3-summary-table th { color: var(--muted); font-weight: 500; width: 62%; }
+.ws3-summary-table td { color: var(--text); font-weight: 700; }
+.ws3-summary-table .is-total th, .ws3-summary-table .is-total td { color: var(--y); font-size: 14px; }
 
-/* ================================================================
-   FINISH LINE / OUTRO
-   ================================================================ */
-.finish-line-bar {
-  height: 18px;
-  background: repeating-linear-gradient(
-    90deg, #000 0, #000 24px, #fff 24px, #fff 48px
-  );
-  opacity: 0.85;
-}
+/* radar svg */
+.ws3-radar { width: 100%; max-height: 62vh; display: block; }
+.ws3-svg-label { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.14em; fill: var(--muted); }
+.ws3-speed-digits { font-family: var(--mono); font-size: 44px; font-weight: 700; fill: var(--y); filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.6)); }
+.ws3-road-dash { stroke: var(--y2); stroke-width: 2; stroke-dasharray: 22 18; opacity: 0.6; }
+.ws3-gantry-led { fill: #0b1220; stroke: #334155; transition: fill 0.4s; }
+.ws3-gantry-led.is-on { fill: var(--cy); stroke: var(--cy); filter: drop-shadow(0 0 4px var(--cy)); }
+.ws3-ring { fill: none; stroke: rgba(6, 182, 212, 0.4); stroke-width: 2; stroke-dasharray: 5 5; transform: scale(1.55); opacity: 0.45; transition: transform 0.55s cubic-bezier(0.2, 1.5, 0.4, 1), opacity 0.4s, stroke 0.4s; }
+.ws3-ring.is-snapped { transform: scale(1); opacity: 1; stroke: var(--cy); stroke-dasharray: none; filter: drop-shadow(0 0 4px var(--cy)); }
+.ws3-lens { fill: #031c24; stroke: var(--cy); stroke-width: 2; transition: fill 0.4s; }
+.ws3-lens.is-hot { fill: var(--y); filter: drop-shadow(0 0 10px var(--y)); }
+.ws3-seg { fill: #0b1220; stroke: #334155; transition: fill 0.35s; }
+.ws3-seg.is-on { fill: var(--y); stroke: var(--y); }
+.ws3-cap-fill { fill: var(--cy); transition: fill 0.4s; }
+.ws3-cap-fill.is-fired { fill: var(--y); }
+.ws3-charge { fill: var(--cy); }
+.ws3-charge.is-fired { fill: var(--y); }
+.ws3-burst { transform-origin: 180px 150px; animation: ws3-burst 0.9s ease-out forwards; pointer-events: none; }
+@keyframes ws3-burst { 0% { transform: scale(0.2); opacity: 1; } 100% { transform: scale(9); opacity: 0; } }
 
-.rank-card {
-  background: #0E1118;
-  border: 1px solid rgba(255,255,255,0.10);
-  position: relative;
-  overflow: hidden;
-}
-.rank-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, #FF3038, #FF6B2C, transparent);
-}
+/* ---------- MODULE C ---------- */
+.ws3-modC { grid-template-columns: minmax(0, 1fr) 340px; }
+.ws3-side { display: grid; gap: 14px; min-width: 0; }
+.ws3-vf { position: relative; background: #05070c; border: 1px solid var(--edge); overflow: hidden; }
+.ws3-vf-svg { display: block; width: 100%; height: auto; max-height: 46vh; margin: 0 auto; }
+.ws3-vf-scan { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.18) 0 1px, transparent 1px 3px); }
+.ws3-vf-hud { position: absolute; display: flex; flex-direction: column; gap: 2px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; color: var(--y); text-shadow: 0 0 6px rgba(0, 0, 0, 0.9); }
+.ws3-vf-hud--tl { top: 10px; left: 12px; }
+.ws3-vf-hud--tr { top: 10px; right: 12px; text-align: right; color: var(--cy); }
+.ws3-vf--ok .ws3-vf-hud--tr { color: var(--ok); }
+.ws3-vf--low .ws3-vf-hud--tr { color: var(--red); }
+.ws3-vf-banner { position: absolute; left: 0; right: 0; bottom: 18%; text-align: center; padding: 10px; font-family: var(--mono); font-weight: 700; letter-spacing: 0.16em; font-size: 15px; }
+.ws3-vf-banner--red { background: rgba(127, 29, 29, 0.88); color: #fecaca; border-block: 2px solid var(--red); animation: ws3-blink-bg 0.5s steps(2) infinite; }
+.ws3-vf-banner--ok { background: rgba(54, 83, 20, 0.9); color: #ecfccb; border-block: 2px solid var(--ok); }
+@keyframes ws3-blink-bg { 50% { background: rgba(185, 28, 28, 0.9); } }
+.ws3-vf--escaped .ws3-car { animation: ws3-nitrous 1.6s cubic-bezier(0.5, 0, 1, 0.6) forwards; transform-origin: 320px 160px; }
+@keyframes ws3-nitrous { to { transform: scale(0.15) translateY(-40px); opacity: 0; } }
+.ws3-car-model { font-family: var(--mono); font-size: 14px; letter-spacing: 0.3em; fill: #334155; }
+.ws3-taillight { fill: #7f1d1d; filter: drop-shadow(0 0 8px #ef4444); }
+.ws3-vf--escaped .ws3-taillight { fill: #fecaca; }
+.ws3-plate-text { font-family: var(--display); font-weight: 700; font-size: 52px; fill: #0b0f19; }
+.ws3-rain line { stroke: #bae6fd; stroke-width: 1.4; stroke-linecap: round; animation: ws3-rain 0.9s linear infinite; }
+@keyframes ws3-rain { 50% { opacity: 0.5; } }
 
-/* ================================================================
-   DRAG RACE LIGHTS
-   ================================================================ */
-.drag-light {
-  width: 14px; height: 14px;
-  border-radius: 50%;
-  background: #1A1E28;
-  border: 1px solid rgba(255,255,255,0.1);
-  transition: all 0.08s;
-}
-.drag-light.yellow {
-  background: #F59E0B;
-  box-shadow: 0 0 10px rgba(245,158,11,0.6);
-  border-color: #F59E0B;
-}
-.drag-light.green {
-  background: #22C55E;
-  box-shadow: 0 0 10px rgba(34,197,94,0.6);
-  border-color: #22C55E;
-}
-.drag-light.red {
-  background: #FF3038;
-  box-shadow: 0 0 10px rgba(255,48,56,0.6);
-  border-color: #FF3038;
-}
+.ws3-reticle-outer { fill: none; stroke: var(--cy); stroke-width: 2; stroke-dasharray: 18 10; transform-origin: 0 0; animation: ws3-spin 9s linear infinite; }
+.ws3-reticle-ring { fill: none; stroke: var(--cy); stroke-width: 1; opacity: 0.6; }
+.ws3-reticle-pulse { fill: none; stroke: var(--cy); stroke-width: 2; transform-origin: 0 0; animation: ws3-ret-pulse 1.6s ease-out infinite; }
+@keyframes ws3-ret-pulse { 0% { transform: scale(0.85); opacity: 0.9; } 100% { transform: scale(1.18); opacity: 0; } }
+.ws3-reticle-tick, .ws3-reticle-cross { stroke: var(--cy); stroke-width: 2.5; }
+.ws3-reticle--low .ws3-reticle-outer, .ws3-reticle--low .ws3-reticle-ring, .ws3-reticle--low .ws3-reticle-pulse, .ws3-reticle--low .ws3-reticle-tick, .ws3-reticle--low .ws3-reticle-cross { stroke: var(--red); }
+.ws3-reticle--mid .ws3-reticle-outer, .ws3-reticle--mid .ws3-reticle-ring, .ws3-reticle--mid .ws3-reticle-pulse, .ws3-reticle--mid .ws3-reticle-tick, .ws3-reticle--mid .ws3-reticle-cross { stroke: var(--amb); }
+.ws3-reticle--ok .ws3-reticle-outer, .ws3-reticle--ok .ws3-reticle-ring, .ws3-reticle--ok .ws3-reticle-pulse, .ws3-reticle--ok .ws3-reticle-tick, .ws3-reticle--ok .ws3-reticle-cross { stroke: var(--y); }
+.ws3-reticle--ok .ws3-reticle-outer { animation-duration: 3s; }
+.ws3-reticle.is-locked .ws3-reticle-outer { animation: none; stroke-dasharray: none; stroke: var(--ok); }
 
-/* ================================================================
-   SCROLLBAR
-   ================================================================ */
-::-webkit-scrollbar { width: 3px; }
-::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
-::-webkit-scrollbar-thumb { background: rgba(255,48,56,0.4); }
+.ws3-ocr { display: flex; align-items: baseline; gap: 14px; margin: 12px 0; padding: 8px 14px; background: #05070c; border: 1px solid var(--edge); font-family: var(--mono); }
+.ws3-ocr-k { font-size: 11px; letter-spacing: 0.14em; color: var(--muted); }
+.ws3-ocr-v { font-size: 24px; letter-spacing: 0.2em; color: var(--amb); white-space: pre; }
+.ws3-ocr-v.is-ok { color: var(--y); text-shadow: 0 0 12px rgba(250, 204, 21, 0.5); }
 
-/* ================================================================
-   UTILITY ANIMATIONS
-   ================================================================ */
-@keyframes redlinePulse {
-  0%, 100% { opacity: 0.85; }
-  50%       { opacity: 1; }
+.ws3-filters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.ws3-filter {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  text-align: left;
+  min-height: 146px;
+  padding: 12px 12px 12px;
+  color: var(--text);
+  background: #0b1424;
+  border: 1px solid var(--edge);
+  border-radius: 0;
+  cursor: pointer;
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+  box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.5);
+  transition: transform 0.08s, border-color 0.15s, background 0.15s;
 }
+.ws3-filter:hover:not(:disabled) { border-color: var(--y); }
+.ws3-filter:active:not(:disabled) { transform: translateY(3px); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.5); }
+.ws3-filter:disabled { cursor: not-allowed; opacity: 0.6; }
+.ws3-filter.is-on { background: linear-gradient(180deg, rgba(250, 204, 21, 0.14), #0b1424); border-color: var(--y2); }
+.ws3-filter-name { font-family: var(--mono); font-weight: 700; font-size: 12px; letter-spacing: 0.06em; color: var(--y); }
+.ws3-filter-leds { display: flex; gap: 6px; }
+.ws3-filter-leds i { width: 26px; height: 8px; background: #1e293b; display: block; transition: background 0.15s, box-shadow 0.15s; }
+.ws3-filter-leds i.is-lit { background: var(--y); box-shadow: 0 0 10px var(--y); }
+.ws3-filter-level { font-family: var(--mono); font-size: 18px; font-weight: 700; }
+.ws3-filter-mode { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em; color: var(--cy); }
+.ws3-filter-sig { margin-top: auto; font-family: var(--mono); font-size: 10px; letter-spacing: 0.05em; color: var(--muted); border-top: 1px dashed rgba(124, 139, 161, 0.3); padding-top: 6px; width: 100%; }
 
-@keyframes roadScroll {
-  from { background-position: 0 0; }
-  to   { background-position: 80px 0; }
-}
+.ws3-gauge { text-align: center; }
+.ws3-gauge svg { width: 100%; max-width: 280px; display: block; margin: 0 auto; }
+.ws3-gauge-track { fill: none; stroke: #1e293b; stroke-width: 14; }
+.ws3-gauge-fill { fill: none; stroke: var(--red); stroke-width: 14; }
+.ws3-gauge--mid .ws3-gauge-fill { stroke: var(--amb); }
+.ws3-gauge--ok .ws3-gauge-fill { stroke: var(--y); filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.7)); }
+.ws3-gauge-mark { stroke: var(--cy); stroke-width: 3; }
+.ws3-gauge-needle { stroke: var(--text); stroke-width: 2.5; }
+.ws3-gauge-hub { fill: var(--text); }
+.ws3-gauge-val { font-family: var(--mono); font-size: 38px; font-weight: 700; margin-top: -4px; }
+.ws3-gauge-val small { font-size: 18px; color: var(--muted); }
+.ws3-gauge--ok .ws3-gauge-val { color: var(--y); }
+.ws3-gauge-cap { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.2em; color: var(--muted); }
 
-.glitch-shake { animation: none !important; }
-
-/* ================================================================
-   SMOOTH TACTICAL RANGE SLIDERS
-   ================================================================ */
-input[type="range"] {
-  -webkit-appearance: none;
+.ws3-lock {
   appearance: none;
   width: 100%;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
-  outline: none;
-  cursor: grab;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  margin-top: 14px;
+  padding: 16px 12px;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 13.5px;
+  letter-spacing: 0.08em;
+  border: 1px solid #334155;
+  border-radius: 0;
+  background: #111827;
+  color: #64748b;
+  cursor: pointer;
+  clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s, transform 0.08s;
+}
+.ws3-lock:active:not(:disabled) { transform: translateY(2px); }
+.ws3-lock:disabled { cursor: not-allowed; }
+.ws3-lock.is-ready { background: linear-gradient(90deg, var(--y), var(--ok)); border-color: var(--y); color: #090d16; box-shadow: 0 0 28px rgba(250, 204, 21, 0.55); animation: ws3-pulse 1.1s ease-in-out infinite; }
+.ws3-lock-note { margin: 8px 0 0; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em; color: var(--muted); text-align: center; }
+.ws3-pips { display: flex; gap: 10px; margin-bottom: 10px; }
+.ws3-pip { width: 38px; height: 14px; transition: background 0.3s, box-shadow 0.3s; clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
+.ws3-pip.is-live { background: var(--cy); box-shadow: 0 0 10px var(--cy); }
+.ws3-pip.is-burned { background: #3b1219; outline: 1px solid var(--red); }
+.ws3-log { max-height: 220px; overflow: auto; }
+.ws3-log-empty { margin: 0; font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 0.08em; }
+.ws3-log-row { font-family: var(--mono); font-size: 11px; padding: 6px 0; border-bottom: 1px dashed rgba(124, 139, 161, 0.25); color: var(--text); }
+.ws3-log-row b { color: var(--cy); }
+.ws3-log-row em { color: var(--y); font-style: normal; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1280px) {
+  .ws3-modB { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .ws3-modB .ws3-center { grid-column: 1 / -1; order: -1; max-width: 420px; margin: 0 auto; }
+  .ws3-filters { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 1000px) {
+  .ws3-header { flex-wrap: wrap; padding-right: 20px; padding-top: 64px; }
+  .ws3-steps { margin-left: 0; order: 3; width: 100%; }
+  .ws3-modA, .ws3-modB, .ws3-modC { grid-template-columns: minmax(0, 1fr); }
+  .ws3-options { grid-template-columns: 1fr; }
+  .ws3-fields { grid-template-columns: 1fr; }
+  .ws3-actionbar { flex-direction: column; align-items: stretch; }
 }
 
-input[type="range"]:active {
-  cursor: grabbing;
-}
-
-input[type="range"]::-webkit-slider-runnable-track {
-  width: 100%;
-  height: 8px;
-  cursor: grab;
-  border-radius: 4px;
-  background: transparent;
-}
-
-input[type="range"]:active::-webkit-slider-runnable-track {
-  cursor: grabbing;
-}
-
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #00c8ff;
-  border: 2px solid #ffffff;
-  box-shadow: 0 0 12px rgba(0, 200, 255, 0.7), 0 2px 6px rgba(0, 0, 0, 0.6);
-  cursor: grab;
-  margin-top: -6px;
-  transition: transform 0.1s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.15s ease, background-color 0.15s ease;
-}
-
-input[type="range"]:hover::-webkit-slider-thumb {
-  transform: scale(1.18);
-  box-shadow: 0 0 16px rgba(0, 200, 255, 0.9), 0 2px 8px rgba(0, 0, 0, 0.8);
-}
-
-input[type="range"]:active::-webkit-slider-thumb {
-  cursor: grabbing;
-  transform: scale(1.28);
-  box-shadow: 0 0 22px rgba(0, 200, 255, 1), 0 2px 10px rgba(0, 0, 0, 0.9);
-}
-
-/* Firefox */
-input[type="range"]::-moz-range-track {
-  width: 100%;
-  height: 8px;
-  cursor: grab;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-input[type="range"]::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #00c8ff;
-  border: 2px solid #ffffff;
-  box-shadow: 0 0 12px rgba(0, 200, 255, 0.7), 0 2px 6px rgba(0, 0, 0, 0.6);
-  cursor: grab;
-  transition: transform 0.1s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.15s ease;
-}
-
-input[type="range"]:hover::-moz-range-thumb {
-  transform: scale(1.18);
-}
-
-input[type="range"]:active::-moz-range-thumb {
-  cursor: grabbing;
-  transform: scale(1.28);
+/* motion safety: no screen shake / strobe intensity for reduced-motion users */
+@media (prefers-reduced-motion: reduce) {
+  .ws3-shell.is-shaking { animation: none; }
+  .ws3-flash { animation-duration: 0.3s; background: rgba(250, 204, 21, 0.35); }
+  .ws3-pulse, .ws3-lock.is-ready, .ws3-scope-sweep, .ws3-reticle-outer, .ws3-reticle-pulse, .ws3-vf-banner--red, .ws3-timer--crit { animation: none; }
+  .ws3-burst { animation-duration: 0.01s; }
 }
