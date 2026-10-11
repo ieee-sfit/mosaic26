@@ -1,6 +1,6 @@
 
 .lb-root {
-  --cyan: #00e5ff; --red: #ff3038; --yellow: #ffd23f; --green: #22c55e;
+  --cyan: #00f2fe; --red: #dc2626; --yellow: #facc15; --green: #22c55e;
   min-height: 100vh; padding: 20px 24px 48px; box-sizing: border-box;
   background: #07090d radial-gradient(ellipse at top, #0f1822 0%, #07090d 70%);
   color: #e6edf3; font-family: 'JetBrains Mono', monospace;
@@ -18,7 +18,8 @@
 .lb-search:focus { box-shadow: 0 0 14px rgba(0,229,255,.4); }
 .lb-error { color: var(--red); border: 1px solid var(--red); padding: 10px 14px; margin-bottom: 16px; font-size: .8rem; }
 .lb-pinned {
-  border: 1px solid var(--cyan); background: rgba(0,229,255,.06); padding: 16px 20px; margin-bottom: 20px;
+  border: 1px solid var(--cyan); background: rgba(0,242,254,.1); padding: 16px 20px; margin-bottom: 20px;
+  box-shadow: 0 0 28px rgba(0,242,254,.35), inset 0 0 22px rgba(0,242,254,.12); animation: lb-glow 2.4s ease-in-out infinite alternate;
   clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px);
 }
 .lb-pinned-tag { font-family: 'Chakra Petch', sans-serif; color: var(--cyan); letter-spacing: .2em; font-size: .75rem; margin-bottom: 8px; }
@@ -44,3 +45,5 @@
   .lb-row { grid-template-columns: 40px 1fr 90px; }
   .lb-row > .lb-bar { grid-column: 1 / -1; }
 }
+
+@keyframes lb-glow { from { filter: brightness(1); } to { filter: brightness(1.25); } }
