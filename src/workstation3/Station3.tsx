@@ -26,12 +26,12 @@ const pA = [
   {q:"Code for a red-light violation?",                  a:"RLV-02",                 w:["SPD-01","RLV-01","RED-02"]}
 ];
 const pB = [
-  {id:"N1",p:"MH47R1105", img:"/plate1.jpg",d:0,sc:25,st:90, sd:false,tc:[60,75], tt:[80,110], cg:75, bg:132},
-  {id:"N2",p:"MH02CN4901",img:"/plate2.jpg",d:1,sc:45,st:90, sd:false,tc:[35,50], tt:[150,180],cg:120,bg:220},
-  {id:"N3",p:"MH02DE1544",img:"/plate3.jpg",d:2,sc:60,st:115,sd:false,tc:[55,65], tt:[100,130],cg:70, bg:160,fd:true},
-  {id:"N4",p:"MH47R1105", img:"/plate1.jpg",d:3,sc:90,st:160,sd:false,tc:[70,85], tt:[70,95],  cg:50, bg:146},
-  {id:"N5",p:"MH02CN4901",img:"/plate2.jpg",d:1,sc:30,st:120,sd:false,tc:[60,80], tt:[90,130], cg:80, bg:200},
-  {id:"N6",p:"MH02DE1544",img:"/plate3.jpg",d:0,sc:20,st:100,sd:false,tc:[65,85], tt:[85,120], cg:90, bg:150}
+  {id:"N1",p:"MH47R1105", img:"/plate1.jpg",d:0,sc:25,st:65, sd:false,tc:[58,72], tt:[85,108], cg:75, bg:132},
+  {id:"N2",p:"MH02CN4901",img:"/plate2.jpg",d:1,sc:20,st:80, sd:false,tc:[42,56], tt:[140,165],cg:120,bg:220},
+  {id:"N3",p:"MH02DE1544",img:"/plate3.jpg",d:2,sc:25,st:65, sd:false,tc:[54,68], tt:[105,128],cg:70, bg:160,fd:true},
+  {id:"N4",p:"MH47R1105", img:"/plate1.jpg",d:3,sc:30,st:55, sd:false,tc:[66,80], tt:[78,98],   cg:50, bg:146},
+  {id:"N5",p:"MH02CN4901",img:"/plate2.jpg",d:1,sc:25,st:60, sd:false,tc:[60,74], tt:[92,118], cg:80, bg:200},
+  {id:"N6",p:"MH02DE1544",img:"/plate3.jpg",d:0,sc:20,st:55, sd:false,tc:[64,78], tt:[88,112], cg:90, bg:150}
 ];
 const pC = [
   {id:"C1",p:"MH12AB4721",c:96,dist:25,  t:1.25,z:"U",o:1,ang:false,amb:false,ans:{ex:7, fn:500, rt:'Auto-validate',   cd:'UA211'}},
@@ -226,16 +226,18 @@ const Panel = ({ children, className = "", style = {} }: { children: React.React
   </div>
 );
 
-const Btn = ({ children, onClick, variant = 'primary', className = "" }: {
+const Btn = ({ children, onClick, variant = 'primary', className = "", style = {} }: {
   children: React.ReactNode;
   onClick?: () => void;
   variant?: 'primary' | 'orange' | 'ghost';
   className?: string;
+  style?: React.CSSProperties;
 }) => (
   <motion.button
     whileHover={{ scale: 1.02, y: -1 }}
     whileTap={{ scale: 0.98, y: 0 }}
     onClick={onClick}
+    style={style}
     className={`ff-btn btn-clip ${variant === 'orange' ? 'ff-btn-orange' : variant === 'ghost' ? 'ff-btn-ghost' : ''} ${className}`}
   >
     {children}
@@ -254,15 +256,28 @@ const SectionLabel = ({ children }: { children: React.ReactNode }) => (
 /* ================================================================
    STATION 3 ROOT
    ================================================================ */
-function Station3() {
+function Station3({
+  onNavigateStation,
+  onOpenStationChooser,
+}: {
+  onNavigateStation?: (stNum: number) => void;
+  onOpenStationChooser?: () => void;
+}) {
   const [phase, setPhase] = useState(0);
   const [team,  setTeam]  = useState({ name: '', size: 3 });
-  const [score, setScore] = useState({ a:40, ap:0, b:60, bp:0, c:50, cp:0, bon:0 });
-  const [time,  setTime]  = useState(1800);
+  const [score, setScore] = useState({ a:0, ap:0, b:0, bp:0, c:0, cp:0, bon:0 });
+  const [time,  setTime]  = useState(900);
   const [shake, setShake] = useState(false);
   const [toast, setToast] = useState<{msg:string; err:boolean}|null>(null);
   const [transitioning, setTransitioning] = useState(false);
   const [nextPhase, setNextPhase] = useState<number|null>(null);
+
+  const handleRestart = () => {
+    setPhase(0);
+    setTeam({ name: '', size: 3 });
+    setScore({ a: 0, ap: 0, b: 0, bp: 0, c: 0, cp: 0, bon: 0 });
+    setTime(900);
+  };
 
   const fxFail = () => { setShake(true); setTimeout(() => setShake(false), 500); };
   const showToast = (msg: string, err = false) => {
@@ -293,13 +308,13 @@ function Station3() {
 
   /* Auto-advance phases when time gates are crossed */
   useEffect(() => {
-    if (phase === 2 && time <= 1680) goToPhase(3);
-    if (phase === 3 && time <= 1200) goToPhase(4);
+    if (phase === 2 && time <= 780) goToPhase(3);
+    if (phase === 3 && time <= 480) goToPhase(4);
     if (phase === 4 && time === 0)   goToPhase(5);
   }, [time, phase]);
 
   const totScore    = Math.max(0, score.a - score.ap + score.b - score.bp + score.c - score.cp + score.bon);
-  const timeProgress = (1800 - time) / 1800;
+  const timeProgress = (900 - time) / 900;
   const isRedline   = time <= 60;
 
   /* ── RENDER ── */
@@ -398,20 +413,28 @@ function Station3() {
         {phase === 1 && <BriefingScreen onStart={(t) => { setTeam(t); goToPhase(2); }} />}
         {phase === 2 && (
           <ModuleA score={score} setScore={setScore}
-            onComplete={(t) => { if(!t) setScore((s:any) => ({...s, bon: s.bon + Math.floor((time-1680)/5)})); goToPhase(3); }}
+            onComplete={(t) => { if(!t) setScore((s:any) => ({...s, bon: s.bon + Math.max(0, Math.floor((time-780)/5))})); goToPhase(3); }}
             fxFail={fxFail} />
         )}
         {phase === 3 && (
           <ModuleB score={score} setScore={setScore}
-            onComplete={(t) => { if(!t) setScore((s:any) => ({...s, bon: s.bon + Math.floor((time-1200)/5)})); goToPhase(4); }}
+            onComplete={(t) => { if(!t) setScore((s:any) => ({...s, bon: s.bon + Math.max(0, Math.floor((time-480)/5))})); goToPhase(4); }}
             fxFail={fxFail} showToast={showToast} />
         )}
         {phase === 4 && (
           <ModuleC score={score} setScore={setScore}
-            onComplete={() => { setScore((s:any) => ({...s, bon: s.bon + Math.floor(time/5)})); goToPhase(5); }}
+            onComplete={() => { setScore((s:any) => ({...s, bon: s.bon + Math.max(0, Math.floor(time/5))})); goToPhase(5); }}
             fxFail={fxFail} showToast={showToast} />
         )}
-        {phase === 5 && <OutroScreen score={score} team={team} totScore={totScore} />}
+        {phase === 5 && (
+          <OutroScreen
+            score={score}
+            team={team}
+            totScore={totScore}
+            onOpenStationChooser={onOpenStationChooser}
+            onRestart={handleRestart}
+          />
+        )}
       </main>
     </motion.div>
   );
@@ -705,42 +728,55 @@ function ModuleA({ score, setScore, onComplete, fxFail }:any) {
 /* ================================================================
    MODULE B — Camera calibration & Tuning
    ================================================================ */
+const getVerifyChallenge = (plate: string) => {
+  const targetIdx = plate.length >= 6 ? 4 : 2;
+  const correctChar = plate[targetIdx];
+  const ambiguityMap: Record<string, string[]> = {
+    'B': ['8', '3'],
+    '8': ['B', '0'],
+    '0': ['O', 'D'],
+    'D': ['0', 'O'],
+    'C': ['G', '0'],
+    'N': ['M', 'H'],
+    'R': ['P', 'B'],
+    '1': ['I', '7'],
+    '4': ['A', '9'],
+    '5': ['S', '6'],
+  };
+  const decoys = ambiguityMap[correctChar] || ['8', '0'];
+  const options = Array.from(new Set([correctChar, ...decoys])).slice(0, 3).sort(() => 0.5 - Math.random());
+  return {
+    targetIdx,
+    correctChar,
+    maskedPlate: plate.slice(0, targetIdx) + '?' + plate.slice(targetIdx + 1),
+    options,
+  };
+};
+
 function ModuleB({ score, setScore, onComplete, fxFail, showToast }:any) {
   const [cap]      = useState(() => pB[Math.floor(Math.random()*pB.length)]);
   const [c, setC]  = useState(cap.sc);
   const [t, setT]  = useState(cap.st);
+  const [skew, setSkew] = useState(() => (Math.random() > 0.5 ? 1 : -1) * (Math.floor(Math.random() * 6) + 6));
   
-  // New Creative States
-  const [visionMode, setVisionMode] = useState('OPTICAL');
-  const [focus, setFocus] = useState(10);
-  const [tracking, setTracking] = useState(15);
-  
-  // Randomize targets for each plate
-  const targetFocus = React.useMemo(() => Math.floor(Math.random() * 60) + 20, []);
-  const targetTracking = React.useMemo(() => Math.floor(Math.random() * 60) + 20, []);
-
   const [diagDone, setDiagDone]   = useState(false);
   const [ocrRunning, setOcr]      = useState(false);
   const [sliderX, setSliderX]     = useState(300);
   const [imgFailed, setImgFailed] = useState(false);
+  const [verifyChallenge, setVerifyChallenge] = useState<any>(null);
+  const [selectedChar, setSelectedChar] = useState<string | null>(null);
   const vWrapRef = useRef<HTMLDivElement>(null);
 
-  // Confidence calculation
+  // Confidence calculation based on contrast (Gain), brightness (Exposure), and Skew
   let cf = 100;
   
   // Contrast / Brightness penalty
   if (c < cap.tc[0]) cf -= 0.8*(cap.tc[0]-c); else if (c > cap.tc[1]) cf -= 0.8*(c-cap.tc[1]);
   if (t < cap.tt[0]) cf -= 0.4*(cap.tt[0]-t); else if (t > cap.tt[1]) cf -= 0.4*(t-cap.tt[1]);
-  
-  // Focus penalty
-  const focusError = Math.abs(focus - targetFocus);
-  if (focusError > 20) cf -= (focusError - 20) * 0.8;
 
-  // Tracking penalty
-  const trackError = Math.abs(tracking - targetTracking);
-  if (trackError > 20) cf -= (trackError - 20) * 0.8;
-
-  if (visionMode === 'THERMAL') cf -= 2; 
+  // Skew / Tilt alignment penalty
+  const skewError = Math.abs(skew);
+  if (skewError > 2) cf -= (skewError - 2) * 1.8;
 
   const conf = Math.max(0, Math.min(100, Math.floor(cf)));
 
@@ -752,22 +788,12 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }:any) {
     setSliderX(Math.max(0, Math.min(rect.width, x - rect.left)));
   };
 
-  // Build the CSS filters
-  const focusBlur = focusError > 10 ? (focusError - 10) * 0.1 : 0;
-  
-  let modeFilter = `grayscale(100%)`;
-  if (visionMode === 'NIGHT') modeFilter = `sepia(100%) hue-rotate(90deg) saturate(300%) contrast(110%)`;
-  if (visionMode === 'THERMAL') modeFilter = `sepia(100%) hue-rotate(180deg) saturate(400%) invert(90%)`;
-
-  const cssRaw  = `grayscale(100%) blur(5px) contrast(${cap.sc}%) brightness(${cap.st}%)`;
-  const cssProc = `${modeFilter} contrast(${c}%) brightness(${t}%) blur(${focusBlur}px)`;
+  const modeFilter = `grayscale(100%)`;
+  const cssRaw  = `grayscale(100%) contrast(${cap.sc}%) brightness(${cap.st}%)`;
+  const cssProc = `${modeFilter} contrast(${c}%) brightness(${t}%)`;
 
   const [scannedConf, setScannedConf] = useState<number | null>(null);
-  const confColor = scannedConf !== null ? (scannedConf>=90 ? C.green : scannedConf>=75 ? C.amber : C.red) : C.dim;
-  
-  // Tracking glitch opacity
-  const glitchOpacity = trackError > 10 ? Math.min(1, (trackError - 10) / 40) : 0;
-  const isJittering = trackError > 25;
+  const confColor = scannedConf !== null ? (scannedConf>=85 ? C.green : scannedConf>=70 ? C.amber : C.red) : C.dim;
 
   return (
     <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:16, height:'100%' }}>
@@ -776,7 +802,7 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }:any) {
       <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
         <Panel style={{ flex:1, maxHeight:440 }}>
           <div style={{ position:'relative', background:'#000', height:'100%', minHeight:300, border:`1px solid ${C.border}`, overflow:'hidden' }}
-            className={`cam-bracket ${isJittering ? 'glitch-shake' : 'cam-scanlines'}`}>
+            className="cam-bracket cam-scanlines">
 
             <div style={{ position:'absolute', inset:0, background:'rgba(5,6,8,0.5)', zIndex:1 }} />
 
@@ -785,7 +811,7 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }:any) {
               <div className="rec-indicator"><div className="rec-dot" />REC</div>
             </div>
             <div style={{ position:'absolute', top:10, right:10, ...S.orbitron, fontSize:'0.55rem', color:'rgba(0,200,255,0.45)', letterSpacing:'0.15em', zIndex:10 }}>
-              CAM-B // {cap.id} // {visionMode}
+              CAM-B // {cap.id} // OPTICAL
             </div>
 
             {/* Comparison slider */}
@@ -796,31 +822,55 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }:any) {
               onMouseMove={e => e.buttons===1 && handleDrag(e)}
               onTouchMove={handleDrag}
             >
-              {/* Processed image */}
-              <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'#1a1a22', filter:cssProc }}>
+              {/* Processed image with Skew correction */}
+              <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'#1a1a22', filter:cssProc, transform:`rotate(${skew}deg)`, transition:'transform 0.1s ease-out' }}>
                 {(!cap.img||imgFailed)
                   ? <span style={{ ...S.orbitron, fontSize:'3rem', fontWeight:700, color:'#6a6a8a' }}>{cap.p}</span>
                   : <img src={cap.img} onError={() => setImgFailed(true)} style={{ width:'100%', height:'100%', objectFit:'contain' }} />
                 }
               </div>
-              
-              {/* Tracking Glitch Overlay */}
-              {glitchOpacity > 0 && (
-                <div style={{
-                  position:'absolute', inset:0, 
-                  background:'repeating-linear-gradient(0deg, rgba(255,255,255,0.1) 0px, transparent 2px, transparent 10px)',
-                  opacity: glitchOpacity,
-                  mixBlendMode: 'overlay',
-                  pointerEvents: 'none'
-                }} />
-              )}
 
               {/* Raw image clipped */}
-              <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'#1a1a22', filter:cssRaw, clipPath:`inset(0 calc(100% - ${sliderX}px) 0 0)` }}>
+              <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'#1a1a22', filter:cssRaw, transform:`rotate(${skew > 0 ? 8 : -8}deg)`, clipPath:`inset(0 calc(100% - ${sliderX}px) 0 0)` }}>
                 {(!cap.img||imgFailed)
                   ? <span style={{ ...S.orbitron, fontSize:'3rem', fontWeight:700, color:'#6a6a8a' }}>{cap.p}</span>
                   : <img src={cap.img} onError={() => setImgFailed(true)} style={{ width:'100%', height:'100%', objectFit:'contain' }} />
                 }
+              </div>
+
+              {/* Tactical OCR Detector Reticle */}
+              <div style={{
+                position:'absolute',
+                top:'50%', left:'50%',
+                transform:'translate(-50%, -50%)',
+                width: 260, height: 110,
+                border: `1.5px dashed ${conf >= 85 ? C.green : 'rgba(255,107,44,0.6)'}`,
+                boxShadow: conf >= 85 ? `0 0 20px rgba(34,197,94,0.3)` : 'none',
+                pointerEvents: 'none',
+                transition: 'border-color 0.3s, box-shadow 0.3s',
+                display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                padding: '6px 8px',
+                zIndex: 15,
+              }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <span style={{ color: conf >= 85 ? C.green : C.orange, fontSize:'0.75rem', ...S.orbitron, fontWeight:900, lineHeight:1 }}>⌜</span>
+                  <div style={{ ...S.orbitron, fontSize:'0.52rem', fontWeight:700, color: conf >= 85 ? C.green : C.muted, letterSpacing:'0.12em', background:'rgba(0,0,0,0.65)', padding:'2px 6px' }}>
+                    {conf >= 85 ? 'TARGET ACQUIRED // ROI LOCKED' : 'SEARCHING FOR PLATE ROI...'}
+                  </div>
+                  <span style={{ color: conf >= 85 ? C.green : C.orange, fontSize:'0.75rem', ...S.orbitron, fontWeight:900, lineHeight:1 }}>⌝</span>
+                </div>
+
+                <div style={{ textAlign:'center' }}>
+                  <span style={{ ...S.orbitron, fontSize:'0.58rem', fontWeight:700, color: conf >= 85 ? C.green : C.dim, letterSpacing:'0.15em', background:'rgba(0,0,0,0.55)', padding:'2px 8px' }}>
+                    {conf >= 85 ? 'OCR DETECTOR: LOCKED' : `SIGNAL: ${conf}%`}
+                  </span>
+                </div>
+
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <span style={{ color: conf >= 85 ? C.green : C.orange, fontSize:'0.75rem', ...S.orbitron, fontWeight:900, lineHeight:1 }}>⌞</span>
+                  <span style={{ ...S.orbitron, fontSize:'0.45rem', color:C.dim, letterSpacing:'0.1em' }}>ANPR-V2 // OCR DETECTOR</span>
+                  <span style={{ color: conf >= 85 ? C.green : C.orange, fontSize:'0.75rem', ...S.orbitron, fontWeight:900, lineHeight:1 }}>⌟</span>
+                </div>
               </div>
 
               {/* OCR scan line */}
@@ -850,7 +900,7 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }:any) {
           </div>
         </Panel>
 
-        {/* Confidence gauge + OCR trigger */}
+        {/* Confidence gauge + OCR trigger / Manual Verification */}
         <Panel style={{ display:'flex', alignItems:'center', gap:24 }}>
           {/* Arc gauge */}
           <div style={{ position:'relative', width:150, height:80, flexShrink:0 }}>
@@ -873,29 +923,77 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }:any) {
           </div>
 
           <div style={{ flex:1 }}>
-            <div className="sys-assist" style={{ marginBottom:12, fontSize:'0.72rem' }}>
-              Char gray: <strong style={{color:C.text}}>{cap.cg}</strong> &nbsp;|&nbsp; BG gray: <strong style={{color:C.text}}>{cap.bg}</strong>
-            </div>
-            <Btn variant="primary" className="w-full" onClick={() => {
-              if (!diagDone || ocrRunning) return;
-              setScannedConf(null); // Reset before animating
-              setOcr(true);
-              setTimeout(() => {
-                setOcr(false);
-                setScannedConf(conf);
-                if (conf >= 90) {
-                  setScore((s:any) => ({...s, b:s.b+20}));
-                  showToast('PLATE VERIFIED — SENDING TO CHALLAN');
-                  setTimeout(() => onComplete(false), 1200);
-                } else {
-                  fxFail();
-                  showToast('CONFIDENCE TOO LOW — RECALIBRATE', true);
-                  setScore((s:any) => ({...s, cp:s.cp+3}));
-                }
-              }, 1100);
-            }}>
-              SEND TO OCR
-            </Btn>
+            {verifyChallenge ? (
+              /* Manual OCR Confirm Verification Challenge */
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <span style={{ ...S.orbitron, fontSize:'0.65rem', color:C.orange, fontWeight:700, letterSpacing:'0.1em' }}>
+                    MANUAL OCR CONFIRMATION // SLOT #{verifyChallenge.targetIdx + 1}
+                  </span>
+                  <span style={{ ...S.orbitron, fontSize:'0.55rem', color:C.blue, letterSpacing:'0.1em' }}>
+                    AMBIGUITY CHECK
+                  </span>
+                </div>
+                <div style={{ ...S.orbitron, fontSize:'1.15rem', letterSpacing:'0.2em', color:C.green, background:'rgba(0,0,0,0.6)', padding:'6px 14px', border:`1px solid ${C.green}`, textAlign:'center', fontWeight:900 }}>
+                  {verifyChallenge.maskedPlate}
+                </div>
+                <div style={{ display:'flex', gap:8, marginTop:2 }}>
+                  {verifyChallenge.options.map((opt: string) => (
+                    <Btn
+                      key={opt}
+                      variant={selectedChar === opt ? (opt === verifyChallenge.correctChar ? 'primary' : 'orange') : 'ghost'}
+                      className="flex-1"
+                      style={{ padding:'8px', fontSize:'0.9rem', fontWeight:800 }}
+                      onClick={() => {
+                        setSelectedChar(opt);
+                        if (opt === verifyChallenge.correctChar) {
+                          setScore((s:any) => ({...s, b:s.b+25}));
+                          showToast('PLATE VERIFIED & CONFIRMED — CITATION UPLINK READY');
+                          setTimeout(() => onComplete(false), 1200);
+                        } else {
+                          fxFail();
+                          showToast('VERIFICATION MISMATCH — RETRY', true);
+                          setScore((s:any) => ({...s, cp:s.cp+3}));
+                          setTimeout(() => {
+                            setSelectedChar(null);
+                            setVerifyChallenge(null);
+                            setScannedConf(null);
+                          }, 900);
+                        }
+                      }}
+                    >
+                      {opt}
+                    </Btn>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* Normal OCR Send Trigger */
+              <>
+                <div className="sys-assist" style={{ marginBottom:12, fontSize:'0.72rem' }}>
+                  Char gray: <strong style={{color:C.text}}>{cap.cg}</strong> &nbsp;|&nbsp; BG gray: <strong style={{color:C.text}}>{cap.bg}</strong>
+                </div>
+                <Btn variant="primary" className="w-full" onClick={() => {
+                  if (!diagDone || ocrRunning) return;
+                  setScannedConf(null);
+                  setOcr(true);
+                  setTimeout(() => {
+                    setOcr(false);
+                    setScannedConf(conf);
+                    if (conf >= 85) {
+                      setVerifyChallenge(getVerifyChallenge(cap.p));
+                      showToast('TARGET DETECTED — CONFIRM AMBIGUOUS CHARACTER');
+                    } else {
+                      fxFail();
+                      showToast(`CONFIDENCE TOO LOW (${conf}%) — ALIGN GAIN, EXPOSURE & SKEW`, true);
+                      setScore((s:any) => ({...s, cp:s.cp+3}));
+                    }
+                  }, 1100);
+                }}>
+                  SEND TO OCR
+                </Btn>
+              </>
+            )}
           </div>
         </Panel>
       </div>
@@ -927,49 +1025,6 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }:any) {
           )}
           
           <SectionLabel>2 · Signal Tuning</SectionLabel>
-          
-          {/* Vision Modes */}
-          <div style={{ marginBottom:18 }}>
-            <div style={{ ...S.orbitron, fontSize:'0.6rem', letterSpacing:'0.15em', color:C.muted, marginBottom:8 }}>SENSOR SPECTRUM</div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:6 }}>
-              {[ { id:'OPTICAL', label:'RGB' }, { id:'NIGHT', label:'NVG' }, { id:'THERMAL', label:'FLIR' } ].map(mode => (
-                <div 
-                  key={mode.id} 
-                  onClick={() => { setVisionMode(mode.id); setScannedConf(null); }}
-                  style={{ 
-                    padding:'8px 4px', textAlign:'center', cursor:'pointer',
-                    background: visionMode === mode.id ? 'rgba(0,200,255,0.1)' : C.bg2,
-                    border: `1px solid ${visionMode === mode.id ? C.blue : C.border}`,
-                    color: visionMode === mode.id ? C.blue : C.muted,
-                    ...S.orbitron, fontSize:'0.65rem', fontWeight:700, letterSpacing:'0.1em'
-                  }}>
-                  {mode.label}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Tracking slider */}
-          <div style={{ marginBottom:16 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-              <span style={{ ...S.orbitron, fontSize:'0.55rem', letterSpacing:'0.15em', color:C.muted }}>FRAME SYNC (Hz)</span>
-              <span style={{ ...S.orbitron, fontSize:'0.65rem', color: trackError <= 20 ? C.blue : C.text }}>
-                {(tracking * 1.44).toFixed(1)}
-              </span>
-            </div>
-            <input type="range" min="0" max="100" value={tracking} onChange={e => { setTracking(Number(e.target.value)); setScannedConf(null); }} />
-          </div>
-
-          {/* Focus slider */}
-          <div style={{ marginBottom:16 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-              <span style={{ ...S.orbitron, fontSize:'0.55rem', letterSpacing:'0.15em', color:C.muted }}>FOCAL ARRAY (μm)</span>
-              <span style={{ ...S.orbitron, fontSize:'0.65rem', color: focusError <= 20 ? C.blue : C.text }}>
-                0x{focus.toString(16).toUpperCase().padStart(2, '0')}
-              </span>
-            </div>
-            <input type="range" min="0" max="100" value={focus} onChange={e => { setFocus(Number(e.target.value)); setScannedConf(null); }} />
-          </div>
 
           {/* Contrast slider */}
           <div style={{ marginBottom:16 }}>
@@ -979,18 +1034,29 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }:any) {
                 {(c / 10).toFixed(1)}
               </span>
             </div>
-            <input type="range" min="10" max="100" value={c} onChange={e => { setC(Number(e.target.value)); setScannedConf(null); }} />
+            <input type="range" min="10" max="100" step="0.5" value={c} onChange={e => { setC(Number(e.target.value)); setScannedConf(null); }} />
           </div>
 
           {/* Brightness/Threshold slider */}
-          <div style={{ marginBottom:14 }}>
+          <div style={{ marginBottom:16 }}>
             <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
               <span style={{ ...S.orbitron, fontSize:'0.55rem', letterSpacing:'0.15em', color:C.muted }}>EXPOSURE (ms)</span>
               <span style={{ ...S.orbitron, fontSize:'0.65rem', color: (t >= cap.tt[0] && t <= cap.tt[1]) ? C.blue : C.text }}>
                 {t}
               </span>
             </div>
-            <input type="range" min="50" max="200" value={t} onChange={e => { setT(Number(e.target.value)); setScannedConf(null); }} />
+            <input type="range" min="50" max="200" step="1" value={t} onChange={e => { setT(Number(e.target.value)); setScannedConf(null); }} />
+          </div>
+
+          {/* Plate Skew / Tilt alignment slider */}
+          <div style={{ marginBottom:14 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+              <span style={{ ...S.orbitron, fontSize:'0.55rem', letterSpacing:'0.15em', color:C.muted }}>PLATE SKEW (°)</span>
+              <span style={{ ...S.orbitron, fontSize:'0.65rem', color: Math.abs(skew) <= 2 ? C.blue : C.text }}>
+                {skew > 0 ? `+${skew}` : skew}°
+              </span>
+            </div>
+            <input type="range" min="-15" max="15" step="0.5" value={skew} onChange={e => { setSkew(Number(e.target.value)); setScannedConf(null); }} />
           </div>
 
         </Panel>
@@ -1000,79 +1066,141 @@ function ModuleB({ score, setScore, onComplete, fxFail, showToast }:any) {
 }
 
 /* ================================================================
-   MODULE C — Citation processing (Interceptor Redesign)
+   MODULE C — TRAFFIC INTERSECTION RED-LIGHT & SPEED TRAP
    ================================================================ */
 function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
   const [cap] = useState(() => pC[Math.floor(Math.random()*pC.length)]);
   
-  // Calculate actual speed since some plates use dist/time instead of raw spd
+  // Speed metrics
   const actualSpeed = cap.dist ? Math.round((cap.dist/cap.t)*3.6) : cap.spd;
   const speedLimit = cap.z==='S'?30:cap.z==='R'?40:cap.z==='U'?60:80;
+  const excessSpeed = Math.max(0, actualSpeed - speedLimit);
 
-  // Game phases: 'SCAN' -> 'SYNC' -> 'DONE'
-  const [phase, setPhase] = useState('SCAN');
-  
-  // SCAN Phase: Timing bar
-  const [pos, setPos] = useState(0);
-  const posRef = useRef(0);
-  const dirRef = useRef(1);
-  const reqRef = useRef(0);
-  
-  // SYNC Phase: Frequency matcher
-  const [freq, setFreq] = useState(0);
-  const [targetFreq] = useState(() => Math.floor(Math.random() * 60) + 20);
-  const isFreqMatched = Math.abs(freq - targetFreq) < 4;
+  // Intersection traffic light cycle: 'GREEN' -> 'YELLOW' -> 'RED'
+  const [light, setLight] = useState<'GREEN' | 'YELLOW' | 'RED'>('YELLOW');
+  const [lightTimer, setLightTimer] = useState(2);
 
+  // Simulation state
+  // Car Y positions: 0% is top of road, 100% is bottom. Cars drive upwards from 110% to -20%
+  // Stop line is at Y = 46%. Zebra crossing is from 46% to 36%.
+  const [civY, setCivY] = useState(105);
+  const [speederY, setSpeederY] = useState(120);
+  const [isFlashing, setIsFlashing] = useState(false);
+  const [captured, setCaptured] = useState(false);
+  const [snapshotEvidence, setSnapshotEvidence] = useState<{ speed: number; plate: string; breachDist: number } | null>(null);
   const [showTkt, setTkt] = useState(false);
 
+  // Traffic light sequence
   useEffect(() => {
-    if (phase !== 'SCAN') return;
-    const loop = () => {
-      // Base speed + slightly faster if speed is higher
-      const speed = 1.0 + (actualSpeed / 120); 
-      posRef.current += dirRef.current * speed;
-      if (posRef.current >= 100) { posRef.current = 100; dirRef.current = -1; }
-      if (posRef.current <= 0) { posRef.current = 0; dirRef.current = 1; }
-      setPos(posRef.current);
-      reqRef.current = requestAnimationFrame(loop);
-    };
-    reqRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(reqRef.current);
-  }, [phase, actualSpeed]);
+    if (captured) return;
+    const interval = setInterval(() => {
+      setLightTimer(prev => {
+        if (prev <= 1) {
+          setLight(cur => {
+            if (cur === 'GREEN') { return 'YELLOW'; }
+            if (cur === 'YELLOW') { return 'RED'; }
+            return 'GREEN';
+          });
+          return light === 'GREEN' ? 2 : light === 'YELLOW' ? 8 : 4;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [light, captured]);
 
-  const handleIntercept = () => {
-    if (phase !== 'SCAN') return;
-    // Widened sweet spot for better playability (65 to 90)
-    if (posRef.current >= 65 && posRef.current <= 90) {
-      setScore((s:any) => ({...s, c: s.c + 15}));
-      showToast('TARGET LOCKED');
-      setPhase('SYNC');
+  // Vehicle animation loop
+  useEffect(() => {
+    if (captured) return;
+
+    let req: number;
+    let lastTime = performance.now();
+    let currentCivY = 105;
+    let currentSpeederY = 125;
+
+    const loop = (now: number) => {
+      const delta = Math.min(50, now - lastTime) / 1000;
+      lastTime = now;
+
+      // Civilian car behavior: slows down & stops at stop line (Y = 54%) when light is YELLOW or RED
+      if (light === 'RED' || light === 'YELLOW') {
+        if (currentCivY > 54) {
+          currentCivY -= delta * 22; // decelerates to stop line
+          if (currentCivY < 54) currentCivY = 54; // stops cleanly behind line
+        }
+      } else {
+        // Moves forward on green
+        currentCivY -= delta * 30;
+        if (currentCivY < -20) currentCivY = 110;
+      }
+      setCivY(currentCivY);
+
+      // Speeder car behavior: rushes through regardless of light at actualSpeed!
+      currentSpeederY -= delta * (actualSpeed * 0.52);
+      if (currentSpeederY < -25) {
+        // Speeder looped without being captured
+        currentSpeederY = 125;
+      }
+      setSpeederY(currentSpeederY);
+
+      req = requestAnimationFrame(loop);
+    };
+
+    req = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(req);
+  }, [light, captured, actualSpeed]);
+
+  // Snapshot trigger handler
+  const handleTriggerSnapshot = () => {
+    if (captured) return;
+
+    // Stop line is at Y = 46%. Capture window is between Y = 32% and Y = 50%
+    const inBreachZone = speederY <= 52 && speederY >= 28;
+
+    if (light !== 'RED') {
+      fxFail();
+      showToast('INVALID TRIGGER — SIGNAL IS NOT RED! (-3 PTS)', true);
+      setScore((s:any) => ({ ...s, cp: s.cp + 3 }));
+      return;
+    }
+
+    if (inBreachZone) {
+      // SUCCESSFUL SNAPSHOT CAPTURE!
+      setIsFlashing(true);
+      setCaptured(true);
+      setTimeout(() => setIsFlashing(false), 220);
+
+      const breachMeters = Math.max(1.2, Number(((50 - speederY) * 0.35).toFixed(1)));
+      setSnapshotEvidence({
+        speed: actualSpeed,
+        plate: cap.p,
+        breachDist: breachMeters,
+      });
+
+      setScore((s:any) => ({ ...s, c: s.c + 35 }));
+      showToast('📸 VIOLATION SNAPSHOT SECURED! RED LIGHT BREACH CONFIRMED');
+    } else if (speederY > 52) {
+      fxFail();
+      showToast('TOO EARLY — VEHICLE HAS NOT REACHED STOP LINE (-3 PTS)', true);
+      setScore((s:any) => ({ ...s, cp: s.cp + 3 }));
     } else {
       fxFail();
-      showToast('LOCK FAILED — RECALIBRATING', true);
-      setScore((s:any) => ({...s, cp: s.cp + 5}));
+      showToast('TOO LATE — VEHICLE ALREADY CLEARED JUNCTION (-3 PTS)', true);
+      setScore((s:any) => ({ ...s, cp: s.cp + 3 }));
     }
   };
 
-  const handleBeam = () => {
-    if (!isFreqMatched) return;
-    setScore((s:any) => ({...s, c: s.c + 20}));
-    setPhase('DONE');
-    setTkt(true);
-  };
-
-  // SVG Sine Wave Generator
-  const generateWave = (f: number, offset: number, amp: number, stroke: string, width: number) => {
-    const points = [];
-    for (let x = 0; x <= 100; x++) {
-      // Map 0-100 to SVG coordinates
-      const y = 50 + Math.sin((x + offset) * f * 0.1) * amp;
-      points.push(`${x*3},${y}`);
-    }
-    return (
-      <polyline points={points.join(' ')} fill="none" stroke={stroke} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" />
-    );
-  };
+  // Keyboard shortcut: Spacebar triggers snapshot
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !captured) {
+        e.preventDefault();
+        handleTriggerSnapshot();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [captured, speederY, light]);
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:14, height:'100%' }}>
@@ -1081,84 +1209,322 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
       <div style={{ display:'flex', gap:10 }}>
         {[
           { label:'Target Plate', value:cap.p, color:C.text },
-          { label:'Recorded Speed', value:`${actualSpeed} KM/H`, color:C.red },
-          { label:'Zone Limit', value:`${speedLimit} KM/H`, color:C.blue },
-          { label:'Status', value: phase==='SCAN'?'TRACKING':phase==='SYNC'?'LOCKED':'CITATION ISSUED', color: phase==='SCAN'?C.orange:C.green },
+          { label:'Speed Limit', value:`${speedLimit} KM/H`, color:C.blue },
+          { label:'Junction Signal', value:`${light} (${lightTimer}s)`, color: light==='RED'?C.red:light==='YELLOW'?C.amber:C.green },
+          { label:'Sensor Mode', value: light==='RED'?'STOP-LINE ENFORCED':'STANDBY', color: light==='RED'?C.red:C.dim },
+          { label:'Status', value: captured ? 'VIOLATION CAPTURED' : light==='RED'?'AWAITING BREACH':'CYCLING SIGNAL', color: captured?C.green:light==='RED'?C.orange:C.blue },
         ].map((item, i) => (
           <div key={i} style={{ flex:1, background:C.bg2, border:`1px solid ${C.border}`, padding:'10px 14px', display:'flex', flexDirection:'column', alignItems:'center' }}>
             <div style={{ ...S.label, marginBottom:4 }}>{item.label}</div>
-            <div style={{ ...S.orbitron, fontSize:'0.95rem', fontWeight:700, color:item.color }}>{item.value}</div>
+            <div style={{ ...S.orbitron, fontSize:'0.9rem', fontWeight:700, color:item.color }}>{item.value}</div>
           </div>
         ))}
       </div>
 
       <Panel style={{ flex:1, display:'flex', flexDirection:'column', padding:0, overflow:'hidden', position:'relative' }}>
         
-        {/* PHASE 1: SCANNING (Radar Timing) */}
-        {phase === 'SCAN' && (
-          <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:40 }}>
-            <div style={{ ...S.orbitron, fontSize:'1.2rem', color:C.red, letterSpacing:'0.2em', marginBottom:40, textAlign:'center' }}>
-              INTERCEPT VECTOR REQUIRED
-              <div style={{ fontSize:'0.6rem', color:C.muted, marginTop:8 }}>ENGAGE LOCK WHEN BLIP IS IN THE ZONE</div>
-            </div>
-
-            {/* Radar Bar */}
-            <div style={{ width:'100%', maxWidth:500, height:40, background:'rgba(0,0,0,0.5)', border:`1px solid ${C.border}`, position:'relative', borderRadius:20, overflow:'hidden', marginBottom:40 }}>
-              {/* Sweet spot zone (65 to 90) */}
-              <div style={{ position:'absolute', left:'65%', width:'25%', top:0, bottom:0, background:'rgba(34,197,94,0.2)', borderLeft:`2px solid ${C.green}`, borderRight:`2px solid ${C.green}` }} />
-              
-              {/* Moving Blip */}
-              <div style={{ position:'absolute', left:`${pos}%`, top:0, bottom:0, width:4, background:C.orange, transform:'translateX(-50%)', boxShadow:`0 0 12px ${C.orange}` }} />
-            </div>
-
-            <Btn variant="primary" style={{ padding:'20px 60px', fontSize:'1rem' }} onClick={handleIntercept}>
-              ENGAGE TARGET LOCK
-            </Btn>
+        {/* HUD Sub-header */}
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 16px', background:'rgba(0,0,0,0.65)', borderBottom:`1px solid ${C.border}`, zIndex:20 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ width:8, height:8, borderRadius:'50%', background: light==='RED'?C.red:C.green, display:'inline-block', boxShadow:`0 0 10px ${light==='RED'?C.red:C.green}` }} />
+            <span style={{ ...S.orbitron, fontSize:'0.65rem', color:C.text, letterSpacing:'0.15em' }}>
+              JUNCTION INTERSECTION CAMERA // CAM-04 S.V. ROAD
+            </span>
           </div>
-        )}
+          <div style={{ ...S.orbitron, fontSize:'0.6rem', color: light==='RED'?C.red:C.amber }}>
+            {captured ? '📸 EVIDENCE SECURED // CITATION READY' : light==='RED' ? '⚡ RED LIGHT ACTIVE — SNAPSHOT AS SPEEDER RUNS STOP LINE' : 'AWAITING RED LIGHT CYCLE...'}
+          </div>
+        </div>
 
-        {/* PHASE 2: SYNC (Frequency Match) */}
-        {phase === 'SYNC' && (
-          <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:40 }}>
-            <div style={{ ...S.orbitron, fontSize:'1.2rem', color:C.blue, letterSpacing:'0.2em', marginBottom:30, textAlign:'center' }}>
-              DATA LINK SYNCHRONIZATION
-              <div style={{ fontSize:'0.6rem', color:C.muted, marginTop:8 }}>MATCH LOCAL FREQUENCY WITH TARGET TRANSPONDER</div>
-            </div>
+        {/* Intersection Overhead Viewport */}
+        <div style={{ flex:1, position:'relative', background:'#0A0C11', overflow:'hidden', minHeight:340 }}>
+          
+          {/* Camera flash overlay */}
+          {isFlashing && (
+            <div style={{ position:'absolute', inset:0, background:'#FFFFFF', zIndex:50, pointerEvents:'none' }} />
+          )}
 
-            {/* Oscilloscope View */}
-            <div style={{ width:'100%', maxWidth:500, height:120, background:'rgba(0,0,0,0.8)', border:`1px solid ${C.blue}`, position:'relative', marginBottom:40, overflow:'hidden' }}>
-              <div style={{ position:'absolute', inset:0, background:'repeating-linear-gradient(0deg, transparent 0px, transparent 19px, rgba(0,200,255,0.1) 20px)', backgroundSize:'100% 20px' }} />
-              <div style={{ position:'absolute', inset:0, background:'repeating-linear-gradient(90deg, transparent 0px, transparent 19px, rgba(0,200,255,0.1) 20px)', backgroundSize:'20px 100%' }} />
+          {/* CCTV Grid & Timestamp HUD */}
+          <div style={{ position:'absolute', top:12, left:16, zIndex:15, ...S.orbitron, fontSize:'0.55rem', color:'rgba(0,200,255,0.6)', letterSpacing:'0.15em', pointerEvents:'none' }}>
+            RLVD-SYS // FPS: 60 · ISO 800 · 1/2000s
+          </div>
+          <div style={{ position:'absolute', top:12, right:16, zIndex:15, ...S.orbitron, fontSize:'0.55rem', color:'rgba(255,48,56,0.6)', letterSpacing:'0.15em', pointerEvents:'none' }}>
+            ● REC // LIVE JUNCTION SENSOR
+          </div>
+
+          {/* Road Surfaces */}
+          <div style={{ position:'absolute', inset:0 }}>
+            {/* North-South Road */}
+            <div style={{ position:'absolute', left:'24%', right:'24%', top:0, bottom:0, background:'#13161F', borderLeft:'2px solid rgba(255,255,255,0.15)', borderRight:'2px solid rgba(255,255,255,0.15)' }}>
               
-              <svg width="100%" height="100%" viewBox="0 0 300 100" preserveAspectRatio="none" style={{ position:'absolute', inset:0 }}>
-                {/* Target Wave (Red) */}
-                {generateWave(targetFreq * 0.05 + 1, Date.now() / 1000, 30, 'rgba(255,48,56,0.5)', 3)}
-                
-                {/* User Wave (Blue) */}
-                {generateWave(freq * 0.05 + 1, Date.now() / 1000, 30, isFreqMatched ? C.green : C.blue, 2)}
-              </svg>
+              {/* Lane Divider */}
+              <div style={{ position:'absolute', left:'50%', top:0, bottom:0, width:2, background:'repeating-linear-gradient(180deg, #FFFFFF 0px, #FFFFFF 20px, transparent 20px, transparent 40px)', opacity:0.35 }} />
 
-              {isFreqMatched && (
-                <div style={{ position:'absolute', top:10, right:10, ...S.orbitron, fontSize:'0.7rem', color:C.green, fontWeight:900, letterSpacing:'0.1em' }}>
-                  [ SYNC LOCK ]
-                </div>
-              )}
-            </div>
+              {/* Lane Labels */}
+              <div style={{ position:'absolute', bottom:10, left:'25%', transform:'translateX(-50%)', ...S.orbitron, fontSize:'0.45rem', color:'rgba(255,255,255,0.2)' }}>LANE 1 (CIVILIAN)</div>
+              <div style={{ position:'absolute', bottom:10, right:'25%', transform:'translateX(50%)', ...S.orbitron, fontSize:'0.45rem', color:'rgba(255,255,255,0.2)' }}>LANE 2 (SPEED LANE)</div>
 
-            {/* Frequency Slider */}
-            <div style={{ width:'100%', maxWidth:500, marginBottom:30 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
-                <span style={{ ...S.orbitron, fontSize:'0.6rem', color:C.muted }}>LOCAL OSCILLATOR (MHz)</span>
-                <span style={{ ...S.orbitron, fontSize:'0.7rem', color: isFreqMatched ? C.green : C.blue }}>{(freq * 2.4).toFixed(1)}</span>
+              {/* SOLID WHITE STOP LINE (at Y = 46%) */}
+              <div style={{
+                position:'absolute',
+                top:'46%',
+                left:0, right:0,
+                height:6,
+                background:'#FFFFFF',
+                boxShadow: light==='RED' ? '0 0 14px rgba(255,48,56,0.8)' : 'none',
+                zIndex:3
+              }} />
+
+              {/* Stop line laser beam indicator */}
+              <div style={{
+                position:'absolute',
+                top:'46%',
+                left:0, right:0,
+                height:2,
+                background: light==='RED' ? C.red : C.green,
+                boxShadow: `0 0 10px ${light==='RED' ? C.red : C.green}`,
+                zIndex:4
+              }} />
+
+              {/* ZEBRA CROSSING (from Y = 36% to 44%) */}
+              <div style={{
+                position:'absolute',
+                top:'34%',
+                height:'10%',
+                left:0, right:0,
+                background:'repeating-linear-gradient(90deg, #FFFFFF 0px, #FFFFFF 16px, transparent 16px, transparent 32px)',
+                opacity:0.3,
+                zIndex:2
+              }} />
+
+              {/* ENFORCEMENT CAPTURE ZONE HIGHLIGHT (active during RED) */}
+              <div style={{
+                position:'absolute',
+                top:'28%',
+                height:'24%',
+                left:0, right:0,
+                background: light==='RED' ? 'rgba(255,48,56,0.08)' : 'transparent',
+                border: light==='RED' ? '1.5px dashed rgba(255,48,56,0.45)' : 'none',
+                zIndex:2,
+                display:'flex',
+                alignItems:'center',
+                justifyContent:'center',
+                pointerEvents:'none'
+              }}>
+                {light==='RED' && !captured && (
+                  <span style={{ ...S.orbitron, fontSize:'0.55rem', color:C.red, letterSpacing:'0.2em', background:'rgba(0,0,0,0.7)', padding:'2px 8px', borderRadius:2 }}>
+                    [ PHOTO ENFORCEMENT ZONE ]
+                  </span>
+                )}
               </div>
-              <input type="range" min="0" max="100" value={freq} onChange={e => setFreq(Number(e.target.value))} style={{ width:'100%' }} />
             </div>
 
-            <Btn variant={isFreqMatched ? 'primary' : 'ghost'} style={{ padding:'20px 60px', fontSize:'1rem', opacity: isFreqMatched ? 1 : 0.5, pointerEvents: isFreqMatched ? 'auto' : 'none' }} onClick={handleBeam}>
-              BEAM CITATION
-            </Btn>
+            {/* Cross Street (Horizontal Intersection) */}
+            <div style={{ position:'absolute', top:'18%', height:'12%', left:0, right:0, background:'rgba(255,255,255,0.02)', borderTop:'1px dashed rgba(255,255,255,0.1)', borderBottom:'1px dashed rgba(255,255,255,0.1)', pointerEvents:'none' }} />
           </div>
-        )}
+
+          {/* Traffic Signal Post (on the corner at left 18%, top 44%) */}
+          <div style={{
+            position:'absolute',
+            left:'15%',
+            top:'40%',
+            transform:'translate(-50%, -50%)',
+            background:'#0D1017',
+            border:`1.5px solid ${C.border}`,
+            padding:'8px 6px',
+            borderRadius:10,
+            display:'flex',
+            flexDirection:'column',
+            alignItems:'center',
+            gap:6,
+            zIndex:25,
+            boxShadow:'0 8px 24px rgba(0,0,0,0.8)'
+          }}>
+            <div style={{ ...S.orbitron, fontSize:'0.45rem', color:C.muted, marginBottom:2 }}>SIGNAL</div>
+            {/* Red Light */}
+            <div style={{
+              width:18, height:18, borderRadius:'50%',
+              background: light==='RED' ? '#FF2030' : '#33080A',
+              boxShadow: light==='RED' ? '0 0 16px #FF2030, 0 0 24px #FF2030' : 'none',
+              border:'1px solid rgba(255,255,255,0.2)'
+            }} />
+            {/* Amber Light */}
+            <div style={{
+              width:18, height:18, borderRadius:'50%',
+              background: light==='YELLOW' ? '#F59E0B' : '#2A1A05',
+              boxShadow: light==='YELLOW' ? '0 0 16px #F59E0B' : 'none',
+              border:'1px solid rgba(255,255,255,0.2)'
+            }} />
+            {/* Green Light */}
+            <div style={{
+              width:18, height:18, borderRadius:'50%',
+              background: light==='GREEN' ? '#22C55E' : '#06200F',
+              boxShadow: light==='GREEN' ? '0 0 16px #22C55E' : 'none',
+              border:'1px solid rgba(255,255,255,0.2)'
+            }} />
+            <div style={{ ...S.orbitron, fontSize:'0.65rem', fontWeight:900, color: light==='RED'?C.red:light==='YELLOW'?C.amber:C.green, marginTop:2 }}>
+              {lightTimer}s
+            </div>
+          </div>
+
+          {/* Civilian Vehicle in Lane 1 (Left lane, driving upwards) */}
+          <div style={{
+            position:'absolute',
+            left:'36%',
+            top:`${civY}%`,
+            transform:'translate(-50%, -50%)',
+            zIndex:10,
+            pointerEvents:'none'
+          }}>
+            <svg width="36" height="68" viewBox="0 0 36 68">
+              <rect x="0" y="8" width="4" height="12" rx="2" fill="#111" />
+              <rect x="32" y="8" width="4" height="12" rx="2" fill="#111" />
+              <rect x="0" y="48" width="4" height="12" rx="2" fill="#111" />
+              <rect x="32" y="48" width="4" height="12" rx="2" fill="#111" />
+              <path d="M 4 12 C 4 4, 32 4, 32 12 L 33 54 C 33 62, 3 62, 3 54 Z" fill="#2D3748" stroke="#718096" strokeWidth="1" />
+              <path d="M 6 18 L 30 18 L 28 28 L 8 28 Z" fill="#1A202C" />
+              <rect x="8" y="28" width="20" height="16" fill="#232B3A" />
+              <path d="M 8 44 L 28 44 L 30 50 L 6 50 Z" fill="#1A202C" />
+              {/* Brake lights active when stopping */}
+              <rect x="5" y="56" width="6" height="3" rx="1" fill={civY <= 56 ? '#FF2030' : '#441111'} style={{ filter: civY<=56 ? 'drop-shadow(0 0 6px #FF2030)' : 'none' }} />
+              <rect x="25" y="56" width="6" height="3" rx="1" fill={civY <= 56 ? '#FF2030' : '#441111'} style={{ filter: civY<=56 ? 'drop-shadow(0 0 6px #FF2030)' : 'none' }} />
+            </svg>
+            <div style={{ ...S.orbitron, fontSize:'0.45rem', color: civY <= 55 ? C.green : C.muted, textAlign:'center', marginTop:2, background:'rgba(0,0,0,0.7)', borderRadius:2 }}>
+              {civY <= 55 ? 'STOPPED (OK)' : '42 KM/H'}
+            </div>
+          </div>
+
+          {/* Speeder Violator Vehicle in Lane 2 (Right lane, barreling through upwards) */}
+          <div style={{
+            position:'absolute',
+            left:'64%',
+            top:`${speederY}%`,
+            transform:'translate(-50%, -50%)',
+            zIndex:12,
+            pointerEvents:'none'
+          }}>
+            {/* Speed blur trail */}
+            <div style={{
+              position:'absolute',
+              inset:-8,
+              background:'radial-gradient(circle, rgba(255,48,56,0.5) 0%, transparent 70%)',
+              filter:'blur(4px)',
+              zIndex:-1
+            }} />
+
+            <svg width="42" height="78" viewBox="0 0 42 78" style={{ filter: captured ? 'drop-shadow(0 0 16px #22C55E)' : 'drop-shadow(0 0 10px rgba(255,48,56,0.9))' }}>
+              <rect x="0" y="8" width="5" height="14" rx="2" fill="#111" />
+              <rect x="37" y="8" width="5" height="14" rx="2" fill="#111" />
+              <rect x="0" y="54" width="5" height="14" rx="2" fill="#111" />
+              <rect x="37" y="54" width="5" height="14" rx="2" fill="#111" />
+              <path d="M 5 14 C 5 4, 37 4, 37 14 L 38 62 C 38 72, 4 72, 4 62 Z" fill="#D31826" stroke="#FF6B2C" strokeWidth="1.5" />
+              <path d="M 8 20 L 34 20 L 32 32 L 10 32 Z" fill="#0C1017" stroke="#00C8FF" strokeWidth="0.8" />
+              <rect x="10" y="32" width="22" height="16" fill="#1F232D" />
+              <path d="M 10 48 L 32 48 L 34 56 L 8 56 Z" fill="#0C1017" />
+              {/* Headlights pointing north */}
+              <circle cx="8" cy="8" r="2.5" fill="#FFE57F" style={{ filter:'drop-shadow(0 0 6px #FFE57F)' }} />
+              <circle cx="34" cy="8" r="2.5" fill="#FFE57F" style={{ filter:'drop-shadow(0 0 6px #FFE57F)' }} />
+              {/* Glowing taillights */}
+              <rect x="6" y="68" width="8" height="3" rx="1" fill="#FF0033" style={{ filter:'drop-shadow(0 0 6px #FF0033)' }} />
+              <rect x="28" y="68" width="8" height="3" rx="1" fill="#FF0033" style={{ filter:'drop-shadow(0 0 6px #FF0033)' }} />
+              {/* License plate */}
+              <rect x="14" y="69" width="14" height="3.5" rx="1" fill="#FFF" />
+            </svg>
+
+            {/* Target Floating Tag */}
+            <div style={{
+              ...S.orbitron,
+              fontSize:'0.48rem',
+              fontWeight:900,
+              color: captured ? C.green : C.red,
+              textAlign:'center',
+              marginTop:2,
+              background:'rgba(0,0,0,0.85)',
+              padding:'2px 6px',
+              border:`1px solid ${captured ? C.green : C.red}`,
+              borderRadius:2,
+              boxShadow: captured ? '0 0 12px rgba(34,197,94,0.8)' : 'none',
+              whiteSpace:'nowrap'
+            }}>
+              {captured ? `[CAPTURED: ${actualSpeed} KM/H]` : `SPEEDER // ${cap.p}`}
+            </div>
+          </div>
+
+          {/* Captured Freeze-Frame Overlay */}
+          {captured && snapshotEvidence && (
+            <motion.div
+              initial={{ scale:0.8, opacity:0 }}
+              animate={{ scale:1, opacity:1 }}
+              style={{
+                position:'absolute',
+                top:20, right:20,
+                width:240,
+                background:'rgba(14,17,24,0.92)',
+                border:`1.5px solid ${C.green}`,
+                borderRadius:8,
+                padding:'12px',
+                zIndex:40,
+                boxShadow:'0 12px 36px rgba(0,0,0,0.9)'
+              }}
+            >
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px dashed rgba(255,255,255,0.15)', paddingBottom:6, marginBottom:8 }}>
+                <span style={{ ...S.orbitron, fontSize:'0.65rem', color:C.green, fontWeight:900 }}>EVIDENCE LOGGED</span>
+                <span style={{ ...S.orbitron, fontSize:'0.5rem', color:C.muted }}>CAM-04 SNAPSHOT</span>
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:5, fontSize:'0.75rem' }}>
+                <div style={{ display:'flex', justifyContent:'space-between' }}><span style={{ color:C.muted }}>PLATE:</span><strong style={{ color:C.text }}>{snapshotEvidence.plate}</strong></div>
+                <div style={{ display:'flex', justifyContent:'space-between' }}><span style={{ color:C.muted }}>SPEED:</span><strong style={{ color:C.red }}>{snapshotEvidence.speed} KM/H</strong></div>
+                <div style={{ display:'flex', justifyContent:'space-between' }}><span style={{ color:C.muted }}>LIMIT:</span><strong style={{ color:C.blue }}>{speedLimit} KM/H</strong></div>
+                <div style={{ display:'flex', justifyContent:'space-between' }}><span style={{ color:C.muted }}>STOP-LINE BREACH:</span><strong style={{ color:C.orange }}>+{snapshotEvidence.breachDist}m</strong></div>
+                <div style={{ display:'flex', justifyContent:'space-between' }}><span style={{ color:C.muted }}>VIOLATION CODE:</span><strong style={{ color:C.red }}>RLV-02 (RED LIGHT)</strong></div>
+              </div>
+            </motion.div>
+          )}
+
+        </div>
+
+        {/* Action Trigger Bar */}
+        <div style={{ padding:'14px 20px', background:C.bg1, borderTop:`1px solid ${C.border}`, display:'flex', alignItems:'center', justifyContent:'space-between', gap:20 }}>
+          <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+            <div style={{ ...S.orbitron, fontSize:'0.75rem', fontWeight:800, color: light==='RED'?C.red:C.text }}>
+              {captured ? 'VIOLATION CONFIRMED — CITATION DISPATCH READY' : light==='RED' ? '⚡ LIGHT IS RED: TRIGGER SNAPSHOT AS CAR CROSSES STOP LINE' : 'AWAITING TRAFFIC SIGNAL CYCLE TO RED...'}
+            </div>
+            <div style={{ fontSize:'0.7rem', color:C.muted }}>
+              {captured ? 'Click Transmit eChallan to issue the ₹2,000 fine notice.' : 'Shortcut: Press SPACEBAR or click the button below when the speeder enters the capture zone.'}
+            </div>
+          </div>
+
+          <div>
+            {!captured ? (
+              <Btn
+                variant={light==='RED' ? 'primary' : 'ghost'}
+                style={{
+                  padding:'16px 36px',
+                  fontSize:'0.9rem',
+                  opacity: light==='RED' ? 1 : 0.45,
+                  boxShadow: light==='RED' ? '0 0 25px rgba(255,48,56,0.6)' : 'none'
+                }}
+                onClick={handleTriggerSnapshot}
+              >
+                📸 TRIGGER SNAPSHOT [SPACE]
+              </Btn>
+            ) : (
+              <Btn
+                variant="primary"
+                style={{
+                  padding:'16px 36px',
+                  fontSize:'0.9rem',
+                  boxShadow:'0 0 25px rgba(34,197,94,0.6)',
+                  background: C.green,
+                  borderColor: C.green
+                }}
+                onClick={() => setTkt(true)}
+              >
+                ⚡ TRANSMIT eCHALLAN CITATION
+              </Btn>
+            )}
+          </div>
+        </div>
 
       </Panel>
 
@@ -1174,14 +1540,16 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
           >
             <div style={{ textAlign:'center', borderBottom:'2px dashed #bbb', paddingBottom:14, marginBottom:14 }}>
               <div style={{ fontWeight:900, fontSize:'1.1rem', letterSpacing:'0.04em' }}>eCHALLAN CITATION</div>
-              <div style={{ fontSize:'0.7rem', color:'#666', marginTop:3 }}>REDLINE SURVEILLANCE GRID</div>
+              <div style={{ fontSize:'0.7rem', color:'#666', marginTop:3 }}>INTERSECTION RED-LIGHT VIOLATION DETECTOR</div>
             </div>
             {[
-              ['PLATE',     cap.p],
-              ['VIOLATION', 'OVERSPEEDING'],
-              ['FINE',      'Rs 2,000 (DIGITAL BEAM)'],
-              ['ISSUER',    `LVL-${cap.o}`],
-              ['SYNC FREQ', `${(freq * 2.4).toFixed(1)} MHz`],
+              ['PLATE',          cap.p],
+              ['VIOLATION',      `RED LIGHT RUNNER // RLV-02`],
+              ['RECORDED SPEED', `${actualSpeed} KM/H`],
+              ['ZONE LIMIT',     `${speedLimit} KM/H`],
+              ['STOP BREACH',    `+${snapshotEvidence?.breachDist || 3.2} METERS`],
+              ['FINE',           'Rs 2,000 (DIGITAL NOTICE)'],
+              ['CAMERA UNIT',    `RLVD-CAM LVL-${cap.o}`],
             ].map(([k,v]) => (
               <div key={k} style={{ display:'flex', justifyContent:'space-between', marginBottom:7, fontSize:'0.9rem', borderBottom:'1px dashed #ddd', paddingBottom:6 }}>
                 <span style={{ color:'#555' }}>{k}</span><strong>{v}</strong>
@@ -1211,11 +1579,17 @@ function ModuleC({ score, setScore, onComplete, fxFail, showToast }:any) {
 /* ================================================================
    OUTRO SCREEN — Finish line / results
    ================================================================ */
-function OutroScreen({ score:S, team, totScore }:any) {
+function OutroScreen({
+  score: S,
+  team,
+  totScore,
+  onOpenStationChooser,
+  onRestart,
+}: any) {
   let rank = 'ROOKIE'; let rankIcon = '🏎';
-  if (totScore >= 120) { rank='DCP';       rankIcon='👑'; }
-  else if (totScore >= 90)  { rank='INSPECTOR'; rankIcon='🏆'; }
-  else if (totScore >= 60)  { rank='OFFICER';   rankIcon='🎖'; }
+  if (totScore >= 70) { rank='DCP';       rankIcon='👑'; }
+  else if (totScore >= 45)  { rank='INSPECTOR'; rankIcon='🏆'; }
+  else if (totScore >= 20)  { rank='OFFICER';   rankIcon='🎖'; }
 
   const rows = [
     { label:'Sec A Base',    val:S.a,    color:C.muted },
@@ -1290,8 +1664,25 @@ function OutroScreen({ score:S, team, totScore }:any) {
         </span>
       </div>
 
-      <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{delay:0.5}}>
-        <Btn variant="ghost" onClick={() => window.location.reload()}>Next Team — Reset</Btn>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      >
+        <Btn
+          variant="primary"
+          onClick={() => {
+            if (onOpenStationChooser) {
+              onOpenStationChooser();
+            } else if (onRestart) {
+              onRestart();
+            }
+          }}
+          style={{ fontSize: '0.9rem', letterSpacing: '0.12em', padding: '14px 34px', fontWeight: 800 }}
+        >
+          ➔ CHOOSE NEXT STATION
+        </Btn>
       </motion.div>
 
       <div className="finish-line-bar" style={{ width:'100%' }} />
