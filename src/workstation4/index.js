@@ -1,30 +1,4 @@
-import Station4 from "./Station4";
-import { getStationResult } from "./utils/stationResult";
+import Station4 from "./meltdown/Station4Meltdown";
 
-export { Station4, getStationResult };
+export { Station4 };
 export default Station4;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

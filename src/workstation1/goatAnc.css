@@ -1,0 +1,252 @@
+/* Pin Tailwind's layer order first: another workstation also imports Tailwind, and whichever
+   file declares layers first wins. Without this, preflight (base) can outrank utilities. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+
+/* ════════════════════════════════════════════════════════════════════
+   STATION 1 · GOAT ANC — Milano bridge HUD
+   Palette: obsidian #060813 / #0b0f19 · cyan #00f2fe #06b6d4
+            gold #f59e0b · crimson #ef4444 (+ lock-green, plasma-magenta)
+   ════════════════════════════════════════════════════════════════════ */
+@theme {
+  --color-goat-void: #060813;
+  --color-goat-navy: #0b0f19;
+  --color-goat-deck: #101626;
+  --color-goat-cyan: #00f2fe;
+  --color-goat-cyan-dim: #06b6d4;
+  --color-goat-gold: #f59e0b;
+  --color-goat-crimson: #ef4444;
+  --color-goat-lock: #39ff88;
+  --color-goat-plasma: #e11dff;
+  --color-goat-mute: #5d7388;
+  --font-hud: 'Chakra Petch', 'JetBrains Mono', monospace;
+  --font-tele: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+@property --goat-ang {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.goat-root {
+  --c: 14px; /* chamfer size */
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(6, 182, 212, 0.10), transparent 55%),
+    linear-gradient(180deg, #0b0f19 0%, #060813 70%);
+  color: #bfeaf0;
+  font-family: var(--font-hud);
+  letter-spacing: 0.02em;
+}
+.goat-root *, .goat-root *::before, .goat-root *::after { border-radius: 0; }
+
+/* scanlines + vignette over the whole bridge */
+.goat-root::after {
+  content: '';
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 242, 254, 0.025) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+.font-tele { font-family: var(--font-tele); }
+
+/* ── chamfered panels ────────────────────────────────────────────── */
+.chamfer {
+  clip-path: polygon(
+    var(--c) 0, 100% 0, 100% calc(100% - var(--c)),
+    calc(100% - var(--c)) 100%, 0 100%, 0 var(--c)
+  );
+}
+.chamfer-tr {
+  clip-path: polygon(0 0, calc(100% - var(--c)) 0, 100% var(--c), 100% 100%, 0 100%);
+}
+.chamfer-both {
+  clip-path: polygon(
+    var(--c) 0, calc(100% - var(--c)) 0, 100% var(--c),
+    100% calc(100% - var(--c)), calc(100% - var(--c)) 100%,
+    var(--c) 100%, 0 calc(100% - var(--c)), 0 var(--c)
+  );
+}
+.chamfer-inner {
+  clip-path: polygon(
+    calc(var(--c) - 0.5px) 0, 100% 0, 100% calc(100% - var(--c) + 0.5px),
+    calc(100% - var(--c) + 0.5px) 100%, 0 100%, 0 calc(var(--c) - 0.5px)
+  );
+}
+.chamfer-both-inner {
+  clip-path: polygon(
+    calc(var(--c) - 0.5px) 0, calc(100% - var(--c) + 0.5px) 0, 100% calc(var(--c) - 0.5px),
+    100% calc(100% - var(--c) + 0.5px), calc(100% - var(--c) + 0.5px) 100%,
+    calc(var(--c) - 0.5px) 100%, 0 calc(100% - var(--c) + 0.5px), 0 calc(var(--c) - 0.5px)
+  );
+}
+
+.hud-grid-bg {
+  background-image:
+    linear-gradient(rgba(0, 242, 254, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 242, 254, 0.07) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+.hazard-stripe {
+  background: repeating-linear-gradient(-45deg, #f59e0b 0 8px, #060813 8px 16px);
+}
+
+/* ── tactical option / action buttons ────────────────────────────── */
+.tac-btn {
+  position: relative;
+  font-family: var(--font-tele);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  transition: transform 0.12s, filter 0.12s, background-color 0.12s, color 0.12s;
+}
+.tac-btn:not(:disabled):hover { filter: brightness(1.25); transform: translateX(3px); }
+.tac-btn:not(:disabled):active { transform: translateX(3px) scale(0.985); }
+.tac-btn:disabled { cursor: not-allowed; }
+.tac-btn:focus-visible { outline: 2px solid #00f2fe; outline-offset: 2px; }
+
+/* ── keyframes ───────────────────────────────────────────────────── */
+@keyframes goat-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.15; } }
+@keyframes goat-pulse-ring {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+@keyframes goat-sweep { from { transform: translateY(-10%); } to { transform: translateY(110%); } }
+@keyframes goat-march { to { stroke-dashoffset: -24; } }
+@keyframes goat-spin { to { transform: rotate(360deg); } }
+@keyframes goat-spin-rev { to { transform: rotate(-360deg); } }
+@keyframes goat-ang { to { --goat-ang: 360deg; } }
+@keyframes goat-flash-hull {
+  0% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+@keyframes goat-flash-ok {
+  0% { opacity: 0.55; }
+  100% { opacity: 0; }
+}
+@keyframes goat-slide-in {
+  from { opacity: 0; transform: translateX(-18px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes goat-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes goat-shimmer {
+  0%, 100% { opacity: 0.10; filter: blur(0.6px); transform: translateX(0); }
+  35% { opacity: 0.26; filter: blur(0.2px); transform: translateX(2px); }
+  60% { opacity: 0.05; filter: blur(1.2px); transform: translateX(-2px); }
+}
+@keyframes goat-reveal {
+  0% { opacity: 0.1; transform: scale(0.96); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes goat-boom {
+  0% { transform: scale(0.2); opacity: 1; }
+  70% { opacity: 0.85; }
+  100% { transform: scale(3.2); opacity: 0; }
+}
+@keyframes goat-debris {
+  0% { transform: translate(0, 0) rotate(0); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) rotate(var(--dr)); opacity: 0; }
+}
+@keyframes goat-star-drift { to { background-position: -400px 200px, -300px 160px, -200px 120px; } }
+@keyframes goat-steam {
+  0% { transform: translate(0, 0) scale(0.4); opacity: 0; }
+  20% { opacity: 0.75; }
+  100% { transform: translate(var(--sx, 0px), -170px) scale(2.6); opacity: 0; }
+}
+@keyframes goat-core-flicker {
+  0%, 100% { opacity: 0.85; }
+  45% { opacity: 1; }
+  70% { opacity: 0.7; }
+}
+@keyframes goat-dash-flow { to { stroke-dashoffset: -60; } }
+@keyframes goat-ring-hum {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+.goat-blink { animation: goat-blink 1s steps(1) infinite; }
+.goat-slide-in { animation: goat-slide-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.goat-rise { animation: goat-rise 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+.hull-flash, .ok-flash { position: fixed; inset: 0; pointer-events: none; z-index: 55; }
+.hull-flash {
+  background: radial-gradient(ellipse at center, rgba(239, 68, 68, 0.15) 30%, rgba(239, 68, 68, 0.75) 100%);
+  animation: goat-flash-hull 0.7s ease-out forwards;
+}
+.ok-flash {
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(57, 255, 136, 0.45) 100%);
+  animation: goat-flash-ok 0.6s ease-out forwards;
+}
+
+/* ── starfield for the windshield ────────────────────────────────── */
+.goat-stars {
+  background-image:
+    radial-gradient(1px 1px at 20px 30px, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 130px 90px, #9ef, transparent),
+    radial-gradient(1px 1px at 220px 160px, #fff, transparent),
+    radial-gradient(1px 1px at 310px 40px, #cde, transparent);
+  background-size: 400px 200px, 300px 160px, 200px 120px;
+  animation: goat-star-drift 90s linear infinite;
+}
+
+/* ── Tokamak plasma ──────────────────────────────────────────────── */
+.plasma-halo {
+  position: absolute;
+  background: conic-gradient(
+    from var(--goat-ang),
+    #e11dff, #7c1dff 18%, transparent 34%, #ff4df0 52%, #6d28d9 70%, transparent 84%, #e11dff
+  );
+  animation: goat-ang 2.4s linear infinite;
+  -webkit-mask: radial-gradient(closest-side, transparent 58%, #000 72%, transparent 100%);
+  mask: radial-gradient(closest-side, transparent 58%, #000 72%, transparent 100%);
+  filter: blur(6px) saturate(1.4);
+}
+.steam {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  background: radial-gradient(circle, rgba(220, 235, 245, 0.55), rgba(180, 200, 220, 0) 70%);
+  filter: blur(5px);
+  opacity: 0;
+  animation: goat-steam 3.2s ease-out infinite;
+}
+
+/* ── Module C slider / dial ──────────────────────────────────────── */
+.tac-track {
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 242, 254, 0.55) 0 1px, transparent 1px 12px),
+    linear-gradient(90deg, #060813, #0b0f19);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .goat-stars, .plasma-halo, .steam { animation-duration: 0s; animation-iteration-count: 1; }
+}
+
+@keyframes goat-wander {
+  0% { transform: translate(-50%, -50%) translate(-26px, 14px); }
+  25% { transform: translate(-50%, -50%) translate(22px, -18px); }
+  50% { transform: translate(-50%, -50%) translate(-12px, -24px); }
+  75% { transform: translate(-50%, -50%) translate(28px, 12px); }
+  100% { transform: translate(-50%, -50%) translate(-26px, 14px); }
+}
+@keyframes goat-lock-in {
+  0% { transform: translate(-50%, -50%) scale(2.2); opacity: 0.2; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+@keyframes goat-fire-pulse {
+  0%, 100% { box-shadow: 0 0 18px rgba(57, 255, 136, 0.5), inset 0 0 24px rgba(57, 255, 136, 0.35); }
+  50% { box-shadow: 0 0 46px rgba(57, 255, 136, 0.95), inset 0 0 38px rgba(57, 255, 136, 0.6); }
+}
+
+.goat-root .goat-ring { border-radius: 50%; }
