@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Station1 from './workstation1'
+import Station2 from './workstation2'
 import Station3 from './workstation3/Station3'
 import Station4 from './workstation4'
 import './App.css'
@@ -10,6 +11,7 @@ function App() {
       const params = new URLSearchParams(window.location.search);
       const st = params.get('station');
       if (st === '4') return 4;
+      if (st === '2') return 2;
       if (st === '3') return 3;
       if (st === '1') return 1;
     }
@@ -83,6 +85,40 @@ function App() {
                   onClick={(e) => { e.stopPropagation(); handleSelectStation(1); }}
                 >
                   <span>INITIALIZE STATION 01</span>
+                  <span className="mosaic-btn-arrow">➔</span>
+                </button>
+              </div>
+
+              {/* Station 2 Card */}
+              <div className="mosaic-station-card card-st2" onClick={() => handleSelectStation(2)}>
+                <div className="mosaic-card-glow-bg" />
+                <div className="mosaic-card-banner">
+                  <img src="/f1_stream.jpg" alt="Le Mans 1966 Pit Wall" className="mosaic-banner-img" />
+                  <div className="mosaic-banner-overlay" />
+                  <span className="mosaic-banner-badge">LE MANS 1966</span>
+                </div>
+                <div className="mosaic-card-head">
+                  <div className="mosaic-card-head-left">
+                    <span className="mosaic-card-icon">🏁</span>
+                    <span className="mosaic-card-id">STATION 02</span>
+                  </div>
+                  <span className="mosaic-card-type">PIT WALL</span>
+                </div>
+                <h3 className="mosaic-card-name">F1 0-LAG STREAM</h3>
+                <p className="mosaic-card-desc">
+                  Ford v Ferrari pit wall telemetry. Link the Le Mans relay towers and balance the 3-node stream load before the engine blows.
+                </p>
+                <div className="mosaic-card-tags">
+                  <span className="mosaic-tag">RELAY TOWERS</span>
+                  <span className="mosaic-tag">LOAD BALANCER</span>
+                  <span className="mosaic-tag">TACHOMETER</span>
+                </div>
+                <button
+                  type="button"
+                  className="mosaic-card-play-btn"
+                  onClick={(e) => { e.stopPropagation(); handleSelectStation(2); }}
+                >
+                  <span>INITIALIZE STATION 02</span>
                   <span className="mosaic-btn-arrow">➔</span>
                 </button>
               </div>
@@ -168,6 +204,13 @@ function App() {
       {activeStation === 1 && (
         <Station1
           key={`st1_${stationKey}`}
+          onNavigateStation={handleSelectStation}
+          onOpenStationChooser={() => setShowChooser(true)}
+        />
+      )}
+      {activeStation === 2 && (
+        <Station2
+          key={`st2_${stationKey}`}
           onNavigateStation={handleSelectStation}
           onOpenStationChooser={() => setShowChooser(true)}
         />

@@ -630,3 +630,11 @@
   50% { opacity: 0.4; transform: scale(0.8); }
 }
 
+
+/* Station 2 chooser card */
+.card-st2 .mosaic-card-glow-bg { background: radial-gradient(circle at 50% 0%, rgba(220, 38, 38, 0.18) 0%, transparent 70%); }
+.mosaic-station-card.card-st2::before { background: #dc2626; box-shadow: 0 0 10px #dc2626; }
+.mosaic-station-card.card-st2:hover { border-color: rgba(220, 38, 38, 0.6); box-shadow: 0 12px 30px rgba(220, 38, 38, 0.22), inset 0 0 20px rgba(220, 38, 38, 0.05); }
+.card-st2 .mosaic-card-type { background: rgba(220, 38, 38, 0.12); color: #f87171; border: 1px solid rgba(220, 38, 38, 0.35); }
+.card-st2 .mosaic-card-play-btn { background: #dc2626; color: #fff; box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35); }
+.card-st2 .mosaic-card-play-btn:hover { background: #ef4444; box-shadow: 0 0 20px rgba(220, 38, 38, 0.7); }
