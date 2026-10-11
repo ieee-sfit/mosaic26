@@ -1,6 +1,8 @@
 export const STATIONS = [
   {
     id: 1,
+    image: '/launcher/station1.webp',
+    imagePos: '50% 40%',
     code: 'ST-01',
     name: 'GOAT ANC',
     sector: 'MILANO BRIDGE // COSMIC TOKAMAK',
@@ -14,6 +16,8 @@ export const STATIONS = [
   },
   {
     id: 2,
+    image: '/launcher/station2.webp',
+    imagePos: '50% 65%',
     code: 'ST-02',
     name: 'F1 0-LAG STREAM',
     sector: "LE MANS '66 // PIT WALL",
@@ -26,6 +30,8 @@ export const STATIONS = [
   },
   {
     id: 3,
+    image: '/launcher/station3.webp',
+    imagePos: '50% 70%',
     code: 'ST-03',
     name: 'eCHALLAN TRACE',
     sector: 'TOKYO-MIDNIGHT // EXPRESSWAY',
@@ -38,6 +44,8 @@ export const STATIONS = [
   },
   {
     id: 4,
+    image: '/launcher/station4.webp',
+    imagePos: '35% 50%',
     code: 'ST-04',
     name: 'AREA 51 MELTDOWN',
     sector: 'CARDIFF // QUARANTINE AIRLOCK',

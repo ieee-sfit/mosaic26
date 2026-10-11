@@ -30,6 +30,8 @@ export default function Launcher({ onEngage, onOpenLeaderboard }) {
               onMouseEnter={() => !selected && setHovered(s.id)}
               onFocus={() => !selected && setHovered(s.id)}
             >
+              <img className="arc-slice__img" src={s.image} alt="" style={{ objectPosition: s.imagePos }} draggable="false" />
+              <div className="arc-slice__tint" />
               <div className="arc-slice__dust" />
               <div className="arc-slice__scan" />
               <button
