@@ -178,5 +178,35 @@
       "score": 45,
       "broadcastVerified": true
     }
+  },
+  {
+    "id": "ws1_f1_1791697499531_ufd0z",
+    "stationId": "station-1",
+    "stationName": "F1 0-Lag Stream",
+    "operator": "Shelby F1 Pit Wall",
+    "completed": false,
+    "score": 75,
+    "finalLatency": 0.95,
+    "timeRemaining": 0,
+    "timeRemainingSeconds": 0,
+    "timeUsedSeconds": 720,
+    "errors": 0,
+    "hintsUsed": 0,
+    "hintsUsedCount": 0,
+    "timestamp": "2026-10-11T05:44:59.531Z",
+    "moduleA": {
+      "completed": true,
+      "score": 20
+    },
+    "moduleB": {
+      "completed": true,
+      "score": 35,
+      "latencyTargetAchieved": true
+    },
+    "moduleC": {
+      "completed": false,
+      "score": 20,
+      "broadcastVerified": false
+    }
   }
 ]
