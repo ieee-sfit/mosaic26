@@ -84,6 +84,7 @@ export interface StepResult {
   problemId: string;
   stepIndex: number; // 0-based
   wrongAttempts: number;
+  hintsUsed: 0 | 1 | 2;
   points: number;
   maxPoints: number;
 }
@@ -115,6 +116,7 @@ export interface RoundResult {
   profileId: string;
   destroyed: boolean;
   misses: number;
+  hintsUsed: 0 | 1 | 2;
   points: number;
   maxPoints: number;
 }
@@ -130,10 +132,12 @@ export interface ScoringConfig {
   };
   moduleB: {
     pointsPerStep: number;
+    hint1Penalty: number; // Hint 2 always forfeits the step
     wrongAttemptPenalty: number;
   };
   moduleC: {
     pointsPerRound: number;
+    hint1Penalty: number; // Hint 2 always forfeits the round
     missPenalty: number;
     hullPips: number;
   };

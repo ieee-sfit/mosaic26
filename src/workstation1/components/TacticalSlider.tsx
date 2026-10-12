@@ -9,10 +9,12 @@ interface Props {
   tag: string;
   disabled?: boolean;
   height?: number;
+  /** Hint overlay: highlights the target band (fractions of the track). */
+  marker?: { value: number; band: number };
 }
 
 /** Vertical fader. Mouse/touch drag anywhere on the track; arrows when focused. */
-export function TacticalSlider({ label, readout, value, onChange, tag, disabled, height = 168 }: Props) {
+export function TacticalSlider({ label, readout, value, onChange, tag, disabled, height = 168, marker }: Props) {
   const track = useRef<HTMLDivElement | null>(null);
 
   const fromPointer = (e: PointerEvent<HTMLDivElement>) => {
@@ -66,6 +68,13 @@ export function TacticalSlider({ label, readout, value, onChange, tag, disabled,
           className="tac-track relative w-14 cursor-ns-resize touch-none border border-goat-cyan/40 outline-none focus-visible:border-goat-cyan focus-visible:shadow-[0_0_14px_rgba(0,242,254,0.5)]"
           style={{ height }}
         >
+          {marker && (
+            <div
+              className="pointer-events-none absolute inset-x-[-6px] border-y border-goat-gold bg-goat-gold/25"
+              style={{ bottom: `${Math.max(0, marker.value - marker.band) * 100}%`, height: `${Math.min(1, marker.value + marker.band) * 100 - Math.max(0, marker.value - marker.band) * 100}%` }}
+              aria-hidden
+            />
+          )}
           <div className="absolute inset-x-0 bottom-0 bg-goat-cyan/20" style={{ height: `${value * 100}%` }} />
           <div
             className="chamfer absolute left-1/2 h-7 w-[120%] -translate-x-1/2 translate-y-1/2 bg-goat-cyan"

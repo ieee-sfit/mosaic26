@@ -5,12 +5,14 @@ interface Props {
   value: number; // degrees 0–360
   onChange: (deg: number) => void;
   disabled?: boolean;
+  /** Hint overlay: target bearing and half-width, in degrees. */
+  marker?: { deg: number; band: number };
 }
 
 const TICKS = Array.from({ length: 72 }, (_, i) => i * 5);
 
 /** Phase-inversion knob. Click a bearing, drag, or use ←/→ while focused (Shift = coarse). */
-export function RotaryDial({ value, onChange, disabled }: Props) {
+export function RotaryDial({ value, onChange, disabled, marker }: Props) {
   const ref = useRef<SVGSVGElement | null>(null);
   const [focused, setFocused] = useState(false);
 
@@ -57,7 +59,7 @@ export function RotaryDial({ value, onChange, disabled }: Props) {
         onKeyDown={onKey}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        className="h-[176px] w-[176px] cursor-pointer touch-none outline-none"
+        className="h-[148px] w-[148px] cursor-pointer touch-none outline-none"
       >
         <circle r="104" fill="#060813" stroke={focused ? '#00f2fe' : '#06b6d4'} strokeOpacity={focused ? 1 : 0.4} strokeWidth={focused ? 3 : 1.5} style={focused ? { filter: 'drop-shadow(0 0 8px #00f2fe)' } : undefined} />
         {focused && <circle r="109" fill="none" stroke="#00f2fe" strokeOpacity="0.5" strokeDasharray="4 6" style={{ animation: 'goat-march 1s linear infinite' }} />}
@@ -75,6 +77,7 @@ export function RotaryDial({ value, onChange, disabled }: Props) {
           );
         })}
         <circle r="46" fill="#0b0f19" stroke="#06b6d4" strokeOpacity="0.35" />
+        {marker && <path d={bandArc(marker.deg - marker.band, marker.deg + marker.band)} fill="none" stroke="#f59e0b" strokeWidth="7" strokeOpacity="0.9" style={{ filter: 'drop-shadow(0 0 5px #f59e0b)' }} />}
         {/* arc trail from 0° to current */}
         <path d={arc(value)} fill="none" stroke="#f59e0b" strokeWidth="4" strokeOpacity="0.8" />
         {/* needle */}
@@ -95,4 +98,14 @@ function arc(deg: number): string {
   const x = Math.sin(rad) * r;
   const y = -Math.cos(rad) * r;
   return `M0,${-r} A${r},${r} 0 ${deg > 180 ? 1 : 0} 1 ${x.toFixed(2)},${y.toFixed(2)}`;
+}
+
+/** Arc along the tick ring between two bearings (degrees, clockwise from top). */
+function bandArc(from: number, to: number): string {
+  const r = 100;
+  const pt = (d: number) => {
+    const rad = (d * Math.PI) / 180;
+    return `${(Math.sin(rad) * r).toFixed(2)},${(-Math.cos(rad) * r).toFixed(2)}`;
+  };
+  return `M${pt(from)} A${r},${r} 0 ${to - from > 180 ? 1 : 0} 1 ${pt(to)}`;
 }

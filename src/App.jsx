@@ -1,188 +1,62 @@
 import { useState } from 'react'
 import Station1 from './workstation1'
+import Station2 from './workstation2'
 import Station3 from './workstation3/Station3'
 import Station4 from './workstation4'
-import './App.css'
+import Launcher from './launcher/Launcher'
+import Leaderboard from './launcher/Leaderboard'
+import { saveRun } from './lib/saveRun'
+import { SessionContext, createSession } from './session/sessionContext'
+
+const STATION_COMPONENTS = { 1: Station1, 2: Station2, 3: Station3, 4: Station4 }
+
+const ID_RE = /^\d{6}$/
+
+/** Normalise each station's completion payload and hand it to Supabase (+ localStorage fallback). */
+function recordRun(stationId, session, payload) {
+  const isGoat = stationId === 1 // Station1 emits its own result shape
+  const ops = isGoat ? payload?.operators ?? [] : []
+  const pick = (own, fallback) => (ID_RE.test(own ?? '') ? own : fallback)
+  saveRun({
+    p1_id: isGoat ? pick(ops[0], session.p1_id) : payload.p1_id,
+    p2_id: isGoat ? pick(ops[1], session.p2_id) : payload.p2_id,
+    station_id: `station${stationId}`,
+    raw_score: isGoat ? payload.total : payload.raw_score,
+    time_left: isGoat ? payload.secondsRemaining : payload.time_left,
+  })
+}
 
 function App() {
-  const [activeStation, setActiveStation] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const st = params.get('station');
-      if (st === '4') return 4;
-      if (st === '3') return 3;
-      if (st === '1') return 1;
-    }
-    return 1; // Default fallback
-  });
+  const [session, setSession] = useState(null)
+  const [view, setView] = useState('launcher') // 'launcher' | 'leaderboard'
 
-  // Show station picker modal if no explicit station query parameter is in URL
-  const [showChooser, setShowChooser] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      return !params.has('station');
-    }
-    return true;
-  });
+  const returnToLauncher = () => {
+    setSession(null)
+    setView('launcher')
+  }
 
-  const [stationKey, setStationKey] = useState(0);
+  if (session) {
+    const Station = STATION_COMPONENTS[session.stationId]
+    return (
+      <SessionContext.Provider value={session}>
+        <Station
+          key={session.startedAt}
+          onComplete={(payload) => recordRun(session.stationId, session, payload)}
+          onNavigateStation={(id) => setSession({ ...createSession(id, session.p1_id, session.p2_id) })}
+          onOpenStationChooser={returnToLauncher}
+        />
+      </SessionContext.Provider>
+    )
+  }
 
-  const handleSelectStation = (stNum) => {
-    setActiveStation(stNum);
-    setStationKey((prev) => prev + 1);
-    setShowChooser(false);
-    if (typeof window !== 'undefined' && window.history) {
-      const url = new URL(window.location);
-      url.searchParams.set('station', String(stNum));
-      window.history.pushState({}, '', url);
-    }
-  };
+  if (view === 'leaderboard') return <Leaderboard onBack={returnToLauncher} />
 
   return (
-    <>
-      {/* Initial Station Chooser Pop-up Modal */}
-      {showChooser && (
-        <div className="mosaic-station-modal-overlay">
-          <div className="mosaic-station-modal">
-            <div className="mosaic-modal-header">
-              <span className="mosaic-modal-badge">MOSAIC 2026 ARENA</span>
-              <h2 className="mosaic-modal-title">CHOOSE WORKSTATION TO PLAY</h2>
-              <p className="mosaic-modal-subtitle">
-                Select an active challenge station below to launch your terminal session.
-              </p>
-            </div>
-
-            <div className="mosaic-station-cards-grid">
-              {/* Station 1 · GOAT ANC */}
-              <div className="mosaic-station-card card-st1" onClick={() => handleSelectStation(1)}>
-                <div className="mosaic-card-glow-bg" />
-                <div className="mosaic-card-banner" style={{ background: 'linear-gradient(135deg, #060813 0%, #0b0f19 55%, #06b6d4 140%)' }}>
-                  <span className="mosaic-banner-badge">MILANO BRIDGE</span>
-                </div>
-                <div className="mosaic-card-head">
-                  <div className="mosaic-card-head-left">
-                    <span className="mosaic-card-icon">🛰</span>
-                    <span className="mosaic-card-id">STATION 01</span>
-                  </div>
-                  <span className="mosaic-card-type">ANC HUD</span>
-                </div>
-                <h3 className="mosaic-card-name">GOAT ANC</h3>
-                <p className="mosaic-card-desc">
-                  Guardians of the Galaxy cockpit HUD. Flight telemetry, Tokamak plasma diagnostics and noise-cancelling wave interception on a 12-minute clock.
-                </p>
-                <div className="mosaic-card-tags">
-                  <span className="mosaic-tag">TELEMETRY</span>
-                  <span className="mosaic-tag">TOKAMAK</span>
-                  <span className="mosaic-tag">WAVE LOCK</span>
-                </div>
-                <button
-                  type="button"
-                  className="mosaic-card-play-btn"
-                  onClick={(e) => { e.stopPropagation(); handleSelectStation(1); }}
-                >
-                  <span>INITIALIZE GOAT ANC</span>
-                  <span className="mosaic-btn-arrow">➔</span>
-                </button>
-              </div>
-
-              {/* Station 3 Card */}
-              <div className="mosaic-station-card card-st3" onClick={() => handleSelectStation(3)}>
-                <div className="mosaic-card-glow-bg" />
-                <div className="mosaic-card-banner">
-                  <img src="/echallan_police.jpg" alt="eChallan Police" className="mosaic-banner-img" />
-                  <div className="mosaic-banner-overlay" />
-                  <span className="mosaic-banner-badge">HIGHWAY CAM</span>
-                </div>
-                <div className="mosaic-card-head">
-                  <div className="mosaic-card-head-left">
-                    <span className="mosaic-card-icon">🚨</span>
-                    <span className="mosaic-card-id">STATION 03</span>
-                  </div>
-                  <span className="mosaic-card-type">TRAFFIC CONTROL</span>
-                </div>
-                <h3 className="mosaic-card-name">ECHALLAN POLICE</h3>
-                <p className="mosaic-card-desc">
-                  Fast &amp; Furious tactical ANPR police surveillance grid. Decode license plates, speed infractions, and traffic camera zones.
-                </p>
-                <div className="mosaic-card-tags">
-                  <span className="mosaic-tag">ANPR OCR</span>
-                  <span className="mosaic-tag">SPEED TRAP</span>
-                  <span className="mosaic-tag">DISPATCH</span>
-                </div>
-                <button
-                  type="button"
-                  className="mosaic-card-play-btn"
-                  onClick={(e) => { e.stopPropagation(); handleSelectStation(3); }}
-                >
-                  <span>INITIALIZE STATION 03</span>
-                  <span className="mosaic-btn-arrow">➔</span>
-                </button>
-              </div>
-
-              {/* Station 4 Card */}
-              <div className="mosaic-station-card card-st4" onClick={() => handleSelectStation(4)}>
-                <div className="mosaic-card-glow-bg" />
-                <div className="mosaic-card-banner">
-                  <img src="/area51_lockdown.jpg" alt="Area51 Facility Lockdown" className="mosaic-banner-img" />
-                  <div className="mosaic-banner-overlay" />
-                  <span className="mosaic-banner-badge">SECTOR D-7</span>
-                </div>
-                <div className="mosaic-card-head">
-                  <div className="mosaic-card-head-left">
-                    <span className="mosaic-card-icon">☣</span>
-                    <span className="mosaic-card-id">STATION 04</span>
-                  </div>
-                  <span className="mosaic-card-type">SECURITY CORE</span>
-                </div>
-                <h3 className="mosaic-card-name">AREA51 FACILITY LOCKDOWN</h3>
-                <p className="mosaic-card-desc">
-                  Area 51 facility lockdown containment. Troubleshoot digital logic gates, IC circuits, and override security lockouts.
-                </p>
-                <div className="mosaic-card-tags">
-                  <span className="mosaic-tag">LOGIC GATES</span>
-                  <span className="mosaic-tag">CIRCUITS</span>
-                  <span className="mosaic-tag">LOCKDOWN</span>
-                </div>
-                <button
-                  type="button"
-                  className="mosaic-card-play-btn"
-                  onClick={(e) => { e.stopPropagation(); handleSelectStation(4); }}
-                >
-                  <span>INITIALIZE STATION 04</span>
-                  <span className="mosaic-btn-arrow">➔</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="mosaic-modal-footer">
-              <span className="mosaic-footer-pulse" />
-              <span>LIVE TELEMETRY ACTIVE • SWITCH BETWEEN STATIONS ANYTIME VIA THE TOP ARENA BAR</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Render Active Station */}
-      {activeStation === 1 && (
-        <Station1 key={`st1_${stationKey}`} />
-      )}
-      {activeStation === 3 && (
-        <Station3
-          key={`st3_${stationKey}`}
-          onNavigateStation={handleSelectStation}
-          onOpenStationChooser={() => setShowChooser(true)}
-        />
-      )}
-      {activeStation === 4 && (
-        <Station4
-          key={`st4_${stationKey}`}
-          onNavigateStation={handleSelectStation}
-          onOpenStationChooser={() => setShowChooser(true)}
-        />
-      )}
-    </>
+    <Launcher
+      onEngage={(id, p1, p2) => setSession(createSession(id, p1, p2))}
+      onOpenLeaderboard={() => setView('leaderboard')}
+    />
   )
 }
 
 export default App
-

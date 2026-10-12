@@ -13,12 +13,16 @@ export function scoreQuestion(
   return Math.round(cfg.pointsPerQuestion * clamp01(1 - lost));
 }
 
-export function scoreStep(cfg: ScoringConfig['moduleB'], wrongAttempts: number): number {
-  return Math.round(cfg.pointsPerStep * clamp01(1 - wrongAttempts * cfg.wrongAttemptPenalty));
+export function scoreStep(cfg: ScoringConfig['moduleB'], wrongAttempts: number, hintsUsed: 0 | 1 | 2 = 0): number {
+  if (hintsUsed === 2) return 0;
+  const lost = (hintsUsed === 1 ? cfg.hint1Penalty : 0) + wrongAttempts * cfg.wrongAttemptPenalty;
+  return Math.round(cfg.pointsPerStep * clamp01(1 - lost));
 }
 
-export function scoreRound(cfg: ScoringConfig['moduleC'], misses: number): number {
-  return Math.round(cfg.pointsPerRound * clamp01(1 - misses * cfg.missPenalty));
+export function scoreRound(cfg: ScoringConfig['moduleC'], misses: number, hintsUsed: 0 | 1 | 2 = 0): number {
+  if (hintsUsed === 2) return 0;
+  const lost = (hintsUsed === 1 ? cfg.hint1Penalty : 0) + misses * cfg.missPenalty;
+  return Math.round(cfg.pointsPerRound * clamp01(1 - lost));
 }
 
 export const sum = (xs: { points: number }[]) => xs.reduce((a, x) => a + x.points, 0);

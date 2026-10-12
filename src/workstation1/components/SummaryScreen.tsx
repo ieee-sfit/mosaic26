@@ -25,12 +25,14 @@ export function SummaryScreen({ result, onRestart }: { result: Station1Result; o
   const mm = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   const aHints = result.moduleA.reduce((n, q) => n + q.hintsUsed, 0);
   const bWrong = result.moduleB.reduce((n, s) => n + s.wrongAttempts, 0);
+  const bHints = result.moduleB.reduce((n, s) => n + s.hintsUsed, 0);
+  const cHints = result.moduleC.reduce((n, x) => n + x.hintsUsed, 0);
   const cMiss = result.moduleC.reduce((n, x) => n + x.misses, 0);
 
   const rows: Row[] = [
     { code: 'A', name: 'FLIGHT TELEMETRY', score: result.scoreA, max: SCORING.moduleA.questionCount * SCORING.moduleA.pointsPerQuestion, detail: `${result.moduleA.length}/${SCORING.moduleA.questionCount} SOLVED · ${aHints} HINTS`, tone: 'cyan' },
-    { code: 'B', name: 'TOKAMAK DIAGNOSTIC', score: result.scoreB, max: 8 * SCORING.moduleB.pointsPerStep, detail: `${result.moduleB.length}/8 STEPS · ${bWrong} MISMATCHES`, tone: 'plasma' },
-    { code: 'C', name: 'WAVE INTERCEPTION', score: result.scoreC, max: 3 * SCORING.moduleC.pointsPerRound, detail: `${result.moduleC.filter((x) => x.destroyed).length}/3 TARGETS · ${cMiss} MISSES · HULL ${Math.round((result.hullPips / SCORING.moduleC.hullPips) * 100)}%`, tone: 'gold' },
+    { code: 'B', name: 'TOKAMAK DIAGNOSTIC', score: result.scoreB, max: 8 * SCORING.moduleB.pointsPerStep, detail: `${result.moduleB.length}/8 STEPS · ${bWrong} MISMATCHES · ${bHints} HINTS`, tone: 'plasma' },
+    { code: 'C', name: 'WAVE INTERCEPTION', score: result.scoreC, max: 3 * SCORING.moduleC.pointsPerRound, detail: `${result.moduleC.filter((x) => x.destroyed).length}/3 TARGETS · ${cMiss} MISSES · ${cHints} HINTS · HULL ${Math.round((result.hullPips / SCORING.moduleC.hullPips) * 100)}%`, tone: 'gold' },
   ];
 
   return (

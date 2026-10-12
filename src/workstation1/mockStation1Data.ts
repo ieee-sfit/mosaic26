@@ -24,8 +24,8 @@ export const SCORING: ScoringConfig = {
     hint1Penalty: 0.4,
     wrongAttemptPenalty: 0.25,
   },
-  moduleB: { pointsPerStep: 50, wrongAttemptPenalty: 0.2 },
-  moduleC: { pointsPerRound: 100, missPenalty: 0.35, hullPips: 3 },
+  moduleB: { pointsPerStep: 50, hint1Penalty: 0.4, wrongAttemptPenalty: 0.2 },
+  moduleC: { pointsPerRound: 100, hint1Penalty: 0.4, missPenalty: 0.35, hullPips: 3 },
 };
 
 /* ── Module A · physical cheat-sheet column names (Hint 1 target) ── */
