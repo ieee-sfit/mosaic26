@@ -671,5 +671,171 @@
         }
       }
     ]
+  },
+  {
+    "id": "ws4_1791715622191_g9zwj",
+    "playerName": "Operator Alpha",
+    "stationId": "station-4",
+    "stationName": "Area51 Facility Lockdown",
+    "timestamp": "2026-10-11T10:47:02.191Z",
+    "formattedDate": "11/10/2026, 16:17:02",
+    "completed": true,
+    "status": "COMPLETED",
+    "score": 36,
+    "maxScore": 61,
+    "timeRemainingSeconds": 447,
+    "timeRemainingFormatted": "07:27",
+    "timeUsedSeconds": 273,
+    "timeUsedFormatted": "04:33",
+    "errors": 0,
+    "hintsUsedCount": 0,
+    "moduleA": {
+      "completed": true,
+      "score": 5,
+      "max": 5
+    },
+    "moduleB": {
+      "completed": false,
+      "score": 1,
+      "max": 26,
+      "circuitSolved": false,
+      "gateSolveHistory": [
+        {
+          "gateType": "AND",
+          "solvedAt": "2026-10-11T10:44:28.522Z",
+          "formattedTime": "16:14:28",
+          "timeRemainingSeconds": 600,
+          "timeRemainingFormatted": "10:00",
+          "isCorrect": true,
+          "safeOutput": 1,
+          "inputsState": {
+            "DOOR_LOCKED": 1,
+            "FIRE_CLEAR": 1,
+            "POWER_STABLE": 1,
+            "SECURITY_AUTHORIZED": 1
+          }
+        },
+        {
+          "gateType": "OR",
+          "solvedAt": "2026-10-11T10:44:37.999Z",
+          "formattedTime": "16:14:37",
+          "timeRemainingSeconds": 591,
+          "timeRemainingFormatted": "09:51",
+          "isCorrect": false,
+          "safeOutput": 1,
+          "inputsState": {
+            "DOOR_LOCKED": 1,
+            "FIRE_CLEAR": 1,
+            "POWER_STABLE": 1,
+            "SECURITY_AUTHORIZED": 0
+          }
+        },
+        {
+          "gateType": "XOR",
+          "solvedAt": "2026-10-11T10:44:44.855Z",
+          "formattedTime": "16:14:44",
+          "timeRemainingSeconds": 584,
+          "timeRemainingFormatted": "09:44",
+          "isCorrect": false,
+          "safeOutput": 1,
+          "inputsState": {
+            "DOOR_LOCKED": 1,
+            "FIRE_CLEAR": 1,
+            "POWER_STABLE": 1,
+            "SECURITY_AUTHORIZED": 0
+          }
+        },
+        {
+          "gateType": "NOT",
+          "solvedAt": "2026-10-11T10:45:18.006Z",
+          "formattedTime": "16:15:18",
+          "timeRemainingSeconds": 551,
+          "timeRemainingFormatted": "09:11",
+          "isCorrect": false,
+          "safeOutput": 1,
+          "inputsState": {
+            "DOOR_LOCKED": 1,
+            "FIRE_CLEAR": 1,
+            "POWER_STABLE": 0,
+            "SECURITY_AUTHORIZED": 0
+          }
+        }
+      ]
+    },
+    "moduleC": {
+      "completed": true,
+      "score": 30,
+      "max": 30,
+      "authorized": true
+    },
+    "gateSolveHistory": [
+      {
+        "gateType": "AND",
+        "solvedAt": "2026-10-11T10:44:28.522Z",
+        "formattedTime": "16:14:28",
+        "timeRemainingSeconds": 600,
+        "timeRemainingFormatted": "10:00",
+        "isCorrect": true,
+        "safeOutput": 1,
+        "inputsState": {
+          "DOOR_LOCKED": 1,
+          "FIRE_CLEAR": 1,
+          "POWER_STABLE": 1,
+          "SECURITY_AUTHORIZED": 1
+        }
+      },
+      {
+        "gateType": "OR",
+        "solvedAt": "2026-10-11T10:44:37.999Z",
+        "formattedTime": "16:14:37",
+        "timeRemainingSeconds": 591,
+        "timeRemainingFormatted": "09:51",
+        "isCorrect": false,
+        "safeOutput": 1,
+        "inputsState": {
+          "DOOR_LOCKED": 1,
+          "FIRE_CLEAR": 1,
+          "POWER_STABLE": 1,
+          "SECURITY_AUTHORIZED": 0
+        }
+      },
+      {
+        "gateType": "XOR",
+        "solvedAt": "2026-10-11T10:44:44.855Z",
+        "formattedTime": "16:14:44",
+        "timeRemainingSeconds": 584,
+        "timeRemainingFormatted": "09:44",
+        "isCorrect": false,
+        "safeOutput": 1,
+        "inputsState": {
+          "DOOR_LOCKED": 1,
+          "FIRE_CLEAR": 1,
+          "POWER_STABLE": 1,
+          "SECURITY_AUTHORIZED": 0
+        }
+      },
+      {
+        "gateType": "NOT",
+        "solvedAt": "2026-10-11T10:45:18.006Z",
+        "formattedTime": "16:15:18",
+        "timeRemainingSeconds": 551,
+        "timeRemainingFormatted": "09:11",
+        "isCorrect": false,
+        "safeOutput": 1,
+        "inputsState": {
+          "DOOR_LOCKED": 1,
+          "FIRE_CLEAR": 1,
+          "POWER_STABLE": 0,
+          "SECURITY_AUTHORIZED": 0
+        }
+      }
+    ]
+  },
+  {
+    "p1_id": "666666",
+    "p2_id": "888888",
+    "game_id": "station4",
+    "raw_score": 47,
+    "time_left": 399
   }
 ]

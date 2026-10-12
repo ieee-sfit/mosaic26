@@ -1,0 +1,26 @@
+[
+  {
+    "id": "WS3_1791742786129",
+    "teamName": "JKKB",
+    "teamSize": 3,
+    "completedAt": "2026-10-11T18:19:46.129Z",
+    "completedTimeFormatted": "11:49:46 PM",
+    "timeRemainingSeconds": 509,
+    "timeRemainingFormatted": "08:29",
+    "timeTakenSeconds": 211,
+    "timeTakenFormatted": "03:31",
+    "score": 295,
+    "scoreBreakdown": {
+      "moduleABase": 35,
+      "moduleAPenalty": 15,
+      "moduleBBase": 90,
+      "moduleBPenalty": 0,
+      "moduleCBase": 175,
+      "moduleCPenalty": 70,
+      "speedBonus": 80,
+      "totalScore": 295
+    },
+    "rank": "DCP",
+    "station": "Station 3 - ANPR Speed Trap Surveillance"
+  }
+]
