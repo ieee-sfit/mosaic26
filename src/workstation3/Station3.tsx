@@ -1,3 +1,4 @@
+import { speedBonus } from '../core/scoring';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './station3.css';
 import { useSession } from '../session/sessionContext';
@@ -83,7 +84,7 @@ export default function Station3({ onOpenStationChooser, onComplete }: Station3P
     const s = scoresRef.current;
     const left = outcome === 'timeout' ? 0 : timeRef.current;
     const base = s.a + s.b + s.c;
-    const bonus = outcome === 'complete' ? Math.round((CONFIG.speedBonusMax * left) / CONFIG.totalSeconds) : 0;
+    const bonus = speedBonus(left, outcome === 'complete');
     const { p1, p2 } = idsRef.current;
 
     setScores(s);
@@ -91,7 +92,7 @@ export default function Station3({ onOpenStationChooser, onComplete }: Station3P
     setResult({ ...s, base, bonus, timeLeft: left, outcome, p1, p2 });
     setPhase('done');
 
-    const summary: Station3Summary = { p1_id: p1, p2_id: p2, game_id: 'station3', raw_score: base, time_left: left };
+    const summary: Station3Summary = { p1_id: p1, p2_id: p2, game_id: 'station3', raw_score: base + bonus, time_left: left };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(summary));
     } catch {

@@ -3,9 +3,9 @@ import { STATION4_CONFIG, TELEMETRY_BASELINE } from '../mockStation4Data'
 
 const digits = (v) => v.replace(/\D/g, '').slice(0, 6)
 
-export default function LaunchScreen({ onLaunch, onOpenStationChooser }) {
-  const [p1, setP1] = useState('')
-  const [p2, setP2] = useState('')
+export default function LaunchScreen({ onLaunch, onOpenStationChooser, preset }) {
+  const [p1, setP1] = useState(preset?.[0] ?? '')
+  const [p2, setP2] = useState(preset?.[1] ?? '')
   const [touched, setTouched] = useState(false)
   const [count, setCount] = useState(null)
 
@@ -65,7 +65,7 @@ export default function LaunchScreen({ onLaunch, onOpenStationChooser }) {
               <label key={id} className="mz-field" htmlFor={id}>
                 <span>{lab.toUpperCase()}</span>
                 <input id={id} className={`mz-input ${touched && !re.test(val) ? 'is-bad' : ''}`}
-                  inputMode="numeric" autoComplete="off" maxLength={6} placeholder="000000"
+                  inputMode="numeric" autoComplete="off" maxLength={6} placeholder="000000" readOnly={!!preset}
                   value={val} onChange={(e) => set(digits(e.target.value))} />
               </label>
             ))}

@@ -1,3 +1,4 @@
+import { useSession } from '../../session/sessionContext'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { STATION4_CONFIG, TELEMETRY_BASELINE } from '../mockStation4Data'
 import { speedBonus } from './logic'
@@ -12,6 +13,9 @@ const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 
 const MODULES = ['A', 'B', 'C']
 
 export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
+  const session = useSession()
+  const preset = /^\d{6}$/.test(session?.p1_id ?? '') && /^\d{6}$/.test(session?.p2_id ?? '')
+    ? [session.p1_id, session.p2_id] : null
   const [stage, setStage] = useState('launch') // launch | play | end
   const [ids, setIds] = useState({ p1: '', p2: '' })
   const [mod, setMod] = useState('A')
@@ -119,7 +123,7 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
       )}
 
       <main className="mz-main">
-        {stage === 'launch' && <LaunchScreen onLaunch={launch} onOpenStationChooser={onOpenStationChooser} />}
+        {stage === 'launch' && <LaunchScreen preset={preset} onLaunch={launch} onOpenStationChooser={onOpenStationChooser} />}
         {stage === 'play' && mod === 'A' && (
           <ModuleA fx={fx} log={log} onScore={(a) => setScore((s) => ({ ...s, a }))} onDone={() => setMod('B')} />
         )}

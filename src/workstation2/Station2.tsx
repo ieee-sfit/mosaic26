@@ -1,3 +1,5 @@
+import { speedBonus } from '../core/scoring';
+import { useSession } from '../session/sessionContext';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import ModuleA from './components/ModuleA';
 import ModuleB from './components/ModuleB';
@@ -29,8 +31,10 @@ const digits = (v: string) => v.replace(/\D/g, '').slice(0, STATION2_CONFIG.idDi
 
 export default function Station2({ onNavigateStation, onOpenStationChooser, onComplete }: Props) {
   const [phase, setPhase] = useState<'id' | 'play' | 'done'>('id');
-  const [p1, setP1] = useState('');
-  const [p2, setP2] = useState('');
+  const session = useSession() as { p1_id?: string; p2_id?: string } | null;
+  const locked = !!session && ID_RE.test(session.p1_id ?? '') && ID_RE.test(session.p2_id ?? '');
+  const [p1, setP1] = useState(locked ? (session?.p1_id as string) : '');
+  const [p2, setP2] = useState(locked ? (session?.p2_id as string) : '');
   const [idError, setIdError] = useState('');
   const [mod, setMod] = useState<ModuleId>('A');
   const [done, setDone] = useState<Record<ModuleId, boolean>>({ A: false, B: false, C: false });
@@ -73,18 +77,19 @@ export default function Station2({ onNavigateStation, onOpenStationChooser, onCo
   }, [phase, finish]);
 
   const rawScore = Math.round((scoreA + scoreB + scoreC) * 100) / 100;
+  const bonusEarned = result ? speedBonus(result.timeLeft, result.reason === 'complete') : 0;
 
   // Emit the session summary exactly once on completion / timeout
   useEffect(() => {
     if (!result || emittedRef.current) return;
     emittedRef.current = true;
     const summary: Station2Summary = {
-      p1_id: p1, p2_id: p2, game_id: 'station2', raw_score: rawScore, time_left: result.timeLeft,
+      p1_id: p1, p2_id: p2, game_id: 'station2', raw_score: Math.round((rawScore + bonusEarned) * 100) / 100, time_left: result.timeLeft,
     };
     onComplete?.(summary);
     window.dispatchEvent(new CustomEvent('mosaic:station-complete', { detail: summary }));
     console.info('[station2] session summary', summary);
-  }, [result, p1, p2, rawScore, onComplete]);
+  }, [result, p1, p2, rawScore, bonusEarned, onComplete]);
 
   const handleStart = (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,10 +141,10 @@ export default function Station2({ onNavigateStation, onOpenStationChooser, onCo
               No audio — watch the gauges.
             </p>
             <label htmlFor="ws2-p1">OPERATOR 1 ID</label>
-            <input id="ws2-p1" className="ws2-input" inputMode="numeric" autoComplete="off" maxLength={6} placeholder="000000"
+            <input id="ws2-p1" className="ws2-input" inputMode="numeric" autoComplete="off" maxLength={6} placeholder="000000" readOnly={locked}
               value={p1} onChange={(e) => setP1(digits(e.target.value))} />
             <label htmlFor="ws2-p2">OPERATOR 2 ID</label>
-            <input id="ws2-p2" className="ws2-input" inputMode="numeric" autoComplete="off" maxLength={6} placeholder="000000"
+            <input id="ws2-p2" className="ws2-input" inputMode="numeric" autoComplete="off" maxLength={6} placeholder="000000" readOnly={locked}
               value={p2} onChange={(e) => setP2(digits(e.target.value))} />
             {idError && <div className="ws2-flash ws2-flash-bad" role="alert">{idError}</div>}
             <button type="submit" className="ws2-btn ws2-btn-red ws2-btn-wide" disabled={!ID_RE.test(p1) || !ID_RE.test(p2)}>
@@ -157,8 +162,7 @@ export default function Station2({ onNavigateStation, onOpenStationChooser, onCo
   }
 
   if (phase === 'done' && result) {
-    const bonus = result.reason === 'complete'
-      ? Math.floor((STATION2_CONFIG.speedBonusMax * result.timeLeft) / STATION2_CONFIG.totalSeconds) : 0;
+    const bonus = bonusEarned;
     const title = result.reason === 'complete' ? 'CHEQUERED FLAG' : result.reason === 'timeout' ? 'TIME EXPIRED' : 'ENGINE SEIZED';
     return (
       <div className="ws2-shell">
@@ -176,7 +180,7 @@ export default function Station2({ onNavigateStation, onOpenStationChooser, onCo
                 <tr><td>SPEED BONUS (TIME LEFT {mmss(result.timeLeft)})</td><td>+{bonus} / {STATION2_CONFIG.speedBonusMax}</td></tr>
               </tbody>
             </table>
-            <pre className="ws2-json">{JSON.stringify({ p1_id: p1, p2_id: p2, game_id: 'station2', raw_score: rawScore, time_left: result.timeLeft }, null, 2)}</pre>
+            <pre className="ws2-json">{JSON.stringify({ p1_id: p1, p2_id: p2, game_id: 'station2', raw_score: rawScore + bonus, time_left: result.timeLeft }, null, 2)}</pre>
             <button type="button" className="ws2-btn ws2-btn-blue ws2-btn-wide"
               onClick={() => (onNavigateStation ? onNavigateStation(2) : window.location.reload())}>
               [NEW SESSION]

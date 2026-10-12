@@ -85,5 +85,5 @@ export function layoutRound(round) {
 export function speedBonus(timeLeft, allCleared) {
   if (!allCleared) return 0
   const { speedBonusMax } = STATION4_CONFIG.scoring
-  return Math.round(speedBonusMax * Math.max(0, Math.min(1, timeLeft / STATION4_CONFIG.totalSeconds)))
+  return Math.floor(speedBonusMax * Math.max(0, Math.min(1, timeLeft / STATION4_CONFIG.totalSeconds)))
 }

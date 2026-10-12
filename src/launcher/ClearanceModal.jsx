@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { checkPlayers } from '../lib/kiosk'
 
 const ID_RE = /^\d{6}$/
 
@@ -6,7 +7,9 @@ export default function ClearanceModal({ station, onEngage, onAbort }) {
   const [p1, setP1] = useState('')
   const [p2, setP2] = useState('')
   const firstRef = useRef(null)
-  const valid = ID_RE.test(p1) && ID_RE.test(p2)
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState(null) // { tone: 'bad' | 'ok', lines: string[] }
+  const valid = ID_RE.test(p1) && ID_RE.test(p2) && p1 !== p2
 
   useEffect(() => {
     firstRef.current?.focus()
@@ -17,9 +20,31 @@ export default function ClearanceModal({ station, onEngage, onAbort }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [onAbort])
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault()
-    if (valid) onEngage(p1, p2)
+    if (!valid || busy) return
+    setBusy(true)
+    setNote(null)
+    const res = await checkPlayers(p1, p2)
+    if (res.ok) {
+      const names = [res.p1?.name, res.p2?.name].filter(Boolean)
+      setNote({
+        tone: 'ok',
+        lines: res.offline ? ['NETWORK UNREACHABLE: IDs WILL BE VERIFIED WHEN SCORES SYNC'] : [`VERIFIED: ${names.join(' + ').toUpperCase()}`],
+      })
+      setTimeout(() => onEngage(p1, p2), res.offline ? 1200 : 900)
+      return
+    }
+    const msg = { UNREGISTERED: 'ID NOT REGISTERED', UNPAID: 'REGISTRATION PAYMENT PENDING' }
+    const lines = [
+      res.p1 && res.p1.status !== 'OK' && `OPERATOR 1: ${msg[res.p1.status]}`,
+      res.p2 && res.p2.status !== 'OK' && `OPERATOR 2: ${msg[res.p2.status]}`,
+      res.error === 'SAME_ID' && 'OPERATORS MUST HAVE DIFFERENT IDs',
+      res.error === 'UNAUTHORIZED_KIOSK' && 'THIS TERMINAL IS NOT AUTHORIZED, CALL A VOLUNTEER',
+      res.error === 'KIOSK_NOT_CONFIGURED' && 'TERMINAL NOT CONFIGURED, CALL A VOLUNTEER',
+    ].filter(Boolean)
+    setNote({ tone: 'bad', lines: lines.length ? [...lines, 'SEE THE REGISTRATION DESK'] : ['VERIFICATION FAILED, CALL A VOLUNTEER'] })
+    setBusy(false)
   }
 
   const digits = (setter) => (e) => setter(e.target.value.replace(/\D/g, '').slice(0, 6))
@@ -62,8 +87,13 @@ export default function ClearanceModal({ station, onEngage, onAbort }) {
           />
         </label>
 
-        <button type="submit" className="arc-btn arc-btn--engage" disabled={!valid}>
-          [ ENGAGE WORKSTATION ]
+        {note && (
+          <div className={`arc-note arc-note--${note.tone}`} role="status">
+            {note.lines.map((l) => <div key={l}>{l}</div>)}
+          </div>
+        )}
+        <button type="submit" className="arc-btn arc-btn--engage" disabled={!valid || busy}>
+          {busy ? '[ VERIFYING... ]' : '[ ENGAGE WORKSTATION ]'}
         </button>
         <button type="button" className="arc-btn arc-btn--abort" onClick={onAbort}>
           [ ABORT ]

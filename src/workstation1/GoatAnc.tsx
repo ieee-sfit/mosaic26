@@ -1,3 +1,4 @@
+import { useSession } from '../session/sessionContext';
 import { useState } from 'react';
 import './goatAnc.css';
 import { QUESTION_BANK, SCORING } from './mockStation1Data';
@@ -25,6 +26,11 @@ export default function GoatAnc({ onComplete }: HostProps) {
 }
 
 function Session({ onComplete, onRestart }: HostProps & { onRestart: () => void }) {
+  const session = useSession() as { p1_id?: string; p2_id?: string } | null;
+  const preset: [string, string] | null =
+    session && /^\d{6}$/.test(session.p1_id ?? '') && /^\d{6}$/.test(session.p2_id ?? '')
+      ? [session.p1_id as string, session.p2_id as string]
+      : null;
   const [phase, setPhase] = useState<Phase>('launcher');
   const [operators, setOperators] = useState<[string, string]>(['', '']);
   const [questions, setQuestions] = useState<McqQuestion[]>([]);
@@ -73,7 +79,7 @@ function Session({ onComplete, onRestart }: HostProps & { onRestart: () => void 
     <ShakeContext.Provider value={shake}>
       <div ref={ref} className="goat-root">
         <TimerBadge seconds={seconds} total={SCORING.totalSeconds} armed={clockRunning} />
-        {phase === 'launcher' && <Launcher onLaunch={launch} />}
+        {phase === 'launcher' && <Launcher onLaunch={launch} preset={preset} />}
         {phase === 'moduleA' && (
           <ModuleA questions={questions} operators={operators} onRecord={(r) => setA((x) => [...x, r])} onComplete={() => setPhase('moduleB')} />
         )}
