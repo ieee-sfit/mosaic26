@@ -69,6 +69,10 @@ export default function LaunchLoader({ stationNum, p1, p2, onComplete }) {
       <div className="mosaic-loader-bar" role="progressbar" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100}>
         <div className="mosaic-loader-bar-fill" style={{ width: `${progress}%` }} />
       </div>
+      <div className="arc-committee" aria-hidden="true">
+        <img src="/committee_logo.png" alt="" />
+      </div>
+
       <div className="mosaic-loader-status">
         {STATUS_LINES[statusIdx]} // {Math.round(progress)}%
       </div>
