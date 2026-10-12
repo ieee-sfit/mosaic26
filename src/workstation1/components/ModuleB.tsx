@@ -111,7 +111,7 @@ export function ModuleB({ operators, onRecord, onComplete }: Props) {
 
       <footer className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-goat-gold/60 bg-goat-void/95">
         <div className="hazard-stripe h-1 w-full opacity-70" aria-hidden />
-        <div className="flex items-center gap-3 px-3 py-2.5">
+        <div className="flex items-center gap-3 px-3 py-2.5 lg:pr-[380px]">
           <span className={`font-tele text-[11px] uppercase tracking-widest ${ignited ? 'goat-blink text-goat-plasma' : 'text-goat-mute'}`}>
             {ignited ? '● PLASMA STABLE — MODULE C UNLOCKED' : `◌ RESOLVE BOTH ISSUES TO IGNITE (${stepsDone}/${totalSteps})`}
           </span>

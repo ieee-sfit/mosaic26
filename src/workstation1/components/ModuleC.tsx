@@ -223,7 +223,7 @@ export function ModuleC({ operators, onRecord, onHullChange, onFinish }: Props) 
       {/* status strip */}
       <footer className="sticky bottom-0 z-40 border-t-2 border-goat-gold/60 bg-goat-void/95">
         <div className="hazard-stripe h-1 w-full opacity-70" aria-hidden />
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-3 py-2">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-3 py-2 lg:pr-[380px]">
           <div className="flex min-w-[220px] flex-1 items-center gap-3">
             <span className="font-tele text-[10px] uppercase tracking-widest text-goat-mute">WAVE_TIMER</span>
             <div className="h-2 flex-1 bg-goat-mute/20">

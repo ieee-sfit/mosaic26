@@ -137,7 +137,7 @@ export function ModuleA({ questions, operators, onRecord, onComplete }: Props) {
       {/* lower action strip */}
       <footer className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-goat-gold/60 bg-goat-void/95">
         <div className="hazard-stripe h-1 w-full opacity-70" aria-hidden />
-        <div className="flex flex-wrap items-center gap-3 px-3 py-2.5">
+        <div className="flex flex-wrap items-center gap-3 px-3 py-2.5 lg:pr-[380px]">
           <div className="flex-1" />
 
           <span className="hidden font-tele text-[11px] uppercase tracking-widest text-goat-mute sm:inline">

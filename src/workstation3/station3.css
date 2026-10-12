@@ -563,3 +563,6 @@
 .ws3-main, .ws3-shell { --hd-accent: #facc15; }
 .ws3-table td.is-hint { background: rgba(250, 204, 21, .18); outline: 1px solid rgba(250, 204, 21, .8); }
 .ws3-filter.is-hint { outline: 2px solid #facc15; box-shadow: 0 0 14px rgba(250, 204, 21, .5); }
+
+/* keep the footer clear of the shared hint dock (bottom-right) */
+@media (min-width: 900px) { .ws3-actionbar { padding-right: 380px; } }
