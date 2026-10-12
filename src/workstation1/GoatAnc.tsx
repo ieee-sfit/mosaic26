@@ -1,4 +1,5 @@
 import { useSession } from '../session/sessionContext';
+import { CockpitBackdrop } from './components/CockpitBackdrop';
 import { useState } from 'react';
 import './goatAnc.css';
 import { QUESTION_BANK, SCORING } from './mockStation1Data';
@@ -44,6 +45,9 @@ function Session({ onComplete, onRestart }: HostProps & { onRestart: () => void 
   const clockRunning = phase === 'moduleA' || phase === 'moduleB' || phase === 'moduleC';
   const seconds = useCountdown(SCORING.totalSeconds, clockRunning, () => finish('TIME_EXPIRED', hull));
 
+  // Red emergency lighting when the clock is nearly out or the hull is down to its last pip
+  const alarm = clockRunning && (seconds <= 120 || hull <= 1);
+
   function finish(endReason: EndReason, hullLeft: number) {
     if (result) return;
     const scoreA = sum(a);
@@ -77,7 +81,8 @@ function Session({ onComplete, onRestart }: HostProps & { onRestart: () => void 
 
   return (
     <ShakeContext.Provider value={shake}>
-      <div ref={ref} className="goat-root">
+      <div ref={ref} className={`goat-root ${alarm ? 'goat-alarm' : ''}`}>
+        <CockpitBackdrop />
         <TimerBadge seconds={seconds} total={SCORING.totalSeconds} armed={clockRunning} />
         {phase === 'launcher' && <Launcher onLaunch={launch} preset={preset} />}
         {phase === 'moduleA' && (

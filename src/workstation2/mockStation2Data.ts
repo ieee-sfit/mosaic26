@@ -13,7 +13,7 @@ export const STATION2_CONFIG = {
   speedBonusMax: 20,
   questionsPerRun: 3,
   hintPenalty: { hint1: 0.4, hint2: 1.0 }, // fraction of that question's points
-  wrongAnswerPenalty: 0.25, // fraction of question points per wrong transmit
+  wrongAnswerPenalty: 0.2, // fraction of question points per wrong transmit (same -20% as every station)
   stepWrongPenalty: 1, // points lost per wrong lookup entry
   gasketPips: 3,
   latencyLimitMs: 1500,
