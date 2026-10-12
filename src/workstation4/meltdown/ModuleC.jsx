@@ -1,10 +1,35 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CIRCUIT_ROUNDS, STATION4_CONFIG } from '../mockStation4Data'
 import { evaluateCircuit, initialInputs, layoutRound } from './logic'
+import HintDock from '../../core/HintDock'
 
 const GATES = ['AND', 'OR', 'NOT']
 const bit = (v) => (v == null ? '–' : v)
 const cls = (v) => (v == null ? 'wn' : v ? 'w1' : 'w0')
+
+/** Brute-forces any gate/input setting that satisfies `check` (the circuits are tiny: 3 sockets, <= 4 inputs). */
+function solveCircuit(round, currentInputs, check) {
+  const sockets = round.sockets.map((s) => s.id)
+  const ins = round.inputs.map((i) => i.id)
+  const tryInputs = (iv) => {
+    for (let gm = 0; gm < 3 ** sockets.length; gm++) {
+      const pl = {}
+      let g = gm
+      sockets.forEach((id) => { pl[id] = GATES[g % 3]; g = Math.floor(g / 3) })
+      if (check(evaluateCircuit(round, iv, pl), iv, pl)) return { placed: pl, inputs: iv }
+    }
+    return null
+  }
+  const keep = tryInputs(currentInputs)
+  if (keep) return keep
+  for (let im = 0; im < 2 ** ins.length; im++) {
+    const iv = {}
+    ins.forEach((id, k) => { iv[id] = (im >> k) & 1 })
+    const hit = tryInputs(iv)
+    if (hit) return hit
+  }
+  return null
+}
 
 export default function ModuleC({ onScore, onDone, onForfeit, fx, log, onSeals }) {
   const cfg = STATION4_CONFIG.moduleC
@@ -19,6 +44,7 @@ export default function ModuleC({ onScore, onDone, onForfeit, fx, log, onSeals }
   const [timer, setTimer] = useState(cfg.phaseSeconds)
   const [snap, setSnap] = useState(null)
   const earned = useRef(0)
+  const [hint, setHint] = useState(0) // hints spent on the current phase
   const dead = seals <= 0
 
   const values = useMemo(() => evaluateCircuit(round, inputs, placed), [round, inputs, placed])
@@ -68,38 +94,70 @@ export default function ModuleC({ onScore, onDone, onForfeit, fx, log, onSeals }
   }
   const toggleInput = (id) => interactive && setInputs((v) => ({ ...v, [id]: v[id] ? 0 : 1 }))
 
+  const frac = STATION4_CONFIG.moduleA.hint1PenaltyFraction
+  // Hint 1 keeps 60% of the phase's points; Hint 2 (auto-solve) keeps none
+  const phasePts = (base, level) => (level >= 2 ? 0 : level === 1 ? Math.round(base * (1 - frac)) : base)
+
+  const finishBreach = (pts, nextInputs, nextPlaced) => {
+    earned.current += pts
+    onScore(earned.current)
+    log(`${round.id} FORWARD AIRLOCK UNLOCKED // +${pts} PTS`, 'ok')
+    setHint(0)
+    setPhase('transit')
+    setTimeout(() => {
+      setScene('airlock')
+      setSnap({ inputs: { ...nextInputs }, placed: { ...nextPlaced } })
+      armTimer()
+      setPhase('seal')
+      log('INSIDE AIRLOCK // MODIFY CIRCUIT: REAR BLAST DOOR MUST READ 0', 'warn')
+    }, 1500)
+  }
+
+  const finishSeal = (pts) => {
+    earned.current += pts
+    onScore(earned.current)
+    log(`${round.id} REAR BLAST DOOR SLAMMED // +${pts} PTS`, 'ok')
+    setHint(0)
+    setPhase('slam')
+    fx('shake')
+    setTimeout(() => {
+      if (ri + 1 >= CIRCUIT_ROUNDS.length) return onDone()
+      const nr = CIRCUIT_ROUNDS[ri + 1]
+      setRi(ri + 1); setInputs(initialInputs(nr)); setPlaced({}); setSelected(null)
+      setScene('corridor'); setSnap(null); armTimer(); setPhase('breach')
+    }, 1900)
+  }
+
   const submit = () => {
     if (!interactive) return
     if (phase === 'breach') {
       const full = round.sockets.every((s) => placed[s.id])
       if (!full || fwd !== 1) return breakSeal(full ? 'FORWARD AIRLOCK STILL 0' : 'SOCKETS INCOMPLETE')
-      earned.current += cfg.breachPoints
-      onScore(earned.current)
-      log(`${round.id} FORWARD AIRLOCK UNLOCKED // +${cfg.breachPoints} PTS`, 'ok')
-      setPhase('transit')
-      setTimeout(() => {
-        setScene('airlock')
-        setSnap({ inputs: { ...inputs }, placed: { ...placed } })
-        armTimer()
-        setPhase('seal')
-        log('INSIDE AIRLOCK // MODIFY CIRCUIT: REAR BLAST DOOR MUST READ 0', 'warn')
-      }, 1500)
+      finishBreach(phasePts(cfg.breachPoints, hint), inputs, placed)
     } else {
       const changed =
         JSON.stringify(inputs) !== JSON.stringify(snap.inputs) ||
         JSON.stringify(placed) !== JSON.stringify(snap.placed)
       if (rear !== 0 || !changed) return breakSeal(rear !== 0 ? 'REAR DOOR STILL OPEN (1)' : 'CIRCUIT UNMODIFIED')
-      earned.current += cfg.sealPoints
-      onScore(earned.current)
-      log(`${round.id} REAR BLAST DOOR SLAMMED // +${cfg.sealPoints} PTS`, 'ok')
-      setPhase('slam')
-      fx('shake')
-      setTimeout(() => {
-        if (ri + 1 >= CIRCUIT_ROUNDS.length) return onDone()
-        const nr = CIRCUIT_ROUNDS[ri + 1]
-        setRi(ri + 1); setInputs(initialInputs(nr)); setPlaced({}); setSelected(null)
-        setScene('corridor'); setSnap(null); armTimer(); setPhase('breach')
-      }, 1900)
+      finishSeal(phasePts(cfg.sealPoints, hint))
+    }
+  }
+
+  const requestHint = (next) => {
+    if (!interactive || hint >= next) return
+    setHint(next)
+    if (next !== 2) return
+    if (phase === 'breach') {
+      const sol = solveCircuit(round, inputs, (v) => v[round.forwardOut] === 1)
+      if (!sol) return
+      setInputs(sol.inputs); setPlaced(sol.placed)
+      finishBreach(0, sol.inputs, sol.placed)
+    } else {
+      const differs = (iv, pl) => JSON.stringify(iv) !== JSON.stringify(snap.inputs) || JSON.stringify(pl) !== JSON.stringify(snap.placed)
+      const sol = solveCircuit(round, inputs, (v, iv, pl) => v[round.rearOut] === 0 && differs(iv, pl))
+      if (!sol) return
+      setInputs(sol.inputs); setPlaced(sol.placed)
+      finishSeal(0)
     }
   }
 
@@ -208,6 +266,19 @@ export default function ModuleC({ onScore, onDone, onForfeit, fx, log, onSeals }
           </button>
         </footer>
       </div>
+      <HintDock
+        level={hint}
+        itemLabel={`ROUND ${ri + 1} · ${phase === 'seal' ? 'SEAL' : 'BREACH'}`}
+        hint1Text={
+          phase === 'seal'
+            ? `The REAR door reads socket ${round.rearOut}, fed by ${round.sockets.find((s) => s.id === round.rearOut).srcs.map(label).join(' and ')}. Change a gate or toggle an input until it reads 0.`
+            : `The FWD door reads socket ${round.forwardOut}, fed by ${round.sockets.find((s) => s.id === round.forwardOut).srcs.map(label).join(' and ')}. Work backwards: which gate makes each socket output 1?`
+        }
+        hint2Text="The circuit was solved and submitted for you. This phase scores 0."
+        cost1={frac}
+        disabled={!interactive}
+        onHint={requestHint}
+      />
     </section>
   )
 }

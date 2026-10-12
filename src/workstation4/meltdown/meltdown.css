@@ -296,3 +296,7 @@
 @media (prefers-reduced-motion: reduce) {
   .mz-shell *, .mz-shell *::before, .mz-shell *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
+
+/* shared hint dock accent + Hint 1 cell pointer */
+.mz-shell, .mz-root { --hd-accent: #22c55e; }
+.mz-matrix td.is-hint { background: rgba(34, 197, 94, .22); outline: 1px solid #22c55e; }

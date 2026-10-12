@@ -82,8 +82,9 @@ export function layoutRound(round) {
 }
 
 // ---------- Scoring ----------
-export function speedBonus(timeLeft, allCleared) {
+export function speedBonus(timeLeft, allCleared, base = 100) {
   if (!allCleared) return 0
   const { speedBonusMax } = STATION4_CONFIG.scoring
-  return Math.floor(speedBonusMax * Math.max(0, Math.min(1, timeLeft / STATION4_CONFIG.totalSeconds)))
+  // scaled by the base score earned so auto-solving with Hint 2 cannot farm the bonus
+  return Math.floor(speedBonusMax * Math.max(0, Math.min(1, timeLeft / STATION4_CONFIG.totalSeconds)) * Math.max(0, Math.min(1, base / 100)))
 }

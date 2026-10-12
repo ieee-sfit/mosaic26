@@ -77,7 +77,7 @@ export default function Station2({ onNavigateStation, onOpenStationChooser, onCo
   }, [phase, finish]);
 
   const rawScore = Math.round((scoreA + scoreB + scoreC) * 100) / 100;
-  const bonusEarned = result ? speedBonus(result.timeLeft, result.reason === 'complete') : 0;
+  const bonusEarned = result ? speedBonus(result.timeLeft, result.reason === 'complete', rawScore) : 0;
 
   // Emit the session summary exactly once on completion / timeout
   useEffect(() => {

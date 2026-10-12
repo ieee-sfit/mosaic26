@@ -11,6 +11,8 @@ import {
 import { shuffle, type Fx } from '../utils';
 import { ActionBar, Readout } from './Hud';
 import RadarUnit from './RadarUnit';
+import HintDock from '../../core/HintDock';
+import type { HintLevel } from '../../core/HintDock';
 
 const STEPS_PER_PROBLEM = 4;
 const SOLVE_MS = 700;
@@ -35,6 +37,7 @@ export default function ModuleB({
   const [cells, setCells] = useState<string[]>([]);
   const [stage, setStage] = useState<Stage>('lookup');
   const [flashKey, setFlashKey] = useState(0);
+  const [hint, setHint] = useState<HintLevel>(0);
 
   const problem = PROBLEMS[pIdx];
   const step = problem.steps[sIdx];
@@ -45,6 +48,7 @@ export default function ModuleB({
     advanceRef.current = () => {
       setSolved(null);
       setWrong([]);
+      setHint(0);
       if (sIdx + 1 < STEPS_PER_PROBLEM) {
         setSIdx(sIdx + 1);
       } else if (pIdx + 1 < PROBLEMS.length) {
@@ -62,13 +66,25 @@ export default function ModuleB({
     return () => clearTimeout(t);
   }, [solved]);
 
+  const accept = (opt: string, pts: number) => {
+    onScore(pts);
+    setSolved(opt);
+    setVerified((v) => v + 1);
+    setCells((c) => [...c, ...step.refs.map((col) => `${problem.plate}:${col}`)]);
+  };
+
+  const requestHint = (next: 1 | 2) => {
+    if (solved !== null || hint >= next) return;
+    setHint(next);
+    // Hint 2 submits the right answer for the player: the step scores 0
+    if (next === 2) accept(step.answer, 0);
+  };
+
   const choose = (opt: string) => {
     if (solved !== null || wrong.includes(opt) || stage !== 'lookup') return;
     if (opt === step.answer) {
-      onScore(Math.max(0, CONFIG.moduleB.pointsPerStep - wrong.length * CONFIG.moduleB.wrongPenalty));
-      setSolved(opt);
-      setVerified((v) => v + 1);
-      setCells((c) => [...c, ...step.refs.map((col) => `${problem.plate}:${col}`)]);
+      const base = CONFIG.moduleB.pointsPerStep * (hint === 1 ? 1 - CONFIG.hintPenalty[1] : 1);
+      accept(opt, Math.max(0, Math.round(base) - wrong.length * CONFIG.moduleB.wrongPenalty));
     } else {
       setWrong((w) => [...w, opt]);
       fx.shake();
@@ -107,7 +123,12 @@ export default function ModuleB({
                 {REGISTRY.map((row) => (
                   <tr key={row.plate} className={row.plate === problem.plate && stage === 'lookup' ? 'is-target' : ''}>
                     {REGISTRY_COLUMNS.map((c) => (
-                      <td key={c.key} className={cells.includes(`${row.plate}:${c.key}`) ? 'is-verified' : ''}>
+                      <td
+                        key={c.key}
+                        className={`${cells.includes(`${row.plate}:${c.key}`) ? 'is-verified' : ''} ${
+                          hint >= 1 && stage === 'lookup' && row.plate === problem.plate && step.refs.includes(c.key) ? 'is-hint' : ''
+                        }`}
+                      >
                         {row[c.key]}
                       </td>
                     ))}
@@ -229,6 +250,19 @@ export default function ModuleB({
         </div>
         <span className="ws3-bar-note">−{CONFIG.moduleB.wrongPenalty} PT PER WRONG PICK</span>
       </ActionBar>
+      {stage === 'lookup' && (
+        <HintDock
+          level={hint}
+          itemLabel={`PROBLEM ${pIdx + 1} · STEP ${sIdx + 1}/${STEPS_PER_PROBLEM}`}
+          hint1Text={`Read these registry columns for the captured plate: ${step.refs
+            .map((col) => REGISTRY_COLUMNS.find((c) => c.key === col)?.label ?? col)
+            .join(', ')}. The cells are highlighted on the left datapad.`}
+          hint2Text="The correct answer was submitted for you. This step scores 0."
+          cost1={CONFIG.hintPenalty[1]}
+          disabled={solved !== null}
+          onHint={requestHint}
+        />
+      )}
     </>
   );
 }

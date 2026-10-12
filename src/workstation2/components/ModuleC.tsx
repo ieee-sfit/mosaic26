@@ -3,6 +3,9 @@ import { BALANCER_DEFAULTS, QUALITY_PROFILES, STATION2_CONFIG, STINTS } from '..
 import { simulate } from '../logic';
 import type { Controls } from '../logic';
 import { SteamOverlay, Tachometer, Waveform } from './HudBits';
+import HintDock from '../../core/HintDock';
+import type { HintLevel } from '../../core/HintDock';
+import type { Stint } from '../types';
 
 interface Props {
   onProgress: (total: number) => void;
@@ -13,6 +16,19 @@ interface Props {
 
 const PER_STINT = STATION2_CONFIG.moduleMax.C / STINTS.length;
 
+/** Finds any control setting that locks the stint (used by Hint 2, which solves it for 0 points). */
+function solveStint(stint: Stint): Controls | null {
+  for (const divert of [false, true]) {
+    for (let qualityIdx = 0; qualityIdx < QUALITY_PROFILES.length; qualityIdx++) {
+      for (let split = 0; split <= 100; split++) {
+        const c = { split, qualityIdx, divert };
+        if (simulate(stint, c).locked) return c;
+      }
+    }
+  }
+  return null;
+}
+
 export default function ModuleC({ onProgress, onForfeit, onFinish, onShake }: Props) {
   const [stintIdx, setStintIdx] = useState(0);
   const [controls, setControls] = useState<Controls>({ ...BALANCER_DEFAULTS, split: BALANCER_DEFAULTS.split });
@@ -21,6 +37,8 @@ export default function ModuleC({ onProgress, onForfeit, onFinish, onShake }: Pr
   const [steam, setSteam] = useState(false);
   const [slam, setSlam] = useState(false);
   const [cleared, setCleared] = useState(0);
+  const [earnedPts, setEarnedPts] = useState(0);
+  const [stintHints, setStintHints] = useState<Record<string, HintLevel>>({});
   const [msg, setMsg] = useState<{ kind: 'ok' | 'bad' | 'info'; text: string }>({
     kind: 'info', text: 'BALANCE THE NODES, THEN COMMIT. IDLE TOO LONG AND THE ENGINE OVERHEATS.',
   });
@@ -91,15 +109,15 @@ export default function ModuleC({ onProgress, onForfeit, onFinish, onShake }: Pr
     setControls({ ...controls, ...patch });
   };
 
-  const commit = () => {
-    if (finished) return;
-    if (!sim.locked) {
-      overheat('UNBALANCED SUBMIT');
-      return;
-    }
-    const n = cleared + 1;
-    setCleared(n);
-    onProgress(n * PER_STINT);
+  const hintLevel: HintLevel = stintHints[stint.id] ?? 0;
+
+  /** Banks the current stint. Hint 1 keeps 60% of the stint's points, Hint 2 (auto-solve) keeps none. */
+  const advance = (level: HintLevel) => {
+    const gain = level >= 2 ? 0 : level === 1 ? PER_STINT * (1 - STATION2_CONFIG.hintPenalty.hint1) : PER_STINT;
+    const pts = Math.round((earnedPts + gain) * 100) / 100;
+    setCleared(cleared + 1);
+    setEarnedPts(pts);
+    onProgress(pts);
     idleRef.current = 0;
     setIdleMs(0);
     if (stintIdx === STINTS.length - 1) {
@@ -110,9 +128,38 @@ export default function ModuleC({ onProgress, onForfeit, onFinish, onShake }: Pr
     } else {
       setStintIdx(stintIdx + 1);
       setControls({ ...BALANCER_DEFAULTS });
-      setMsg({ kind: 'ok', text: `${stint.name} CLEARED +${PER_STINT} PTS // ${STINTS[stintIdx + 1].name} INBOUND` });
+      setMsg({ kind: 'ok', text: `${stint.name} ${level >= 2 ? 'AUTO-BALANCED' : 'CLEARED'} +${Math.round(gain * 100) / 100} PTS // ${STINTS[stintIdx + 1].name} INBOUND` });
     }
   };
+
+  const commit = () => {
+    if (finished) return;
+    if (!sim.locked) {
+      overheat('UNBALANCED SUBMIT');
+      return;
+    }
+    advance(hintLevel);
+  };
+
+  const requestHint = (next: 1 | 2) => {
+    if (finished) return;
+    setStintHints({ ...stintHints, [stint.id]: next });
+    if (next === 2) {
+      const sol = solveStint(stint);
+      if (sol) {
+        setControls(sol);
+        advance(2);
+      }
+    }
+  };
+
+  const hint1Text = !sim.capacityOk
+    ? 'A node is above 80% load. Shift SLIDER 1 toward the emptier node, or divert the spike to the Arnage relay.'
+    : !sim.latencyOk
+      ? 'Total latency is over 1500 ms. A lower quality profile encodes faster, and easing the busiest node cuts queueing.'
+      : !sim.qualityOk
+        ? 'Quality is below the broadcast contract. Raise SLIDER 2 (but watch the latency and load checks).'
+        : 'All three checks pass right now. Hold steady and commit.';
 
   const heat = sim.locked ? 0.12 : Math.max(idleMs / STATION2_CONFIG.idleLimitMs, sim.severity * 0.6);
   const rpm = 2400 + heat * 6200;
@@ -126,7 +173,7 @@ export default function ModuleC({ onProgress, onForfeit, onFinish, onShake }: Pr
       <div className="ws2-mod-head">
         <span className="ws2-tag">MODULE C</span>
         <h2>PIT WALL 3-NODE LOAD &amp; QUALITY BALANCER</h2>
-        <span className="ws2-mod-pts">{cleared * PER_STINT} / {STATION2_CONFIG.moduleMax.C} PTS</span>
+        <span className="ws2-mod-pts">{earnedPts} / {STATION2_CONFIG.moduleMax.C} PTS</span>
       </div>
 
       <div className="ws2-c-top">
@@ -226,6 +273,15 @@ export default function ModuleC({ onProgress, onForfeit, onFinish, onShake }: Pr
       </div>
 
       <div className={`ws2-flash ws2-flash-${msg.kind === 'info' ? 'info' : msg.kind}`} role="status">{msg.text}</div>
+      <HintDock
+        level={hintLevel}
+        itemLabel={`STINT ${stintIdx + 1}/${STINTS.length}`}
+        hint1Text={hint1Text}
+        hint2Text="The balancer was set for you and the stint committed. It scores 0."
+        cost1={STATION2_CONFIG.hintPenalty.hint1}
+        disabled={finished}
+        onHint={requestHint}
+      />
     </section>
   );
 }

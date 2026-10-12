@@ -84,7 +84,7 @@ export default function Station3({ onOpenStationChooser, onComplete }: Station3P
     const s = scoresRef.current;
     const left = outcome === 'timeout' ? 0 : timeRef.current;
     const base = s.a + s.b + s.c;
-    const bonus = speedBonus(left, outcome === 'complete');
+    const bonus = speedBonus(left, outcome === 'complete', base);
     const { p1, p2 } = idsRef.current;
 
     setScores(s);

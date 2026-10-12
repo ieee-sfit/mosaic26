@@ -8,6 +8,7 @@ import {
 } from '../mockStation3Data';
 import { shuffle, type Fx } from '../utils';
 import { ActionBar, Readout } from './Hud';
+import HintDock from '../../core/HintDock';
 
 interface Card {
   q: ForensicQuestion;
@@ -70,14 +71,11 @@ export default function ModuleA({
     }
   };
 
-  const requestHint = () => {
-    if (resolved || hint === 2) return;
-    if (hint === 0) {
-      setHint(1);
-    } else {
-      setHint(2);
-      resolve(card.options.findIndex((o) => o.correct), 2, wrong.length);
-    }
+  const requestHint = (next: 1 | 2) => {
+    if (resolved || hint >= next) return;
+    setHint(next);
+    // Hint 2 reveals the answer and submits it for the player (0 pts)
+    if (next === 2) resolve(card.options.findIndex((o) => o.correct), 2, wrong.length);
   };
 
   // advance to next card / finish module shortly after a question resolves
@@ -95,9 +93,6 @@ export default function ModuleA({
     }, ADVANCE_MS);
     return () => clearTimeout(t);
   }, [resolved, idx, cards.length]);
-
-  const hintLabel =
-    hint === 0 ? 'HINT 1: CHEAT-SHEET COLUMN · −40% PTS' : hint === 1 ? 'HINT 2: AUTO-SELECT ANSWER · −100% PTS' : 'INTEL EXHAUSTED';
 
   return (
     <>
@@ -140,12 +135,6 @@ export default function ModuleA({
           </div>
 
           <div className="ws3-qfeed" aria-live="polite">
-            {hint >= 1 && cheatCol && (
-              <div className="ws3-intel">
-                ▸ DISPATCH INTEL: REFER TO CHEAT-SHEET <b>COLUMN {String(cheatCol.id).padStart(2, '0')}</b> — {cheatCol.label}
-              </div>
-            )}
-            {hint === 2 && <div className="ws3-intel ws3-intel--red">▸ DISPATCH AUTO-SELECTED THE ANSWER · 0 PTS</div>}
             {resolved && hint < 2 && <div className="ws3-intel ws3-intel--ok">▸ CONFIRMED · +{earned} PTS</div>}
             {!resolved && wrong.length > 0 && <div className="ws3-intel ws3-intel--red">▸ MISREAD · −{wrongPenalty} PT PER WRONG PICK</div>}
           </div>
@@ -175,17 +164,17 @@ export default function ModuleA({
         <div className="ws3-bar-info">
           <span>MOD_A</span>
           <span>QUESTION {idx + 1}/{cards.length}</span>
-          <span>{hintLabel}</span>
         </div>
-        <button
-          type="button"
-          className="ws3-btn ws3-btn--hint"
-          onClick={requestHint}
-          disabled={resolved || hint === 2}
-        >
-          [REQUEST DISPATCH INTEL / HINT]
-        </button>
       </ActionBar>
+      <HintDock
+        level={hint}
+        itemLabel={`QUESTION ${idx + 1}/${cards.length}`}
+        hint1Text={`Refer to cheat-sheet column ${String(cheatCol?.id ?? '').padStart(2, '0')}: ${cheatCol?.label ?? ''}.`}
+        hint2Text="The correct option was submitted for you. This question scores 0."
+        cost1={CONFIG.hintPenalty[1]}
+        disabled={resolved}
+        onHint={requestHint}
+      />
     </>
   );
 }

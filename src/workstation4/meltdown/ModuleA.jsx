@@ -1,6 +1,7 @@
 import { useMemo, useState, useRef } from 'react'
 import { QUESTION_BANK, CHEAT_SHEET_COLUMNS, STATION4_CONFIG } from '../mockStation4Data'
 import { pickQuestions, questionPoints } from './logic'
+import HintDock from '../../core/HintDock'
 
 const LETTERS = ['A', 'B', 'C', 'D']
 
@@ -41,12 +42,12 @@ export default function ModuleA({ onScore, onDone, fx, log }) {
     }
   }
 
-  const requestIntel = () => {
-    if (st.done) return
-    if (st.hint === 0) {
+  const requestIntel = (next) => {
+    if (st.done || st.hint >= next) return
+    if (next === 1) {
       patch({ hint: 1 })
       log(`OVERRIDE INTEL L1 // -${STATION4_CONFIG.moduleA.hint1PenaltyFraction * 100}% PTS`, 'warn')
-    } else if (st.hint === 1) {
+    } else {
       fx('glitch')
       log('OVERRIDE INTEL L2 // AUTO-SOLVE // -100% PTS', 'crit')
       finishQuestion(2, st.wrong, q.correct)
@@ -90,29 +91,23 @@ export default function ModuleA({ onScore, onDone, fx, log }) {
             })}
           </div>
 
-          {st.hint >= 1 && (
-            <div className="mz-intel mz-chamfer-sm" role="status">
-              <b className="mz-amber">INTEL L1 //</b> Consult the physical cheat sheet →{' '}
-              <b className="mz-green">{col.label}</b>. <span className="mz-dim">{col.blurb}</span>
-            </div>
-          )}
         </div>
 
         <footer className="mz-actionstrip">
           <span className="mz-dim">
             WRONG TRIES: {st.wrong} · INTEL LEVEL: {st.hint}/2
           </span>
-          <button
-            type="button"
-            className="mz-btn mz-btn-amber"
-            disabled={st.done || st.hint >= 2}
-            onClick={requestIntel}
-          >
-            [REQUEST OVERRIDE INTEL]
-            <small>{st.hint === 0 ? 'L1: COLUMN POINTER −40%' : st.hint === 1 ? 'L2: AUTO-SELECT −100%' : 'EXHAUSTED'}</small>
-          </button>
         </footer>
       </div>
+      <HintDock
+        level={st.hint}
+        itemLabel={`QUERY ${idx + 1}/${questions.length}`}
+        hint1Text={`Consult the cheat sheet: ${col.label}. ${col.blurb ?? ''}`}
+        hint2Text={`Option [${LETTERS[q.correct]}] was submitted for you. This query scores 0.`}
+        cost1={STATION4_CONFIG.moduleA.hint1PenaltyFraction}
+        disabled={st.done}
+        onHint={requestIntel}
+      />
     </section>
   )
 }

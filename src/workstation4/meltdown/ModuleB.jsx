@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { BIOHAZARD_MATRIX, LOOKUP_PROBLEMS, STATION4_CONFIG } from '../mockStation4Data'
 import { resolveStep, normalise } from './logic'
 import Centrifuge from './Centrifuge'
+import HintDock from '../../core/HintDock'
 
 const PER_PROBLEM = 4
 const TOTAL = PER_PROBLEM * LOOKUP_PROBLEMS.length
@@ -14,6 +15,7 @@ export default function ModuleB({ onScore, onDone, fx, log }) {
   const [wrong, setWrong] = useState(0) // wrong tries on the current step
   const [flash, setFlash] = useState(null) // { row, col } of last verified cell
   const [lid, setLid] = useState('open') // open | closing | sealed
+  const [hint, setHint] = useState(0) // hints spent on the current step
   const earned = useRef(0)
 
   const lookupDone = done >= TOTAL
@@ -26,19 +28,31 @@ export default function ModuleB({ onScore, onDone, fx, log }) {
   const pressure = lid === 'sealed' ? 6 : Math.round(100 - done * 11.5)
   const speed = lid === 'sealed' ? 620 : 20 + done * 70
 
+  const accept = (pts, auto = false) => {
+    earned.current += pts
+    onScore(earned.current)
+    setAnswers((a) => a.map((arr, i) => (i === pIdx ? [...arr, answer] : arr)))
+    setFlash({ row: rowId, col: step.column })
+    setDone((d) => d + 1)
+    setInput('')
+    setWrong(0)
+    setHint(0)
+    log(`${problem.id} STEP ${sIdx + 1} ${auto ? 'AUTO-SUBMITTED' : 'VERIFIED'} // CLAMP ${done + 1}/8 ENGAGED // +${pts} PTS`, 'ok')
+  }
+
+  // Hint 1: highlights the cell to read (-40%). Hint 2: submits the value for the player (0 pts).
+  const requestHint = (next) => {
+    if (lookupDone || hint >= next) return
+    setHint(next)
+    if (next === 2) accept(0, true)
+  }
+
   const submit = (e) => {
     e.preventDefault()
     if (lookupDone || !input.trim()) return
     if (normalise(input) === normalise(answer)) {
-      const pts = Math.max(0, cfg.pointsPerStep - wrong * cfg.wrongStepPenalty)
-      earned.current += pts
-      onScore(earned.current)
-      setAnswers((a) => a.map((arr, i) => (i === pIdx ? [...arr, answer] : arr)))
-      setFlash({ row: rowId, col: step.column })
-      setDone((d) => d + 1)
-      setInput('')
-      setWrong(0)
-      log(`${problem.id} STEP ${sIdx + 1} VERIFIED // CLAMP ${done + 1}/8 ENGAGED // +${pts} PTS`, 'ok')
+      const base = Math.round(cfg.pointsPerStep * (hint === 1 ? 1 - STATION4_CONFIG.moduleA.hint1PenaltyFraction : 1))
+      accept(Math.max(0, base - wrong * cfg.wrongStepPenalty))
     } else {
       setWrong((w) => w + 1)
       fx('glitch')
@@ -74,7 +88,8 @@ export default function ModuleB({ onScore, onDone, fx, log }) {
                 <tr key={r[0]} className={!lookupDone && r[0] === rowId ? 'is-target' : ''}>
                   {r.map((cell, ci) => {
                     const hit = flash && flash.row === r[0] && BIOHAZARD_MATRIX.columns[ci] === flash.col
-                    return <td key={ci} className={hit ? 'is-hit' : ''}>{cell}</td>
+                    const hinted = hint >= 1 && !lookupDone && r[0] === rowId && BIOHAZARD_MATRIX.columns[ci] === step.column
+                    return <td key={ci} className={`${hit ? 'is-hit' : ''} ${hinted ? 'is-hint' : ''}`}>{cell}</td>
                   })}
                 </tr>
               ))}
@@ -144,6 +159,16 @@ export default function ModuleB({ onScore, onDone, fx, log }) {
           </div>
         )}
       </aside>
+      {!lookupDone && (
+        <HintDock
+          level={hint}
+          itemLabel={`STEP ${done + 1}/${TOTAL}`}
+          hint1Text={`Look where row ${rowId} meets column ${step.column}. That cell is highlighted in the matrix.`}
+          hint2Text="The value was submitted for you. This step scores 0."
+          cost1={STATION4_CONFIG.moduleA.hint1PenaltyFraction}
+          onHint={requestHint}
+        />
+      )}
     </section>
   )
 }

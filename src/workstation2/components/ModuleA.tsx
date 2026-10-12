@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { CHEAT_COLUMNS, STATION2_CONFIG } from '../mockStation2Data';
 import { pickQuestions, questionPoints, fmt } from '../logic';
+import HintDock from '../../core/HintDock';
+import type { HintLevel } from '../../core/HintDock';
 
 interface Props {
   onScore: (total: number) => void;
@@ -27,11 +29,17 @@ export default function ModuleA({ onScore, onDone, onShake }: Props) {
   const isLast = qi === questions.length - 1;
   const total = Object.values(earned).reduce((a, b) => a + b, 0);
 
-  const requestHint = () => {
-    if (answered || h >= 2) return;
-    const next = h + 1;
+  const requestHint = (next: 1 | 2) => {
+    if (answered || h >= next) return;
     setHints({ ...hints, [q.id]: next });
-    if (next === 2) setSelected(q.correct);
+    if (next === 2) {
+      // Hint 2 reveals the answer AND submits it for the player: the question scores 0.
+      setSelected(q.correct);
+      const e = { ...earned, [q.id]: 0 };
+      setEarned(e);
+      onScore(Object.values(e).reduce((a, b) => a + b, 0));
+      setFlash({ kind: 'ok', text: 'ANSWER AUTO-SUBMITTED // 0 PTS' });
+    }
   };
 
   const transmit = () => {
@@ -91,19 +99,10 @@ export default function ModuleA({ onScore, onDone, onShake }: Props) {
           })}
         </div>
 
-        <div className="ws2-intel" aria-live="polite">
-          {h === 0 && <span className="ws2-dim">PIT INTEL STANDBY // HINT 1 −{STATION2_CONFIG.hintPenalty.hint1 * 100}% PTS // HINT 2 −100% PTS</span>}
-          {h >= 1 && <span className="ws2-amber">PIT INTEL 1: CHECK CHEAT-SHEET <b>{col?.id}</b> — {col?.label}</span>}
-          {h >= 2 && <span className="ws2-red"> // INTEL 2: CORRECT ANSWER AUTO-SELECTED (0 PTS)</span>}
-        </div>
         {flash && <div className={`ws2-flash ws2-flash-${flash.kind}`} role="status">{flash.text}</div>}
       </div>
 
       <div className="ws2-actionbar">
-        <button type="button" className="ws2-btn ws2-btn-amber" onClick={requestHint} disabled={answered || h >= 2}>
-          [REQUEST PIT INTEL / HINT]
-        </button>
-        <span className="ws2-actionbar-note">HINTS USED: {h}/2</span>
         {!answered ? (
           <button type="button" className="ws2-btn ws2-btn-red" onClick={transmit} disabled={selected === null}>
             [TRANSMIT ANSWER]
@@ -114,6 +113,15 @@ export default function ModuleA({ onScore, onDone, onShake }: Props) {
           </button>
         )}
       </div>
+      <HintDock
+        level={h as HintLevel}
+        itemLabel={`QUERY ${qi + 1}/${questions.length}`}
+        hint1Text={`Check cheat-sheet ${col?.id}: ${col?.label}.`}
+        hint2Text={`Option [${LETTERS[q.correct]}] was submitted for you. This query scores 0.`}
+        cost1={STATION2_CONFIG.hintPenalty.hint1}
+        disabled={answered}
+        onHint={requestHint}
+      />
     </section>
   );
 }

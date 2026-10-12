@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react';
 import type { LookupProblemDef, SheetColumn } from '../types';
-import { HintButton } from './HintButton';
 import { HudPanel } from './HudPanel';
 
 interface Props {
@@ -9,25 +8,21 @@ interface Props {
   answers: string[]; // expected, used only for display of verified steps
   done: number;
   wrong: number[]; // wrong attempts per step
-  hints: (0 | 1 | 2)[]; // hints spent per step
-  hintCost: number; // fraction removed by Hint 1
-  /** Spend the next hint on a step; returns the answer to pre-fill when it was Hint 2. */
-  onHint: (stepIndex: number) => string | null;
+  /** Called when the player focuses this pad's answer field, so the shared hint dock targets this pad. */
+  onActivate?: () => void;
   onSubmit: (stepIndex: number, value: string) => boolean;
   accent: 'cyan' | 'gold';
 }
 
 const colLabel = (cols: SheetColumn[], n: number) => cols.find((c) => c.index === n)?.label ?? `COL_${n}`;
 
-export function Datapad({ problem, columns, answers, done, wrong, hints, hintCost, onHint, onSubmit, accent }: Props) {
-  const [value, setValue] = useState('');
+export function Datapad({ problem, columns, answers, done, wrong, onActivate, onSubmit, accent }: Props) {
+  // The typed value belongs to one step; it resets automatically when the step advances (including via Hint 2).
+  const [entry, setEntry] = useState({ step: 0, v: '' });
+  const value = entry.step === done ? entry.v : '';
+  const setValue = (v: string) => setEntry({ step: done, v });
   const [bad, setBad] = useState(0);
   const complete = done >= problem.steps.length;
-
-  const requestHint = () => {
-    const fill = onHint(done);
-    if (fill !== null) setValue(fill);
-  };
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -107,6 +102,7 @@ export function Datapad({ problem, columns, answers, done, wrong, hints, hintCos
                   <input
                     aria-label={`${problem.id} step ${i + 1} answer`}
                     value={value}
+                    onFocus={onActivate}
                     onChange={(e) => setValue(e.target.value.toUpperCase())}
                     autoComplete="off"
                     spellCheck={false}
@@ -117,21 +113,6 @@ export function Datapad({ problem, columns, answers, done, wrong, hints, hintCos
                     VERIFY
                   </button>
                 </form>
-              )}
-              {state === 'active' && (
-                <div className="mt-2">
-                  <HintButton stage={hints[i] ?? 0} onClick={requestHint} />
-                  <div className="mt-1 font-tele text-[9px] uppercase tracking-wider text-goat-mute">
-                    H1: −{Math.round(hintCost * 100)}% STEP · H2: AUTO-FILL · 0 PTS
-                  </div>
-                  {(hints[i] ?? 0) >= 1 && (
-                    <div key={`h${hints[i]}`} className="goat-slide-in mt-1.5 border-l-2 border-goat-gold bg-goat-gold/10 px-2 py-1 font-tele text-[11px] uppercase tracking-wider text-goat-gold" role="status">
-                      ▲ INTEL: ANSWER IS IN SHEET COLUMN <b className="text-white">{step.readColumn}</b>
-                      <span className="text-goat-mute"> [{colLabel(columns, step.readColumn)}]</span>
-                      {hints[i] === 2 && <span className="block text-goat-crimson">ANSWER AUTO-FILLED · STEP WORTH 0 PTS</span>}
-                    </div>
-                  )}
-                </div>
               )}
               {state === 'active' && bad > 0 && (
                 <div key={bad} className="goat-slide-in mt-1 font-tele text-[10px] uppercase tracking-wider text-goat-crimson" role="alert">

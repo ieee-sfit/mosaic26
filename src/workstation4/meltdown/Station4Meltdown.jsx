@@ -43,7 +43,7 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
     finished.current = true
     const { ids: i, score: s } = live.current
     const c = outcome === 'forfeit' ? 0 : s.c
-    const bonus = speedBonus(tl, outcome === 'complete')
+    const bonus = speedBonus(tl, outcome === 'complete', s.a + s.b + c)
     const raw = Math.round((s.a + s.b + c + bonus) * 100) / 100
     const summary = { p1_id: i.p1, p2_id: i.p2, game_id: 'station4', raw_score: raw, time_left: tl }
     setReport({ result: { outcome, a: s.a, b: s.b, c, bonus }, summary })

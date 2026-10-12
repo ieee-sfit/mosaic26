@@ -301,3 +301,7 @@
 @media (prefers-reduced-motion: reduce) {
   .ws2-shake-a, .ws2-shake-b, .ws2-vib, .ws2-beam, .ws2-flow, .ws2-pulse { animation: none !important; }
 }
+
+/* Hint pointer: matrix columns highlighted by Hint 1 */
+.ws2-matrix th.is-hint, .ws2-matrix td.is-hint { background: rgba(251, 191, 36, .16); outline: 1px solid rgba(251, 191, 36, .7); }
+.ws2-shell { --hd-accent: #fbbf24; }
