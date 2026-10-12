@@ -5,6 +5,7 @@ import Station3 from './workstation3/Station3'
 import Station4 from './workstation4'
 import Launcher from './launcher/Launcher'
 import Leaderboard from './launcher/Leaderboard'
+import LaunchLoader from './launcher/LaunchLoader'
 import { saveRun } from './lib/saveRun'
 import { SessionContext, createSession } from './session/sessionContext'
 
@@ -29,6 +30,14 @@ function recordRun(stationId, session, payload) {
 function App() {
   const [session, setSession] = useState(null)
   const [view, setView] = useState('launcher') // 'launcher' | 'leaderboard'
+  const [launching, setLaunching] = useState(null) // { id, p1, p2 } during the pre-game countdown
+
+  // The session clock starts only once the countdown finishes
+  const finishLaunch = () => {
+    if (!launching) return
+    setSession(createSession(launching.id, launching.p1, launching.p2))
+    setLaunching(null)
+  }
 
   const returnToLauncher = () => {
     setSession(null)
@@ -49,11 +58,22 @@ function App() {
     )
   }
 
+  if (launching) {
+    return (
+      <LaunchLoader
+        stationNum={launching.id}
+        p1={launching.p1}
+        p2={launching.p2}
+        onComplete={finishLaunch}
+      />
+    )
+  }
+
   if (view === 'leaderboard') return <Leaderboard onBack={returnToLauncher} />
 
   return (
     <Launcher
-      onEngage={(id, p1, p2) => setSession(createSession(id, p1, p2))}
+      onEngage={(id, p1, p2) => setLaunching({ id, p1, p2 })}
       onOpenLeaderboard={() => setView('leaderboard')}
     />
   )

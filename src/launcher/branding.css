@@ -1,0 +1,36 @@
+/* Event + committee branding and the pre-game launch loader */
+.arc-eventlogo {
+  position: absolute; left: 50%; top: 4px; height: 36px; width: auto; transform: translateX(-50%);
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 60%, transparent 100%);
+  mask-image: radial-gradient(ellipse at center, #000 60%, transparent 100%);
+}
+.arc-committee {
+  position: fixed; right: 0; bottom: 0; width: 170px; z-index: 30; pointer-events: none; background: #000;
+  clip-path: polygon(20% 0, 100% 0, 100% 100%, 0 100%);
+  filter: drop-shadow(0 0 10px rgba(0, 242, 254, .25));
+}
+.arc-committee img { display: block; width: 100%; height: auto; }
+
+.mosaic-loader-overlay {
+  position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 20px; padding: 24px; color: #e8edf2;
+  background: radial-gradient(circle at 50% 40%, #0a1626 0%, #020408 100%);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+.mosaic-loader-logo {
+  width: min(520px, 80vw); height: auto;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 62%, transparent 100%);
+  mask-image: radial-gradient(ellipse at center, #000 62%, transparent 100%);
+}
+.mosaic-loader-station { font-size: 13px; letter-spacing: .3em; color: #00f2fe; }
+.mosaic-loader-ops { font-size: 12px; letter-spacing: .18em; color: #8fb4c8; }
+.mosaic-loader-count-wrap { height: 120px; display: flex; align-items: center; }
+.mosaic-loader-count { font-size: 96px; font-weight: 800; line-height: 1; color: #00f2fe; text-shadow: 0 0 28px rgba(0, 242, 254, .6); }
+.mosaic-loader-bar { width: min(480px, 80vw); height: 8px; border: 1px solid rgba(0, 242, 254, .4); background: rgba(0, 242, 254, .08); overflow: hidden; }
+.mosaic-loader-bar-fill { height: 100%; background: linear-gradient(90deg, #00f2fe, #34f5a4); transition: width .1s linear; }
+.mosaic-loader-status { font-size: 12px; letter-spacing: .2em; color: #8fb4c8; }
+@media (max-width: 640px) {
+  .arc-committee { width: 120px; }
+  .arc-eventlogo { height: 28px; }
+  .mosaic-loader-count { font-size: 72px; }
+}
