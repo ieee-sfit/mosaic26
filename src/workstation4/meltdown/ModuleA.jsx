@@ -60,7 +60,7 @@ export default function ModuleA({ onScore, onDone, fx, log, track }) {
     <section className="mz-modA mz-fade-in">
       <div className="mz-panel mz-chamfer mz-terminal">
         <header className="mz-panel-head">
-          <span>MODULE A // PROTOCOL</span>
+          <span>MODULE A // PROTOCOL <span className="mz-lock-chip"><i />LOCKDOWN</span></span>
           <span className="mz-amber">QUERY {idx + 1}/{questions.length}</span>
         </header>
 

@@ -832,10 +832,10 @@
     ]
   },
   {
-    "p1_id": "333333",
-    "p2_id": "444444",
+    "p1_id": "111111",
+    "p2_id": "111115",
     "game_id": "station4",
-    "raw_score": 0,
-    "time_left": 693
+    "raw_score": 46,
+    "time_left": 619
   }
 ]
