@@ -26,9 +26,9 @@ interface Props {
 }
 
 const STAGES = RADIO_CONFIG.stages;
-const STAGE_NAMES = ['SLOW', 'NOISE', 'FULL CODEBOOK'];
-const STAGE_LINES = ['Count the run.', 'Noise can flip bits.', 'Fast. All six commands.'];
-const RULE = 'ANY OTHER RUN = CORRUPTED · RESEND';
+const STAGE_NAMES = ['COUNT THE RUN', 'NOISE', 'FULL CODEBOOK'];
+const STAGE_LINES = ['Count the run. The line stops for you.', 'Noise can flip bits.', 'All six commands.'];
+const RULE = 'ANY OTHER RUN = CORRUPTED · PRESS 7 RESEND';
 const AUTO_CARD_MS = 6000;
 
 /** Module D: the F1 skin on the shared RADIO LINK engine. Labels, car feedback and subtitle live here; the stream logic is in core/radiolink. */

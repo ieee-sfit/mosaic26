@@ -206,16 +206,16 @@ export const RADIO_CODEBOOK: CodeEntry[] = [
 
 /** All Module D numbers live here so they can be tuned after a playtest. */
 export const RADIO_CONFIG = {
-  /** Cap on the whole round, in seconds (also capped by the shift time left). */
-  maxSeconds: 180,
+  /** Cap on the whole round, in seconds (also capped by the shift time left). The line stops for every answer, so this is generous. */
+  maxSeconds: 360,
   /** Auto-skip of the PLAY / SKIP offer, so an abandoned kiosk still saves its run. */
   offerSeconds: 20,
   hint1SpeedFactor: 0.5, // Hint 1: the stage's stream runs at this share of its speed
   hint1Cost: 0.4, // fraction of that stage's points
-  gen: { leadInBits: 14, minGapBits: 9, gapJitter: 3 } satisfies GenOptions,
+  gen: { leadInBits: 8, minGapBits: 5, gapJitter: 2 } satisfies GenOptions,
   stages: [
-    { commands: 6, corrupted: 0, active: 2, bps: 3, windowBits: 8, maxFlips: 1, points: 5, resend: false },
-    { commands: 8, corrupted: 3, active: 4, bps: 5, windowBits: 8, maxFlips: 1, points: 7, resend: true },
-    { commands: 10, corrupted: 4, active: 6, bps: 8, windowBits: 8, maxFlips: 2, points: 8, resend: true },
+    { commands: 6, corrupted: 0, active: 2, bps: 1.5, windowBits: 8, freeze: true, maxFlips: 1, points: 5, resend: false },
+    { commands: 8, corrupted: 3, active: 4, bps: 1.75, windowBits: 8, freeze: true, maxFlips: 1, points: 7, resend: true },
+    { commands: 10, corrupted: 4, active: 6, bps: 2, windowBits: 8, freeze: true, maxFlips: 2, points: 8, resend: true },
   ] satisfies StageSpec[],
 };

@@ -22,7 +22,7 @@
 
 /* ---- the scrolling line */
 .rl-view {
-  --ptr: calc(var(--rl-cell) * 5.5);
+  --ptr: calc(var(--rl-cell) * 8.5);
   --head: 0;
   position: relative; height: calc(var(--rl-cell) * 2.6); overflow: hidden; background: #08080c; box-shadow: inset 0 0 0 1px #2a2a34;
 }
@@ -32,7 +32,7 @@
 }
 .rl-track i { flex: none; width: var(--rl-cell); height: var(--rl-cell); font-size: clamp(14px, 1.5vw, 21px); box-shadow: inset 0 0 0 1px #07070a; }
 .rl-track i.zero { box-shadow: inset 0 0 0 1px #07070a, inset 0 0 0 2px #2a2a3c; }
-.rl-past { position: absolute; left: 0; top: 0; bottom: 0; width: var(--ptr); background: linear-gradient(90deg, rgba(8, 8, 12, .92), rgba(8, 8, 12, .6)); pointer-events: none; }
+.rl-past { position: absolute; left: 0; top: 0; bottom: 0; width: var(--ptr); background: linear-gradient(90deg, rgba(8, 8, 12, .55), rgba(8, 8, 12, .25)); pointer-events: none; }
 .rl-view::after { content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: calc(var(--rl-cell) * 2); background: linear-gradient(270deg, #08080c, transparent); pointer-events: none; }
 .rl-pointer {
   position: absolute; left: var(--ptr); top: calc(50% - var(--rl-cell) * .5 - 7px); width: var(--rl-cell); height: calc(var(--rl-cell) + 14px);
@@ -64,11 +64,16 @@
 /* ---- answer buttons */
 .rl-keys { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 10px; }
 .rl-key {
-  position: relative; min-height: 92px; padding: 10px 8px; cursor: pointer; border: 0; display: grid; place-items: center; gap: 4px;
+  position: relative; min-height: 100px; padding: 10px 8px; cursor: pointer; border: 0; display: grid; place-items: center; gap: 4px;
   font: 700 clamp(14px, 1.25vw, 18px) var(--rl-head); letter-spacing: .1em; color: #cfcfdc; background: #16161d; box-shadow: inset 0 0 0 1px #2a2a34;
   clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); transition: transform .08s, background .12s, color .12s;
 }
-.rl-key kbd { position: absolute; left: 12px; top: 8px; font: 600 13px var(--rl-font); color: #8a8a9a; }
+.rl-key kbd { position: absolute; left: 10px; top: 8px; min-width: 30px; height: 30px; display: grid; place-items: center; font: 700 20px var(--rl-font); color: #fff; background: #2a2a38; box-shadow: inset 0 0 0 1px #4a4a5e; }
+.rl-key[data-armed='1'] kbd { background: var(--rl-accent); box-shadow: none; }
+.rl-key.is-resend[data-armed='1'] kbd { background: var(--rl-warn); color: #111; }
+.rl-key.is-off { opacity: .32; cursor: default; }
+.rl-key span { padding-top: 26px; }
+.rl-span { position: absolute; top: calc(50% + var(--rl-cell) * .5 + 6px); left: calc(var(--ptr) + var(--from, 0) * var(--rl-cell)); width: calc(var(--len, 0) * var(--rl-cell)); height: 6px; background: var(--rl-warn); opacity: 0; pointer-events: none; }
 .rl-key span { text-align: center; line-height: 1.15; }
 .rl-key[data-armed='1'] { background: #2a1010; color: #fff; box-shadow: inset 0 0 0 2px var(--rl-accent); }
 .rl-key[data-armed='1']:hover { background: var(--rl-accent); }
@@ -82,6 +87,7 @@
 /* ---- codebook */
 .rl-codebook { display: grid; grid-template-columns: repeat(var(--rl-cols, 3), minmax(0, 1fr)); gap: 8px 14px; align-content: start; }
 .rl-code { display: grid; gap: 5px; padding: 8px 10px; background: #101018; box-shadow: inset 0 0 0 1px #24242e; }
+.rl-code__n { display: inline-grid; place-items: center; min-width: 26px; height: 26px; margin-right: 10px; font: 700 17px var(--rl-font); color: #fff; background: var(--rl-accent); }
 .rl-code b { font: 700 clamp(14px, 1.15vw, 17px) var(--rl-head); letter-spacing: .12em; color: #fff; }
 .rl-code__bits { display: inline-flex; gap: 2px; }
 .rl-code__bits i { width: 20px; height: 20px; font-size: 12px; }

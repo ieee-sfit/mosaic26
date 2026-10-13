@@ -23,8 +23,13 @@ export interface StageSpec {
   active: number;
   /** Stream speed in bits per second. */
   bps: number;
-  /** The answer window stays open this many bit-times after the closing bit reaches the pointer. */
+  /** Timed mode only: the answer window stays open this many bit-times after the closing bit reaches the pointer. */
   windowBits: number;
+  /**
+   * Freeze mode: the line stops when a command's closing bit reaches the pointer and waits for one answer (right or wrong),
+   * then moves on. Nothing can be missed, so the pace is the only pressure. Without it the window above applies.
+   */
+  freeze?: boolean;
   /** Most bits flipped in one corrupted frame (1 = always a single flip). */
   maxFlips: number;
   /** Points for the whole stage, split equally across its commands. */
