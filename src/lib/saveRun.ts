@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { KIOSK_SECRET, isKioskConfigured } from './kiosk'
+import { SCORING } from '../core/scoring'
 
 export interface RunPayload {
   p1_id: string
@@ -90,7 +91,7 @@ if (typeof window !== 'undefined') {
 export async function saveRun(run: RunPayload): Promise<{ ok: boolean; queued: number }> {
   const entry: QueuedRun = {
     ...run,
-    raw_score: Math.max(0, Math.min(120, Math.round(run.raw_score))),
+    raw_score: Math.max(0, Math.min(SCORING.rawMax, Math.round(run.raw_score))),
     time_left: Math.max(0, Math.min(720, Math.round(run.time_left))),
     client_run_id: uuid(),
   }

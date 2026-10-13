@@ -201,7 +201,7 @@ body:has(.ws2-shell) { margin: 0; background: #07070a; overflow: hidden; }
 .ws2-launch__actions .ws2-btn--go { flex: 1; font-size: 18px; }
 
 /* ---------------------------------------------------------------- module chrome */
-.ws2-modA, .ws2-modB, .ws2-modC { display: flex; flex-direction: column; min-height: 0; }
+.ws2-modA, .ws2-modB, .ws2-modC, .ws2-modD { display: flex; flex-direction: column; min-height: 0; }
 .ws2-modhead { flex: none; display: flex; align-items: baseline; gap: 14px; margin: 0 0 8px; font: 700 14px var(--f-head); letter-spacing: .2em; }
 .ws2-modhead b { color: var(--red-hi); }
 .ws2-modhead span { color: #fff; }
@@ -527,3 +527,61 @@ body:has(.ws2-shell) { margin: 0; background: #07070a; overflow: hidden; }
   .ws2-node__ring, .ws2-car__ring, .ws2-board__dwell i, .ws2-gauge.is-alert svg { animation: none; }
   .ws2-needle { transition-duration: .01s; }
 }
+
+/* ---------------------------------------------------------------- MODULE D: final push (RADIO LINK skin) */
+.ws2-modD { padding-bottom: 132px; gap: 12px; --rl-accent: var(--red); --rl-ok: var(--ok); --rl-warn: var(--warn); --rl-bad: var(--red-hi); }
+.ws2-modD .ws2-modhead em.is-low { color: var(--warn); }
+.ws2-modD .ws2-modhead em + em { margin-left: 0; }
+.ws2-modD .ws2-modhead em:first-of-type { margin-left: auto; }
+.ws2-D__top { flex: none; display: grid; grid-template-columns: 1fr 300px; gap: 12px; }
+.ws2-D__book { padding: 12px 16px 12px 22px; }
+.ws2-D__car { display: grid; place-items: center; height: 100%; padding: 8px 12px; }
+.ws2-car { width: 100%; max-height: 124px; }
+.ws2-car__road rect { fill: #0b0b10; stroke: #2a2a34; }
+.ws2-car__road path { stroke: #2a2a34; stroke-dasharray: 10 10; fill: none; }
+.ws2-car__apex text { font: 600 10px var(--f-head); letter-spacing: .2em; fill: #6c6c80; }
+.ws2-car__body { transition: transform .35s cubic-bezier(.3, .8, .3, 1); }
+.ws2-car .hull { fill: #d6d6e0; }
+.ws2-car .cockpit { fill: #0b0b10; }
+.ws2-car .wheel { fill: #1b1b24; stroke: #55556a; }
+.ws2-car .wing { fill: #8a8a9a; }
+.ws2-car .flap { fill: #8a8a9a; transform-box: fill-box; transform-origin: left center; transition: transform .25s, fill .25s; }
+.ws2-car .flap.open { fill: var(--ok); transform: translateX(-6px) scaleX(.5); filter: drop-shadow(0 0 5px var(--ok)); }
+.ws2-car .tail { fill: #5a1414; }
+.ws2-car .tail.on { fill: #ff2a2a; filter: drop-shadow(0 0 7px #ff2a2a); }
+.ws2-car .disc { fill: #34344a; }
+.ws2-car .disc.hot { fill: #fb923c; filter: drop-shadow(0 0 5px #fb923c); }
+.ws2-car .thr rect { fill: #2a2a34; }
+.ws2-car .thr .lvl { fill: var(--ok); transform-box: fill-box; transform-origin: left center; transition: transform .2s; }
+.ws2-car .thr.low .lvl { transform: scaleX(.12); fill: var(--warn); }
+.ws2-car.is-wrong .hull { fill: #f0a5a5; }
+
+.ws2-D__line { flex: 1; min-height: 0; }
+.ws2-D__stage { position: relative; padding: 14px 18px 14px 22px; display: flex; flex-direction: column; min-height: 100%; }
+.ws2-D__stage > .rl { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.ws2-D__stage .rl-keys { margin-top: auto; }
+.ws2-D__card {
+  position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  background: rgba(7, 7, 10, .93); text-align: center;
+}
+.ws2-D__card h3 { margin: 0; font: 700 clamp(26px, 2.6vw, 38px) var(--f-head); letter-spacing: .18em; color: #fff; }
+.ws2-D__card p { margin: 0; font: 600 clamp(15px, 1.3vw, 19px) var(--f-head); letter-spacing: .14em; color: var(--dim); }
+.ws2-D__card .ws2-D__res { color: var(--ok); }
+.ws2-D__card .ws2-D__res b { color: #fff; }
+.ws2-D__card .ws2-btn { margin-top: 6px; min-width: 220px; font-size: 18px; }
+.ws2-D__auto { display: block; width: 220px; height: 3px; background: #1d1d26; overflow: hidden; }
+.ws2-D__auto i { display: block; height: 100%; background: var(--red); transform-origin: left; animation: ws2-dwell 6s linear forwards; }
+@media (prefers-reduced-motion: reduce) { .ws2-car__body, .ws2-car .flap, .ws2-car .thr .lvl { transition: none; } }
+
+/* offer card before Module D */
+.ws2-offer { align-self: center; margin: auto; display: grid; justify-items: center; gap: 14px; padding: 36px 56px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line);
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut)); position: relative; }
+.ws2-offer::before { content: ''; position: absolute; left: 0; top: var(--cut); bottom: 0; width: 3px; background: var(--red); }
+.ws2-offer small { font: 700 14px var(--f-head); letter-spacing: .24em; color: var(--red-hi); }
+.ws2-offer h2 { margin: 0; font: 700 clamp(30px, 3vw, 44px) var(--f-head); letter-spacing: .16em; color: #fff; }
+.ws2-offer p { margin: 0; font: 600 18px var(--f-head); letter-spacing: .14em; color: var(--dim); }
+.ws2-offer p b { color: var(--ok); }
+.ws2-offer__actions { display: flex; gap: 14px; margin-top: 8px; }
+.ws2-offer__actions .ws2-btn { min-width: 190px; font-size: 18px; min-height: 56px; }
+.ws2-offer .ws2-D__auto i { animation-duration: var(--offer-s, 20s); }
+.ws2-main > .ws2-offer { flex: 0 0 auto; }

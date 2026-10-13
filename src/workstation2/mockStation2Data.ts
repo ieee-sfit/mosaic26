@@ -2,11 +2,12 @@
  * STATION 2 — DATA (isolated, swap this file to change content).
  * Questions, cheat-sheet columns, route sections and race stints live here, not in components.
  */
+import type { CodeEntry, GenOptions, StageSpec } from '../core/radiolink/types';
 import type { Beam, CheatColumn, LapId, Need, QualityProfile, QuizQuestion, Section, Stint } from './types';
 
 export const STATION2_CONFIG = {
   totalSeconds: 720,
-  moduleMax: { A: 15, B: 40, C: 45 },
+  moduleMax: { A: 15, B: 40, C: 45, D: 20 }, // D is the optional bonus round, outside the 100-point base
   speedBonusMax: 20,
   questionsPerRun: 3,
   hintPenalty: { hint1: 0.4, hint2: 1.0 }, // fraction of that item's points
@@ -19,11 +20,12 @@ export const STATION2_CONFIG = {
 };
 
 /** Expected clean-run time per module (seconds), used only to flag slow modules on the debrief. */
-export const PAR = { A: 100, B: 180, C: 300 } as const;
+export const PAR = { A: 100, B: 180, C: 300, D: 110 } as const;
 export const TIPS = {
   A: 'Read the whole question, then check the cheat sheet before guessing.',
   B: 'Check every NEED line before you send. Latency adds, loss compounds, bandwidth is the narrowest link.',
   C: 'Fix the node over 80% first, then latency, then quality. Use the relay only if a node cannot cope.',
+  D: 'Count the run between the two opposite bits. A length that matches no codebook entry is corrupted: RESEND.',
 } as const;
 
 export const CHEAT_COLUMNS: CheatColumn[] = [
@@ -187,3 +189,33 @@ export const STINTS: Stint[] = [
 ];
 
 export const BALANCER_DEFAULTS = { split: 50, qualityIdx: 0, divert: false };
+
+// ---------------------------------------------------------------- MODULE D (FINAL PUSH · RADIO LINK)
+/**
+ * Codebook order matters: stage 1 uses the first 2 entries, stage 2 the first 4, stage 3 all 6.
+ * A command is a run of identical bits bounded by the opposite bit on each side; run length picks the command, bit value the pair member.
+ */
+export const RADIO_CODEBOOK: CodeEntry[] = [
+  { id: 'drs-on', label: 'DRS ON', bit: 1, run: 5 },
+  { id: 'drs-off', label: 'DRS OFF', bit: 0, run: 5 },
+  { id: 'ot-in', label: 'OVERTAKE INSIDE', bit: 1, run: 3 },
+  { id: 'ot-out', label: 'OVERTAKE OUTSIDE', bit: 0, run: 3 },
+  { id: 'brake', label: 'BRAKE NOW', bit: 1, run: 4 },
+  { id: 'lift', label: 'LIFT OFF', bit: 0, run: 4 },
+];
+
+/** All Module D numbers live here so they can be tuned after a playtest. */
+export const RADIO_CONFIG = {
+  /** Cap on the whole round, in seconds (also capped by the shift time left). */
+  maxSeconds: 180,
+  /** Auto-skip of the PLAY / SKIP offer, so an abandoned kiosk still saves its run. */
+  offerSeconds: 20,
+  hint1SpeedFactor: 0.5, // Hint 1: the stage's stream runs at this share of its speed
+  hint1Cost: 0.4, // fraction of that stage's points
+  gen: { leadInBits: 14, minGapBits: 9, gapJitter: 3 } satisfies GenOptions,
+  stages: [
+    { commands: 6, corrupted: 0, active: 2, bps: 3, windowBits: 8, maxFlips: 1, points: 5, resend: false },
+    { commands: 8, corrupted: 3, active: 4, bps: 5, windowBits: 8, maxFlips: 1, points: 7, resend: true },
+    { commands: 10, corrupted: 4, active: 6, bps: 8, windowBits: 8, maxFlips: 2, points: 8, resend: true },
+  ] satisfies StageSpec[],
+};

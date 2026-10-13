@@ -1,6 +1,6 @@
 import Diagnostics from '../../core/Diagnostics';
 import type { ModuleStat } from '../../core/diagnose';
-import { gradeFor } from '../../core/scoring';
+import { SCORING, gradeFor } from '../../core/scoring';
 import { PAR, STATION2_CONFIG, TIPS } from '../mockStation2Data';
 
 export type Outcome = 'complete' | 'timeout' | 'forfeit';
@@ -10,6 +10,11 @@ export interface Report {
   a: number;
   b: number;
   c: number;
+  /** Module D (final push) points, 0..20. Not part of the base or the letter grade. */
+  d: number;
+  /** True when the player took the bonus round. */
+  dPlayed: boolean;
+  /** Speed bonus, frozen when Module C ended. */
   bonus: number;
   raw: number;
   grid?: number | null;
@@ -26,15 +31,16 @@ const HEAD: Record<Outcome, { title: string; tone: string; line: string }> = {
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-/** Debrief in the same layout as Stations 1 and 4: headline, score /120, rating, one card per module, diagnostics. */
+/** Debrief in the same layout as Stations 1 and 4: headline, score /140, rating, one card per module, diagnostics. */
 export default function EndScreen({ report, onRestart }: { report: Report; onRestart: () => void }) {
-  const { outcome, a, b, c, bonus, raw, diag, grid, finish } = report;
+  const { outcome, a, b, c, d, dPlayed, bonus, raw, diag, grid, finish } = report;
   const base = a + b + c;
   const head = HEAD[outcome];
   const rows = [
     { id: 'A', label: 'A · TELEMETRY', score: round1(a), max: STATION2_CONFIG.moduleMax.A },
     { id: 'B', label: 'B · ROUTES', score: round1(b), max: STATION2_CONFIG.moduleMax.B },
     { id: 'C', label: 'C · RACE', score: round1(c), max: STATION2_CONFIG.moduleMax.C },
+    ...(dPlayed ? [{ id: 'D', label: 'D · FINAL PUSH', score: round1(d), max: STATION2_CONFIG.moduleMax.D }] : []),
   ];
   const stats: ModuleStat[] = rows.map((r) => ({
     ...r,
@@ -53,10 +59,11 @@ export default function EndScreen({ report, onRestart }: { report: Report; onRes
         <p className="ws2-end__line">&gt; {head.line}</p>
         {grid ? <p className="ws2-end__line">&gt; GRID P{grid} · {finish ? `FINISH P${finish}` : 'DNF'}</p> : null}
         <p className="ws2-end__line">&gt; BASE {Math.round(base)}/100 · SPEED BONUS +{bonus}/{STATION2_CONFIG.speedBonusMax}</p>
+        {dPlayed && <p className="ws2-end__line">&gt; FINAL PUSH +{round1(d)} / {SCORING.bonusModuleMax}</p>}
         <div className="ws2-end__score">
           <div>
             <small>TOTAL SCORE</small>
-            <b>{Math.round(raw)}<span>/120</span></b>
+            <b>{Math.round(raw)}<span>/{SCORING.rawMax}</span></b>
           </div>
           <div className="ws2-end__grade"><small>RATING</small><b>{gradeFor(base)}</b></div>
         </div>
