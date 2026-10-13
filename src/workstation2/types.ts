@@ -11,16 +11,16 @@ export interface QuizQuestion {
 /** Module B: one beam between two relay sites. Latency adds, loss compounds, bandwidth is the narrowest link. */
 export interface Beam { a: string; b: string; ms: number; loss: number; mbps: number }
 
-/** The NEED lines of a lap. `mbps` is null when bandwidth is not scored (practice). */
+/** The NEED lines of a run. `mbps` is null when bandwidth is not scored (practice). */
 export interface Need { ms: number; loss: number; mbps: number | null }
 
 export type LapId = 'practice' | 'qualifying';
 
-/** One section: a route from the trackside tower (T) to the pit wall (P). Node positions are on the 1000x400 plate. */
+/** One run: a route from the trackside tower (T) to the pit wall (P). Node positions are on the 1000x400 plate. */
 export interface Section {
-  id: string; // P1..P4, Q1..Q4
+  id: string; // P1, P2, Q1, Q2
   lap: LapId;
-  index: number; // 1..4 within its lap
+  index: number; // 1..2 within its lap
   name: string; // landmark the tower stands at
   km: number;
   nodes: Record<string, { x: number; y: number }>;
