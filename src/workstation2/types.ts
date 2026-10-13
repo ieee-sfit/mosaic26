@@ -8,24 +8,24 @@ export interface QuizQuestion {
   correct: number; // index into options
 }
 
-/** Module B: one relay tower on the circuit map. `allowed` is what the TOWER SHEET lists for it. */
-export interface Tower {
-  id: string;
-  label: string; // sector name shown on the sheet
-  x: number; // map position in the 1000x400 plate
-  y: number;
-  allowed: string[];
-  /** Pre-locked at the start (not scored). */
-  anchor?: string;
-}
+/** Module B: one beam between two relay sites. Latency adds, loss compounds, bandwidth is the narrowest link. */
+export interface Beam { a: string; b: string; ms: number; loss: number; mbps: number }
 
-export interface Circuit {
-  id: string;
-  name: string;
-  channels: string[];
-  towers: Tower[];
-  /** Pairs of towers in radio range of each other: they may not share a channel. */
-  links: [string, string][];
+/** The NEED lines of a lap. `mbps` is null when bandwidth is not scored (practice). */
+export interface Need { ms: number; loss: number; mbps: number | null }
+
+export type LapId = 'practice' | 'qualifying';
+
+/** One section: a route from the trackside tower (T) to the pit wall (P). Node positions are on the 1000x400 plate. */
+export interface Section {
+  id: string; // P1..P4, Q1..Q4
+  lap: LapId;
+  index: number; // 1..4 within its lap
+  name: string; // landmark the tower stands at
+  km: number;
+  nodes: Record<string, { x: number; y: number }>;
+  beams: Beam[];
+  need: Need;
 }
 
 export interface QualityProfile { id: string; label: string; mbps: number; latencyMs: number }

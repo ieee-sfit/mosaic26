@@ -7,6 +7,8 @@ interface Props {
   label?: string;
   /** Named corners. Off for compact maps. */
   names?: boolean;
+  /** Tiny labels for the faint chicanes and Bugatti loop. */
+  faintLabels?: boolean;
 }
 
 const CHICANES = [
@@ -16,13 +18,15 @@ const CHICANES = [
 const BUGATTI = 'M 152 306 C 140 272 196 250 246 262 C 296 274 296 318 258 326 C 222 334 164 330 152 306 Z';
 
 /** Schematic circuit plate. Chicanes and the Bugatti loop are drawn faint. Children are drawn on top, in plate units. */
-export default function LeMansMap({ children, className = '', label = 'Circuit map', names = true }: Props) {
+export default function LeMansMap({ children, className = '', label = 'Circuit map', names = true, faintLabels = true }: Props) {
   return (
     <svg viewBox={`0 0 ${MAP_W} ${MAP_H}`} className={`ws2-lm ${className}`} role="group" aria-label={label}>
+      {faintLabels && (
       <g className="ws2-lm__faintlbl" aria-hidden>
         <text x="222" y="298" textAnchor="middle">BUGATTI</text>
         {CHICANES.map((c) => <text key={c.t} x={c.lx} y={c.ly} textAnchor="middle">{c.t}</text>)}
       </g>
+      )}
 
       <path d={CIRCUIT_D} className="ws2-lm__edge" />
       <path d={CIRCUIT_D} className="ws2-lm__road" />

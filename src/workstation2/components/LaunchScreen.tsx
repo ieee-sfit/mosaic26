@@ -57,7 +57,7 @@ export default function LaunchScreen({ ids, onGo, onBack }: Props) {
 
         <div className="ws2-modchips">
           <span><b>A</b> TELEMETRY <em>{STATION2_CONFIG.moduleMax.A}</em></span>
-          <span><b>B</b> RELAY TOWERS <em>{STATION2_CONFIG.moduleMax.B}</em></span>
+          <span><b>B</b> ROUTES <em>{STATION2_CONFIG.moduleMax.B}</em></span>
           <span><b>C</b> RACE <em>{STATION2_CONFIG.moduleMax.C}</em></span>
         </div>
 

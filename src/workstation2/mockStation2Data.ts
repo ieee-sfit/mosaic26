@@ -1,8 +1,8 @@
 /**
  * STATION 2 — DATA (isolated, swap this file to change content).
- * Questions, cheat-sheet columns, relay circuits and balancer stints live here, not in components.
+ * Questions, cheat-sheet columns, route sections and race stints live here, not in components.
  */
-import type { Circuit, CheatColumn, QualityProfile, QuizQuestion, Stint } from './types';
+import type { Beam, CheatColumn, LapId, Need, QualityProfile, QuizQuestion, Section, Stint } from './types';
 
 export const STATION2_CONFIG = {
   totalSeconds: 720,
@@ -22,7 +22,7 @@ export const STATION2_CONFIG = {
 export const PAR = { A: 100, B: 240, C: 300 } as const;
 export const TIPS = {
   A: 'Read the whole question, then check the cheat sheet before guessing.',
-  B: 'Start with the anchor tower. Its neighbours cannot match it.',
+  B: 'Check every NEED line before you send. Latency adds, loss compounds, bandwidth is the narrowest link.',
   C: 'Fix the node over 80% first, then latency, then quality. Use the relay only if a node cannot cope.',
 } as const;
 
@@ -73,38 +73,127 @@ export const QUESTION_BANK: QuizQuestion[] = [
 
 // ---------------------------------------------------------------- MODULE B
 /**
- * Relay tower channel plan. Rule: towers joined by a link may not share a channel.
- * Each tower can only use the channels its row on the TOWER SHEET lists. Anchors are pre-locked.
- * A lock is accepted when the plan can still be completed, so any valid plan scores (see logic.ts).
- * Every circuit has 5 towers, 1 anchor and 4 scored towers (8 scored towers x 5 pts = 40).
+ * Route builder. Each section is a route from the trackside tower (T) to the pit wall (P) over relay sites.
+ *   latency adds along the route, loss compounds (1 - product of what survives), bandwidth is the narrowest beam.
+ * Any route that meets every NEED line scores full marks (rule-based; see routes in logic.ts).
+ * PRACTICE scores latency and loss with generous limits. QUALIFYING adds bandwidth with tighter limits.
+ * Two laps x 4 sections x 5 points = 40. Every section has at least one valid route and several tempting wrong ones.
  */
-export const CIRCUITS: Circuit[] = [
-  {
-    id: 'c1',
-    name: 'CIRCUIT 1',
-    channels: ['CH-03', 'CH-07', 'CH-11'],
-    towers: [
-      { id: 'T1', label: 'MULSANNE', x: 800, y: 134, allowed: ['CH-03', 'CH-07'] },
-      { id: 'T2', label: 'INDIANAPOLIS', x: 822, y: 258, allowed: ['CH-03', 'CH-07', 'CH-11'] },
-      { id: 'T3', label: 'ARNAGE', x: 620, y: 262, allowed: ['CH-07', 'CH-11'] },
-      { id: 'T4', label: 'S-CURVES', x: 450, y: 250, allowed: ['CH-03', 'CH-07', 'CH-11'] },
-      { id: 'T5', label: 'PIT WALL', x: 330, y: 296, allowed: ['CH-11'], anchor: 'CH-11' },
-    ],
-    links: [['T1', 'T2'], ['T2', 'T3'], ['T3', 'T4'], ['T4', 'T5'], ['T5', 'T1'], ['T2', 'T5']],
-  },
-  {
-    id: 'c2',
-    name: 'CIRCUIT 2',
-    channels: ['CH-03', 'CH-07', 'CH-11', 'CH-14'],
-    towers: [
-      { id: 'T1', label: 'DUNLOP', x: 206, y: 250, allowed: ['CH-03', 'CH-07', 'CH-14'] },
-      { id: 'T2', label: 'HUNAUDIERES', x: 470, y: 138, allowed: ['CH-07', 'CH-11'] },
-      { id: 'T3', label: 'TERTRE ROUGE', x: 236, y: 136, allowed: ['CH-11'], anchor: 'CH-11' },
-      { id: 'T4', label: 'PITS', x: 420, y: 262, allowed: ['CH-07', 'CH-11', 'CH-14'] },
-      { id: 'T5', label: 'INDY', x: 690, y: 236, allowed: ['CH-03', 'CH-07', 'CH-11'] },
-    ],
-    links: [['T1', 'T2'], ['T2', 'T3'], ['T3', 'T4'], ['T4', 'T5'], ['T5', 'T1'], ['T3', 'T5']],
-  },
+export const LAP_NEED: Record<LapId, Need> = {
+  practice: { ms: 82, loss: 3.0, mbps: null },
+  qualifying: { ms: 64, loss: 1.6, mbps: 400 },
+};
+export const LAP_LABEL: Record<LapId, string> = { practice: 'PRACTICE', qualifying: 'QUALIFYING' };
+export const SECTIONS_PER_LAP = 4;
+export const POINTS_PER_SECTION = 5;
+
+/** Landmark names and lap shares (km) of the four sections; they sum to the 13.629 km lap. */
+const SITE: Record<'1' | '2' | '3' | '4', { name: string; km: number; nodes: Record<string, readonly [number, number]> }> = {
+  '1': { name: 'ESSES', km: 3.12, nodes: { T: [104, 198], A: [190, 152], B: [358, 234], C: [513, 138], D: [625, 281], P: [330, 318] } },
+  '2': { name: 'MULSANNE', km: 4.46, nodes: { T: [520, 84], A: [330, 150], B: [710, 150], C: [236, 222], D: [520, 232], E: [810, 232], P: [330, 318] } },
+  '3': { name: 'INDY', km: 3.3, nodes: { T: [876, 222], A: [700, 130], B: [700, 285], C: [540, 200], D: [420, 238], P: [330, 318] } },
+  '4': { name: 'S-CURVES', km: 2.749, nodes: { T: [700, 300], A: [600, 200], B: [820, 205], C: [430, 140], D: [500, 275], P: [330, 318] } },
+};
+
+const sec = (id: string, lap: LapId, rows: (readonly [string, string, number, number, number])[]): Section => {
+  const index = Number(id[1]);
+  const site = SITE[String(index) as '1' | '2' | '3' | '4'];
+  const nodes = Object.fromEntries(Object.entries(site.nodes).map(([k, [x, y]]) => [k, { x, y }]));
+  const beams: Beam[] = rows.map(([a, b, ms, loss, mbps]) => ({ a, b, ms, loss, mbps }));
+  return { id, lap, index, name: site.name, km: site.km, nodes, beams, need: LAP_NEED[lap] };
+};
+
+export const SECTIONS: Section[] = [
+  sec('P1', 'practice', [
+    ['A', 'T', 14, 0.4, 800],
+    ['B', 'T', 16, 2.5, 150],
+    ['A', 'B', 21, 0.3, 150],
+    ['A', 'C', 26, 0.8, 500],
+    ['B', 'C', 26, 0.8, 500],
+    ['B', 'D', 24, 0.6, 150],
+    ['C', 'D', 14, 0.2, 250],
+    ['C', 'P', 18, 2.5, 200],
+    ['D', 'P', 19, 0.2, 500],
+  ]),
+  sec('P2', 'practice', [
+    ['A', 'T', 13, 0.2, 500],
+    ['B', 'T', 17, 0.6, 500],
+    ['D', 'T', 21, 2.5, 1000],
+    ['A', 'C', 24, 0.2, 500],
+    ['A', 'D', 16, 1.5, 400],
+    ['B', 'D', 26, 0.2, 800],
+    ['B', 'E', 13, 1.5, 200],
+    ['D', 'E', 19, 0.1, 300],
+    ['C', 'P', 17, 0.1, 200],
+    ['D', 'P', 23, 0.6, 1000],
+  ]),
+  sec('P3', 'practice', [
+    ['A', 'T', 17, 1, 1000],
+    ['B', 'T', 22, 0.8, 200],
+    ['A', 'B', 13, 0.1, 800],
+    ['A', 'C', 23, 0.2, 200],
+    ['B', 'C', 24, 0.6, 1000],
+    ['C', 'D', 19, 0.1, 600],
+    ['D', 'P', 14, 1, 150],
+    ['C', 'P', 36, 2, 500],
+    ['B', 'D', 32, 2, 250],
+  ]),
+  sec('P4', 'practice', [
+    ['A', 'T', 21, 1.5, 600],
+    ['B', 'T', 21, 1.2, 800],
+    ['D', 'T', 17, 2.5, 400],
+    ['A', 'B', 18, 1.2, 500],
+    ['A', 'C', 18, 0.1, 800],
+    ['A', 'D', 22, 0.6, 400],
+    ['C', 'D', 19, 1, 150],
+    ['C', 'P', 26, 0.3, 1000],
+    ['D', 'P', 15, 0.6, 600],
+  ]),
+  sec('Q1', 'qualifying', [
+    ['A', 'T', 25, 0.4, 800],
+    ['B', 'T', 16, 0.1, 400],
+    ['A', 'B', 21, 0.6, 1000],
+    ['A', 'C', 24, 0.4, 800],
+    ['B', 'C', 18, 0.6, 500],
+    ['B', 'D', 22, 1.5, 500],
+    ['C', 'D', 12, 0.2, 400],
+    ['C', 'P', 26, 0.2, 150],
+    ['D', 'P', 14, 0.4, 400],
+  ]),
+  sec('Q2', 'qualifying', [
+    ['A', 'T', 21, 0.2, 400],
+    ['B', 'T', 23, 0.1, 400],
+    ['D', 'T', 26, 1.2, 400],
+    ['A', 'C', 16, 0.3, 250],
+    ['A', 'D', 16, 0.2, 1000],
+    ['B', 'D', 26, 0.4, 600],
+    ['B', 'E', 11, 1.2, 800],
+    ['D', 'E', 20, 0.3, 500],
+    ['C', 'P', 12, 0.2, 200],
+    ['D', 'P', 20, 1, 500],
+  ]),
+  sec('Q3', 'qualifying', [
+    ['A', 'T', 15, 0.3, 400],
+    ['B', 'T', 11, 0.3, 800],
+    ['A', 'B', 14, 1, 150],
+    ['A', 'C', 19, 0.4, 1000],
+    ['B', 'C', 16, 0.3, 400],
+    ['C', 'D', 16, 0.2, 500],
+    ['D', 'P', 18, 0.4, 1000],
+    ['C', 'P', 32, 1.2, 1000],
+    ['B', 'D', 29, 0.8, 200],
+  ]),
+  sec('Q4', 'qualifying', [
+    ['A', 'T', 11, 0.2, 1000],
+    ['B', 'T', 11, 0.6, 500],
+    ['D', 'T', 21, 2.5, 150],
+    ['A', 'B', 15, 0.4, 1000],
+    ['A', 'C', 21, 0.3, 800],
+    ['A', 'D', 13, 0.8, 250],
+    ['C', 'D', 13, 2, 500],
+    ['C', 'P', 20, 0.1, 1000],
+    ['D', 'P', 15, 0.6, 500],
+  ]),
 ];
 
 // ---------------------------------------------------------------- MODULE C

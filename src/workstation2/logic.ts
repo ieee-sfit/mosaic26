@@ -1,5 +1,5 @@
 import { QUALITY_PROFILES, QUESTION_BANK, STATION2_CONFIG } from './mockStation2Data';
-import type { Circuit, QuizQuestion, Stint } from './types';
+import type { Beam, QuizQuestion, Section, Stint } from './types';
 
 export function shuffle<T>(arr: T[]): T[] {
   const a = arr.slice();
@@ -39,54 +39,72 @@ export function itemPoints(base: number, hint: 0 | 1 | 2, wrong: number): number
   return Math.max(0, Math.round(base * frac * 100) / 100);
 }
 
-// ---------------------------------------------------------------- Module B: channel plan
-export type Plan = Record<string, string>; // tower id -> channel
+// ---------------------------------------------------------------- Module B: route builder
+export interface Metrics { ms: number; loss: number; mbps: number }
+export interface Verdict { lat: boolean; loss: boolean; bw: boolean; ok: boolean }
 
-export const anchorsOf = (c: Circuit): Plan =>
-  Object.fromEntries(c.towers.filter((t) => t.anchor).map((t) => [t.id, t.anchor as string]));
+const beamKey = (a: string, b: string) => (a < b ? `${a}${b}` : `${b}${a}`);
+const beamOf = (s: Section, a: string, b: string): Beam | undefined => s.beams.find((x) => beamKey(x.a, x.b) === beamKey(a, b));
 
-export const neighbours = (c: Circuit, id: string): string[] =>
-  c.links.filter(([a, b]) => a === id || b === id).map(([a, b]) => (a === id ? b : a));
+/** Sites that have a beam to `id`. */
+export const neighbours = (s: Section, id: string): string[] =>
+  s.beams.filter((b) => b.a === id || b.b === id).map((b) => (b.a === id ? b.b : b.a));
 
-/** Every complete valid plan that extends `fixed` (stops after `limit`). */
-export function solutions(c: Circuit, fixed: Plan, limit = 64): Plan[] {
-  const out: Plan[] = [];
-  const free = c.towers.filter((t) => !(t.id in fixed));
-  const walk = (i: number, plan: Plan) => {
-    if (out.length >= limit) return;
-    if (i === free.length) { out.push({ ...plan }); return; }
-    const t = free[i];
-    for (const ch of t.allowed) {
-      if (neighbours(c, t.id).some((n) => plan[n] === ch)) continue;
-      plan[t.id] = ch;
-      walk(i + 1, plan);
-      delete plan[t.id];
+/**
+ * Totals for a route (an ordered list of sites, T first):
+ * latency adds, loss compounds (1 - product of what survives each beam), bandwidth is the narrowest beam.
+ * A route with no beam yet has zero latency and loss and unlimited bandwidth (shown as the tower's best).
+ */
+export function metricsOf(s: Section, route: string[]): Metrics {
+  let ms = 0;
+  let keep = 1;
+  let mbps = Infinity;
+  for (let i = 0; i + 1 < route.length; i++) {
+    const b = beamOf(s, route[i], route[i + 1]);
+    if (!b) continue;
+    ms += b.ms;
+    keep *= 1 - b.loss / 100;
+    mbps = Math.min(mbps, b.mbps);
+  }
+  return { ms, loss: Math.round((1 - keep) * 10000) / 100, mbps };
+}
+
+/** Each NEED line separately, then all together. Bandwidth only counts when the lap scores it. */
+export function verdictOf(s: Section, m: Metrics): Verdict {
+  const lat = m.ms <= s.need.ms;
+  const loss = m.loss <= s.need.loss;
+  const bw = s.need.mbps === null || m.mbps >= s.need.mbps;
+  return { lat, loss, bw, ok: lat && loss && bw };
+}
+
+/** Every simple route from T to P. */
+export function allRoutes(s: Section): string[][] {
+  const out: string[][] = [];
+  const walk = (route: string[]) => {
+    const last = route[route.length - 1];
+    if (last === 'P') { out.push(route.slice()); return; }
+    for (const n of neighbours(s, last)) {
+      if (route.includes(n)) continue;
+      route.push(n);
+      walk(route);
+      route.pop();
     }
   };
-  walk(0, { ...fixed });
+  walk(['T']);
   return out;
 }
 
-export type LockResult =
-  | { ok: true }
-  | { ok: false; reason: 'unsupported' | 'clash' | 'dead'; with?: string };
+/** Routes that meet every NEED line (the rule-based answer set). */
+export const validRoutes = (s: Section): string[][] => allRoutes(s).filter((r) => verdictOf(s, metricsOf(s, r)).ok);
 
-/**
- * Rule-based check, not a single answer key: a lock is accepted when the channel is on the tower's sheet row,
- * no linked tower already holds it, and the rest of the circuit can still be completed.
- */
-export function checkLock(c: Circuit, plan: Plan, towerId: string, ch: string): LockResult {
-  const t = c.towers.find((x) => x.id === towerId);
-  if (!t || !t.allowed.includes(ch)) return { ok: false, reason: 'unsupported' };
-  const clash = neighbours(c, towerId).find((n) => plan[n] === ch);
-  if (clash) return { ok: false, reason: 'clash', with: clash };
-  return solutions(c, { ...plan, [towerId]: ch }, 1).length ? { ok: true } : { ok: false, reason: 'dead' };
+/** A route Hint 2 can send (fewest hops among the valid ones). Null only if a section was authored without an answer. */
+export function solveSection(s: Section): string[] | null {
+  return validRoutes(s).sort((a, b) => a.length - b.length)[0] ?? null;
 }
 
-/** A channel Hint 2 can lock for this tower (always completable). */
-export function solveTower(c: Circuit, plan: Plan, towerId: string): string | null {
-  return solutions(c, plan, 1)[0]?.[towerId] ?? null;
-}
+export const fmtMs = (n: number) => `${Math.round(n)} ms`;
+export const fmtLoss = (n: number) => `${n.toFixed(2).replace(/0$/, '')}%`;
+export const fmtMbps = (n: number) => (Number.isFinite(n) ? `${Math.round(n)}` : '--');
 
 // ---------------------------------------------------------------- Module C: balancer
 export interface Controls { split: number; qualityIdx: number; divert: boolean }

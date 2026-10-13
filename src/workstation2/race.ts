@@ -69,3 +69,59 @@ export function rankAmong(time: number, others: readonly number[]): number {
 }
 export const gridPosition = (qualiSec: number) => rankAmong(qualiSec, RIVALS.map((r) => r.quali));
 export const racePosition = (totalSec: number) => rankAmong(totalSec, RIVALS.map(rivalTotal));
+
+// ---------------------------------------------------------------- timing boards
+export type BoardKind = 'quali' | 'race' | 'dnf';
+
+export interface BoardRow {
+  key: string;
+  /** null = did not finish. */
+  pos: number | null;
+  code: string;
+  num: number;
+  hue: string;
+  best: number | null;
+  total: number | null;
+  /** Gap to the leader, already formatted ('' for the leader). */
+  gap: string;
+  you: boolean;
+  /** Where the car is parked on the circuit once the reveal ends (fraction of the lap). */
+  frac: number;
+}
+
+export interface BoardResult { rows: BoardRow[]; youPos: number | null; leader: number }
+
+/**
+ * Builds a timing table from scripted rivals plus the player. Qualifying is ranked on one lap, the race on total time,
+ * and a DNF player is listed after everyone who finished. Positions are rank-in-list, so they can never exceed the field.
+ */
+export function buildBoard(kind: BoardKind, you: { best: number | null; total: number | null }): BoardResult {
+  const youKey = 'you';
+  type Entry = { key: string; time: number; r?: Rival; you: boolean };
+  const entries: Entry[] = RIVALS.map((r) => ({ key: `r${r.num}`, time: kind === 'quali' ? r.quali : rivalTotal(r), r, you: false }));
+  const youTime = kind === 'quali' ? you.best : you.total;
+  if (kind !== 'dnf' && youTime !== null) entries.push({ key: youKey, time: youTime, you: true });
+  // stable sort: on a tie the player is listed behind the rival
+  entries.sort((a, b) => a.time - b.time || Number(a.you) - Number(b.you));
+  const leader = entries[0].time;
+  const worst = Math.max(...entries.map((e) => e.time));
+  const spread = Math.max(1e-6, worst - leader);
+  const frac = (t: number) => 1 - 0.88 * ((t - leader) / spread);
+
+  const rows: BoardRow[] = entries.map((e, i) => ({
+    key: e.key,
+    pos: i + 1,
+    code: e.you ? 'YOU' : (e.r as Rival).code,
+    num: e.you ? YOU_NUM : (e.r as Rival).num,
+    hue: e.you ? '#dc2626' : (e.r as Rival).hue,
+    best: e.you ? you.best : kind === 'quali' ? (e.r as Rival).quali : rivalBest(e.r as Rival),
+    total: kind === 'quali' ? null : e.you ? you.total : rivalTotal(e.r as Rival),
+    gap: fmtGap(e.time - leader),
+    you: e.you,
+    frac: frac(e.time),
+  }));
+  if (kind === 'dnf' || youTime === null) {
+    rows.push({ key: youKey, pos: null, code: 'YOU', num: YOU_NUM, hue: '#dc2626', best: you.best, total: null, gap: '', you: true, frac: 0.1 });
+  }
+  return { rows, youPos: rows.find((r) => r.you)?.pos ?? null, leader };
+}

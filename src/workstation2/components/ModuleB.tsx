@@ -1,219 +1,280 @@
 import { useEffect, useRef, useState } from 'react';
-import { CIRCUITS, STATION2_CONFIG } from '../mockStation2Data';
-import { anchorsOf, checkLock, fmt, itemPoints, neighbours, solveTower } from '../logic';
-import type { Plan } from '../logic';
-import type { Tower } from '../types';
+import { LAP_LABEL, POINTS_PER_SECTION, SECTIONS, SECTIONS_PER_LAP, STATION2_CONFIG } from '../mockStation2Data';
+import { fmt, fmtLoss, fmtMbps, itemPoints, metricsOf, neighbours, solveSection, verdictOf } from '../logic';
+import { fmtLap, secondsFor, speedFor } from '../race';
 import HintDock from '../../core/HintDock';
 import type { HintLevel } from '../../core/HintDock';
-import Panel from './Panel';
 import LeMansMap from './LeMansMap';
+import { PILL_H, PILL_W, pillPositions } from '../pills';
+import Panel from './Panel';
+import type { LapId, Section } from '../types';
 import type { Track } from '../Station2';
+
+export interface RouteSummary {
+  practice: { pts: number; sec: number };
+  qualifying: { pts: number; sec: number };
+}
 
 interface Props {
   onScore: (total: number) => void;
-  onDone: () => void;
+  onDone: (summary: RouteSummary) => void;
   onShake: () => void;
   track: Track;
 }
 
-interface TState { ch: string | null; wrong: number; struck: string[]; hint: HintLevel; pts: number }
-const fresh = (): TState => ({ ch: null, wrong: 0, struck: [], hint: 0, pts: 0 });
+interface Tries { wrong: number; hint: HintLevel }
+const LAPS: LapId[] = ['practice', 'qualifying'];
+const PTS = POINTS_PER_SECTION;
+const labelOf = (id: string) => (id === 'T' ? 'TWR' : id === 'P' ? 'PIT' : id);
 
-const SCORED = CIRCUITS.reduce((n, c) => n + c.towers.filter((t) => !t.anchor).length, 0);
-const PER_TOWER = STATION2_CONFIG.moduleMax.B / SCORED;
-const short = (ch: string) => ch.replace('CH-', '');
+const PILLS = Object.fromEntries(SECTIONS.map((s) => [s.id, pillPositions(s)]));
+const lapOf = (lap: LapId) => SECTIONS.filter((s) => s.lap === lap);
+/** Lap time = sum over its sections of (km / speed earned by that section's points). Points only, never the clock. */
+function lapSummary(lap: LapId, pts: Record<string, number>) {
+  const secs = lapOf(lap);
+  const total = secs.reduce((n, s) => n + (pts[s.id] ?? 0), 0);
+  const sec = secs.reduce((n, s) => n + secondsFor(s.km, (pts[s.id] ?? 0) / PTS), 0);
+  return { pts: total, sec };
+}
 
-const REASON = {
-  unsupported: (ch: string) => `${ch} IS NOT ON THE SHEET`,
-  clash: (_ch: string, w?: string) => `CLASH WITH ${w}`,
-  dead: () => 'DEAD END: BLOCKS ANOTHER TOWER',
-} as const;
-
-/** Module B: give every relay tower a channel. Linked towers may not share one. Any valid plan scores. */
+/** Module B: build the route from the trackside tower to the pit wall that meets every NEED line. */
 export default function ModuleB({ onScore, onDone, onShake, track }: Props) {
-  const [ci, setCi] = useState(0);
-  const circuit = CIRCUITS[ci];
-  const [tw, setTw] = useState<Record<string, TState>>({});
-  const [sel, setSel] = useState<string | null>(null);
+  const [si, setSi] = useState(0);
+  const [route, setRoute] = useState<string[]>(['T']);
+  const [pts, setPts] = useState<Record<string, number>>({});
+  const [tries, setTries] = useState<Record<string, Tries>>({});
+  const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'bad' | 'info'; text: string }>({ kind: 'info', text: '' });
-  const [bad, setBad] = useState<{ n: number; a: string; b?: string } | null>(null);
-  const [cleared, setCleared] = useState(false);
+  const [bad, setBad] = useState(0);
+  const [banner, setBanner] = useState<string | null>(null);
   const timers = useRef<number[]>([]);
-  const doneRef = useRef(onDone);
-  useEffect(() => { doneRef.current = onDone; });
+  const cb = useRef({ onDone, onScore });
+  useEffect(() => { cb.current = { onDone, onScore }; });
   useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
   const later = (fn: () => void, ms: number) => { timers.current.push(window.setTimeout(fn, ms)); };
 
-  const key = (t: Tower) => `${circuit.id}:${t.id}`;
-  const get = (t: Tower): TState => tw[key(t)] ?? fresh();
-  const scored = circuit.towers.filter((t) => !t.anchor);
-  const open = scored.filter((t) => !get(t).ch);
-  const cur = open.find((t) => t.id === sel) ?? open[0] ?? null;
-  const curState = cur ? get(cur) : null;
-  const total = Object.values(tw).reduce((n, x) => n + x.pts, 0);
+  const sec: Section = SECTIONS[si];
+  const lap = sec.lap;
+  const secs = lapOf(lap);
+  const t = tries[sec.id] ?? { wrong: 0, hint: 0 as HintLevel };
+  const last = route[route.length - 1];
+  const complete = last === 'P';
+  const m = metricsOf(sec, route);
+  const v = verdictOf(sec, m);
+  const started = route.length > 1;
+  const open = !busy && !complete ? neighbours(sec, last).filter((n) => !route.includes(n)) : [];
+  const total = Object.values(pts).reduce((n, x) => n + x, 0);
+  const onRoute = (a: string, b: string) => route.some((r, i) => i > 0 && ((route[i - 1] === a && r === b) || (route[i - 1] === b && r === a)));
 
-  const plan: Plan = { ...anchorsOf(circuit) };
-  for (const t of scored) { const c = get(t).ch; if (c) plan[t.id] = c; }
-  const lockedCount = scored.length - open.length;
+  const patchTries = (p: Partial<Tries>) => setTries((all) => ({ ...all, [sec.id]: { ...t, ...p } }));
 
-  // advance to the next circuit (or finish) once everything is locked
-  useEffect(() => {
-    if (!cleared) return undefined;
-    const t = window.setTimeout(() => {
-      if (ci + 1 < CIRCUITS.length) { setCi(ci + 1); setSel(null); setCleared(false); setMsg({ kind: 'info', text: '' }); }
-      else doneRef.current();
-    }, 1200);
-    return () => window.clearTimeout(t);
-  }, [cleared, ci]);
-
-  const commit = (t: Tower, ch: string, hint: HintLevel, wrong: number) => {
-    const pts = itemPoints(PER_TOWER, hint, wrong);
-    setTw((all) => ({ ...all, [key(t)]: { ...(all[key(t)] ?? fresh()), ch, hint, wrong, pts } }));
-    onScore(total + pts);
-    setMsg({ kind: 'ok', text: `${t.id} LOCKED ${ch} · +${fmt(pts, 1)}` });
-    setBad(null);
-    const left = open.filter((o) => o.id !== t.id);
-    setSel(left[0]?.id ?? null);
-    if (!left.length) later(() => setCleared(true), 400);
+  const pick = (id: string) => {
+    if (busy) return;
+    const at = route.indexOf(id);
+    if (at > 0) { setRoute(route.slice(0, at)); setMsg({ kind: 'info', text: '' }); return; }
+    if (at === 0) { setRoute(['T']); return; }
+    if (complete) return;
+    if (!neighbours(sec, last).includes(id)) { setMsg({ kind: 'info', text: `NO BEAM ${labelOf(last)} TO ${labelOf(id)}` }); return; }
+    setRoute([...route, id]);
+    setMsg({ kind: 'info', text: '' });
   };
 
-  const press = (ch: string) => {
-    if (!cur || !curState || cleared) return;
-    const res = checkLock(circuit, plan, cur.id, ch);
-    if (res.ok) { commit(cur, ch, curState.hint, curState.wrong); return; }
-    setTw((all) => ({ ...all, [key(cur)]: { ...curState, wrong: curState.wrong + 1, struck: [...curState.struck, ch] } }));
-    setMsg({ kind: 'bad', text: res.reason === 'clash' ? REASON.clash(ch, res.with) : res.reason === 'dead' ? REASON.dead() : REASON.unsupported(ch) });
-    setBad({ n: Date.now(), a: cur.id, b: res.reason === 'clash' ? res.with : undefined });
-    track('B', 'wrong', `${cur.id} ${res.reason.toUpperCase()}`);
+  const advance = (nextPts: Record<string, number>) => {
+    const nextIdx = si + 1;
+    if (nextIdx >= SECTIONS.length) {
+      cb.current.onDone({ practice: lapSummary('practice', nextPts), qualifying: lapSummary('qualifying', nextPts) });
+      return;
+    }
+    const reset = () => { setSi(nextIdx); setRoute(['T']); setMsg({ kind: 'info', text: '' }); setBusy(false); };
+    if (SECTIONS[nextIdx].lap !== lap) {
+      setBanner(`${LAP_LABEL[lap]} ${fmtLap(lapSummary(lap, nextPts).sec)}`);
+      later(() => { setBanner(null); reset(); }, 1700);
+      return;
+    }
+    reset();
+  };
+
+  const commit = (hint: HintLevel, wrong: number) => {
+    const earned = itemPoints(PTS, hint, wrong);
+    const nextPts = { ...pts, [sec.id]: earned };
+    setPts(nextPts);
+    cb.current.onScore(Object.values(nextPts).reduce((n, x) => n + x, 0));
+    setBusy(true);
+    setMsg({ kind: 'ok', text: `S${sec.index} +${fmt(earned, 1)} · ${Math.round(speedFor(earned / PTS))} km/h` });
+    later(() => advance(nextPts), 1100);
+  };
+
+  const send = () => {
+    if (busy || !complete) return;
+    if (v.ok) { commit(t.hint, t.wrong); return; }
+    patchTries({ wrong: t.wrong + 1 });
+    const why = [
+      !v.lat && `LATENCY ${Math.round(m.ms)} > ${sec.need.ms}`,
+      !v.loss && `LOSS ${fmtLoss(m.loss)} > ${fmtLoss(sec.need.loss)}`,
+      !v.bw && `BANDWIDTH ${fmtMbps(m.mbps)} < ${sec.need.mbps}`,
+    ].filter(Boolean)[0] as string;
+    setMsg({ kind: 'bad', text: `${why} · -${STATION2_CONFIG.wrongAnswerPenalty * 100}%` });
+    setBad((n) => n + 1);
+    track('B', 'wrong', `${sec.id} ${!v.lat ? 'LAT' : !v.loss ? 'LOSS' : 'BW'}`);
     onShake();
-    later(() => setBad(null), 900);
   };
 
   const hint = (next: 1 | 2) => {
-    if (!cur || !curState || cleared || curState.hint >= next) return;
-    track('B', 'hint', `${cur.id} H${next}`);
-    if (next === 1) { setTw((all) => ({ ...all, [key(cur)]: { ...curState, hint: 1 } })); return; }
-    const ch = solveTower(circuit, plan, cur.id);
-    if (ch) commit(cur, ch, 2, curState.wrong);
+    if (busy || t.hint >= next) return;
+    track('B', 'hint', `${sec.id} H${next}`);
+    if (next === 1) { patchTries({ hint: 1 }); return; }
+    const sol = solveSection(sec);
+    if (!sol) return;
+    patchTries({ hint: 2 });
+    setRoute(sol);
+    setBusy(true);
+    setMsg({ kind: 'info', text: 'AUTO-SENT · 0 PTS' });
+    later(() => commit(2, t.wrong), 1000);
   };
 
-  const linkedToCur = cur ? neighbours(circuit, cur.id) : [];
-  const hinted = !!curState && curState.hint >= 1;
-  const byId = (id: string) => circuit.towers.find((t) => t.id === id) as Tower;
+  const hint1 = !complete
+    ? 'Block 5: latency adds, loss compounds, bandwidth is the narrowest beam. Pick a route, then read the ticks.'
+    : !v.lat
+      ? 'Block 5: latency adds along the route. Use fewer or faster beams.'
+      : !v.loss
+        ? 'Block 5: loss compounds beam after beam. Avoid the lossy beam.'
+        : !v.bw
+          ? 'Block 5: bandwidth is the narrowest beam on the route. Raise the weakest one.'
+          : 'Block 5: every NEED line passes. Send it.';
+
+  const rows = [
+    { id: 'lat', label: 'LATENCY', now: started ? `${Math.round(m.ms)} ms` : '--', need: `≤ ${sec.need.ms} ms`, ok: v.lat },
+    { id: 'loss', label: 'LOSS', now: started ? fmtLoss(m.loss) : '--', need: `≤ ${fmtLoss(sec.need.loss)}`, ok: v.loss },
+    ...(sec.need.mbps !== null ? [{ id: 'bw', label: 'BANDWIDTH', now: started ? `${fmtMbps(m.mbps)} M` : '--', need: `≥ ${sec.need.mbps} M`, ok: v.bw }] : []),
+  ];
+  const okCount = rows.filter((r) => r.ok).length;
+  const lapDone = secs.every((s) => s.id in pts);
+  const sum = lapSummary(lap, pts);
 
   return (
-    <section className="ws2-modB ws2-in" aria-label="Module B relay towers">
+    <section className="ws2-modB ws2-in" aria-label="Module B route builder">
       <div className="ws2-modhead">
-        <b>MODULE B</b><span>RELAY TOWERS</span>
+        <b>MODULE B</b><span>ROUTES</span>
         <em>{fmt(total, 1)} / {STATION2_CONFIG.moduleMax.B}</em>
       </div>
 
-      <div className="ws2-modB__grid">
-        <div className="ws2-modB__main">
-          <Panel title={`CIRCUIT ${ci + 1}/${CIRCUITS.length}`} tag={`${lockedCount}/${scored.length} LOCKED`} className="ws2-mapplate">
-            <LeMansMap className={`ws2-map ${cleared ? 'is-cleared' : ''}`} label="Relay tower map">
+      <div className="ws2-laptabs" role="list">
+        {LAPS.map((l) => (
+          <div key={l} role="listitem" className={`ws2-laptab ${l === lap ? 'is-now' : ''} ${lapOf(l).every((s) => s.id in pts) ? 'is-done' : ''}`}>
+            <b>{LAP_LABEL[l]}</b>
+            <span className="ws2-laptab__pips" aria-label={`${lapOf(l).filter((s) => s.id in pts).length} of ${SECTIONS_PER_LAP} sections done`}>
+              {lapOf(l).map((s) => <i key={s.id} className={s.id in pts ? 'on' : s.id === sec.id ? 'now' : ''} />)}
+            </span>
+          </div>
+        ))}
+        <span className="ws2-laptabs__tip">SECTION {sec.index}/{SECTIONS_PER_LAP} · {sec.name}</span>
+      </div>
 
-              {circuit.links.map(([a, b]) => {
-                const A = byId(a); const B = byId(b);
-                const both = !!plan[a] && !!plan[b];
-                const focus = cur && (a === cur.id || b === cur.id);
-                const flash = bad && bad.b && ((bad.a === a && bad.b === b) || (bad.a === b && bad.b === a));
-                return (
-                  <line
-                    key={`${a}${b}${flash ? bad?.n : ''}`} x1={A.x} y1={A.y - 12} x2={B.x} y2={B.y - 12}
-                    className={`ws2-link ${both ? 'is-both' : ''} ${focus ? 'is-focus' : ''} ${flash ? 'is-bad' : ''}`}
-                  />
-                );
-              })}
-
-              {circuit.towers.map((t) => {
-                const s = t.anchor ? null : get(t);
-                const ch = t.anchor ?? s?.ch ?? null;
-                const isSel = cur?.id === t.id;
-                const ring = hinted && linkedToCur.includes(t.id);
-                const flash = bad && bad.a === t.id;
-                return (
-                  <g
-                    key={`${t.id}${flash ? bad?.n : ''}`} transform={`translate(${t.x} ${t.y})`}
-                    className={`ws2-tower ${ch ? 'is-lit' : ''} ${isSel ? 'is-sel' : ''} ${t.anchor ? 'is-anchor' : ''} ${ring ? 'is-ring' : ''} ${flash ? 'is-bad' : ''}`}
-                    role="button" tabIndex={t.anchor || ch ? -1 : 0}
-                    aria-label={`Tower ${t.id} ${t.label}${ch ? `, ${ch}` : ''}`}
-                    onClick={() => { if (!t.anchor && !ch) setSel(t.id); }}
-                    onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !t.anchor && !ch) setSel(t.id); }}
-                  >
-                    <rect x="-26" y="-52" width="52" height="52" className="ws2-tower__halo" />
-                    <rect x="-30" y="-56" width="60" height="60" className="ws2-tower__pulse" />
-                    <path d="M -9 12 L 0 -22 L 9 12 Z" className="ws2-tower__mast" />
-                    <path d="M -6 2 L 6 2 M -4 -8 L 4 -8" className="ws2-tower__bars" />
-                    <rect x="-8" y="-38" width="16" height="16" className="ws2-tower__lamp" />
-                    <rect x="-40" y="16" width="80" height="24" className="ws2-tower__plate" />
-                    <text y="33" textAnchor="middle" className="ws2-tower__txt">{t.id} · {ch ? short(ch) : '--'}</text>
-                    {t.anchor && <text y="58" textAnchor="middle" className="ws2-tower__anchor">ANCHOR</text>}
-                    <rect x="-44" y="-56" width="88" height="116" className="ws2-tower__hit" />
-                  </g>
-                );
-              })}
+      <div className="ws2-bgrid">
+        <div className="ws2-bmain">
+          <Panel title="TOWER → PIT WALL" tag={`${LAP_LABEL[lap]} · S${sec.index}`} className="ws2-bmap">
+            <LeMansMap className={`ws2-map ${banner ? 'is-dim' : ''}`} label={`Route map, section ${sec.index}`} names>
+              <g className="ws2-rb">
+                {sec.beams.map((b) => {
+                  const A = sec.nodes[b.a]; const B = sec.nodes[b.b];
+                  const live = onRoute(b.a, b.b);
+                  const next = (b.a === last && open.includes(b.b)) || (b.b === last && open.includes(b.a));
+                  return (
+                    <line key={`${b.a}${b.b}`} x1={A.x} y1={A.y} x2={B.x} y2={B.y} className={`ws2-beam ${live ? 'is-route' : ''} ${next ? 'is-next' : ''}`} />
+                  );
+                })}
+                {sec.beams.map((b) => {
+                  const at = PILLS[sec.id][`${b.a}${b.b}`];
+                  const live = onRoute(b.a, b.b);
+                  return (
+                    <g key={`p${b.a}${b.b}`} transform={`translate(${at.x} ${at.y})`} className={`ws2-pill ${live ? 'is-route' : ''}`} aria-hidden>
+                      <rect x={-PILL_W / 2} y={-PILL_H / 2} width={PILL_W} height={PILL_H} />
+                      <text y="-3" textAnchor="middle">{b.ms}ms {b.loss}%</text>
+                      <text y="14" textAnchor="middle" className={sec.need.mbps === null ? 'is-dim' : ''}>{b.mbps}M</text>
+                    </g>
+                  );
+                })}
+                {Object.entries(sec.nodes).map(([id, p]) => {
+                  const inRoute = route.includes(id);
+                  const isNext = open.includes(id);
+                  const w = id === 'T' || id === 'P' ? 58 : 38;
+                  return (
+                    <g
+                      key={`${sec.id}${id}`} transform={`translate(${p.x} ${p.y})`}
+                      className={`ws2-node ${inRoute ? 'is-route' : ''} ${isNext ? 'is-next' : ''} ${id === 'T' ? 'is-tower' : ''} ${id === 'P' ? 'is-pit' : ''} ${complete && id === 'P' ? 'is-hit' : ''}`}
+                      role="button" tabIndex={busy ? -1 : 0}
+                      aria-label={`${id === 'T' ? `Tower ${sec.name}` : id === 'P' ? 'Pit wall' : `Relay ${id}`}${inRoute ? ', on route' : isNext ? ', next' : ''}`}
+                      onClick={() => pick(id)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(id); } }}
+                    >
+                      <rect x={-w / 2 - 5} y="-23" width={w + 10} height="46" className="ws2-node__hit" />
+                      {isNext && <rect x={-w / 2 - 5} y="-22" width={w + 10} height="44" className="ws2-node__ring" />}
+                      <rect x={-w / 2} y="-17" width={w} height="34" className="ws2-node__box" />
+                      <text y="5.5" textAnchor="middle" className="ws2-node__txt">{labelOf(id)}</text>
+                    </g>
+                  );
+                })}
+              </g>
             </LeMansMap>
+            {banner && <div className="ws2-lapbanner" role="status"><small>LAP DONE</small><b>{banner}</b></div>}
           </Panel>
 
-          <div className="ws2-keys" role="group" aria-label="Channel">
-            <span className="ws2-keys__for">{cur ? <>TOWER <b>{cur.id}</b></> : 'DONE'}</span>
-            {circuit.channels.map((ch) => {
-              const struck = !!curState?.struck.includes(ch);
-              return (
-                <button key={ch} type="button" className={`ws2-key ${struck ? 'is-struck' : ''}`} disabled={!cur || struck || cleared} onClick={() => press(ch)}>
-                  {ch}
-                </button>
-              );
-            })}
-            <span className={`ws2-keys__msg is-${msg.kind}`} role="status">{msg.text || ' '}</span>
+          <div className="ws2-bact">
+            <button type="button" className="ws2-btn ws2-btn--ghost" onClick={() => pick('T')} disabled={busy || !started}>CLEAR</button>
+            <button type="button" className={`ws2-btn ws2-btn--send ${complete && v.ok ? 'is-ready' : ''}`} onClick={send} disabled={busy || !complete}>SEND</button>
+            <span className={`ws2-bact__msg is-${msg.kind}`} role="status" key={bad}>{msg.text || ' '}</span>
           </div>
         </div>
 
-        <aside className="ws2-modB__side">
-          <div className="ws2-rule" aria-label="Rule: linked towers must use different channels">
-            <div><span className="ws2-chip">03</span><i className="ws2-rule__link" /><span className="ws2-chip">03</span><b className="is-no">✕</b></div>
-            <div><span className="ws2-chip">03</span><i className="ws2-rule__link" /><span className="ws2-chip">07</span><b className="is-yes">✓</b></div>
-            <p>LINKED = DIFFERENT</p>
-          </div>
+        <aside className="ws2-bside">
+          <Panel title="NOW vs NEED" tag={complete ? 'ROUTE' : started ? 'SO FAR' : 'PICK A BEAM'} className={`ws2-btotals ${complete && v.ok ? 'is-met' : ''}`}>
+            <div className="ws2-route" aria-label="Route">
+              {route.map((id, i) => (
+                <span key={id} className={id === 'P' ? 'is-end' : ''}>{i > 0 && <i aria-hidden>→</i>}{labelOf(id)}</span>
+              ))}
+            </div>
+            <ul className="ws2-crows" key={bad}>
+              <li className="ws2-crows__head" aria-hidden><span>NOW</span><span>NEED</span><span /></li>
+              {rows.map((r) => (
+                <li key={r.id} className={started ? (r.ok ? 'ok' : 'bad') : 'idle'}>
+                  <span className="ws2-crows__cell"><small>{r.label}</small><b className="ws2-crows__now">{r.now}</b></span>
+                  <span className="ws2-crows__need">{r.need}</span>
+                  <span className="ws2-crows__tick" role="img" aria-label={!started ? 'no route yet' : r.ok ? 'met' : 'not met'}>{!started ? '·' : r.ok ? '✓' : '✕'}</span>
+                </li>
+              ))}
+            </ul>
+            <div className={`ws2-bstate ${complete && v.ok ? 'ok' : 'bad'}`}>
+              <b>{started ? `${okCount}/${rows.length}` : `0/${rows.length}`}</b>
+              <span>{complete && v.ok ? 'SEND' : complete ? 'FIX' : 'BUILD'}</span>
+            </div>
+          </Panel>
 
-          <div className="ws2-sheet ws2-sheet--tower">
-            <header className="ws2-sheet__head"><b>TOWER SHEET</b><span>ALLOWED CHANNELS</span></header>
-            <table>
-              <tbody>
-                {circuit.towers.map((t) => {
-                  const s = t.anchor ? null : get(t);
-                  const ch = t.anchor ?? s?.ch ?? null;
-                  const isCur = cur?.id === t.id;
-                  return (
-                    <tr
-                      key={t.id}
-                      className={`${isCur ? 'is-cur' : ''} ${isCur && hinted ? 'is-hint' : ''} ${ch ? 'is-done' : ''}`}
-                      onClick={() => { if (!t.anchor && !ch) setSel(t.id); }}
-                    >
-                      <th>{t.id}</th>
-                      <td className="ws2-sheet__sector">{t.label}</td>
-                      <td className="ws2-sheet__allowed">
-                        {t.anchor
-                          ? <span className="ws2-chip is-set">{short(t.anchor)} · LOCKED</span>
-                          : t.allowed.map((a) => <span key={a} className={`ws2-chip ${ch === a ? 'is-set' : ''}`}>{short(a)}</span>)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <Panel title={`${LAP_LABEL[lap]} LAP`} tag={lapDone ? fmtLap(sum.sec) : '--:--.---'} tone="steel" className="ws2-bsecs">
+            <ol>
+              {secs.map((s) => {
+                const p = pts[s.id];
+                const done = p !== undefined;
+                return (
+                  <li key={s.id} className={done ? 'is-done' : s.id === sec.id ? 'is-now' : ''}>
+                    <b>S{s.index}</b>
+                    <span className="ws2-bsecs__name">{s.name}</span>
+                    <span>{done ? `${fmt(p, 1)}/${PTS}` : '--'}</span>
+                    <span>{done ? `${Math.round(speedFor(p / PTS))} km/h` : '--'}</span>
+                  </li>
+                );
+              })}
+            </ol>
+          </Panel>
         </aside>
       </div>
 
       <HintDock
-        level={curState?.hint ?? 0}
-        itemLabel={cur ? `${circuit.name} · ${cur.id}` : 'CIRCUIT CLEARED'}
-        hint1Text={cur ? `Read the sheet row for ${cur.id}, then check the channels of the towers linked to it.` : ''}
-        hint2Text="A valid channel was locked for you. This tower scores 0."
+        level={t.hint}
+        itemLabel={`${LAP_LABEL[lap]} S${sec.index}`}
+        hint1Text={hint1}
+        hint2Text="A valid route was sent for you. This section scores 0."
         cost1={STATION2_CONFIG.hintPenalty.hint1}
-        disabled={!cur || cleared}
+        disabled={busy}
         onHint={hint}
       />
     </section>

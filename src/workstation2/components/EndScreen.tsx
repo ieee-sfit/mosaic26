@@ -12,6 +12,9 @@ export interface Report {
   c: number;
   bonus: number;
   raw: number;
+  grid?: number | null;
+  /** Race finishing position, null on a DNF. */
+  finish?: number | null;
   diag: Record<string, { seconds: number; wrong: number; hints: number; flags: string[] }>;
 }
 
@@ -25,12 +28,12 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 
 /** Debrief in the same layout as Stations 1 and 4: headline, score /120, rating, one card per module, diagnostics. */
 export default function EndScreen({ report, onRestart }: { report: Report; onRestart: () => void }) {
-  const { outcome, a, b, c, bonus, raw, diag } = report;
+  const { outcome, a, b, c, bonus, raw, diag, grid, finish } = report;
   const base = a + b + c;
   const head = HEAD[outcome];
   const rows = [
     { id: 'A', label: 'A · TELEMETRY', score: round1(a), max: STATION2_CONFIG.moduleMax.A },
-    { id: 'B', label: 'B · RELAY TOWERS', score: round1(b), max: STATION2_CONFIG.moduleMax.B },
+    { id: 'B', label: 'B · ROUTES', score: round1(b), max: STATION2_CONFIG.moduleMax.B },
     { id: 'C', label: 'C · RACE', score: round1(c), max: STATION2_CONFIG.moduleMax.C },
   ];
   const stats: ModuleStat[] = rows.map((r) => ({
@@ -48,6 +51,7 @@ export default function EndScreen({ report, onRestart }: { report: Report; onRes
         <span className="ws2-end__tag">STATION 02 · DEBRIEF</span>
         <h1 className={`ws2-end__head is-${head.tone}`}>{head.title}</h1>
         <p className="ws2-end__line">&gt; {head.line}</p>
+        {grid ? <p className="ws2-end__line">&gt; GRID P{grid} · {finish ? `FINISH P${finish}` : 'DNF'}</p> : null}
         <p className="ws2-end__line">&gt; BASE {Math.round(base)}/100 · SPEED BONUS +{bonus}/{STATION2_CONFIG.speedBonusMax}</p>
         <div className="ws2-end__score">
           <div>
