@@ -32,13 +32,15 @@ export interface QualityProfile { id: string; label: string; mbps: number; laten
 
 export interface Stint {
   id: string;
-  name: string;
-  tag: string;
-  goal: string; // one short line
+  name: string; // short lap name
+  tag: string; // one short line, e.g. "RAIN"
   viewersM: number; // millions of concurrent viewers
   spikeM: number; // extra viewers in the traffic spike
   spikeTarget: 'mulsanne' | 'pit';
   capacity: { mulsanne: number; pit: number; arnage: number }; // Tbps
   baseLatencyMs: number;
-  worstQualityIdx: number; // lowest profile index (0=4K) the broadcast contract accepts
+  /** Contract: worst accepted quality (index into QUALITY_PROFILES, 0 = 4K). */
+  worstQualityIdx: number;
+  /** Contract: latency must stay under this. */
+  latencyLimitMs: number;
 }

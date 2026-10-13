@@ -31,7 +31,7 @@ export default function EndScreen({ report, onRestart }: { report: Report; onRes
   const rows = [
     { id: 'A', label: 'A · TELEMETRY', score: round1(a), max: STATION2_CONFIG.moduleMax.A },
     { id: 'B', label: 'B · RELAY TOWERS', score: round1(b), max: STATION2_CONFIG.moduleMax.B },
-    { id: 'C', label: 'C · BALANCER', score: round1(c), max: STATION2_CONFIG.moduleMax.C },
+    { id: 'C', label: 'C · RACE', score: round1(c), max: STATION2_CONFIG.moduleMax.C },
   ];
   const stats: ModuleStat[] = rows.map((r) => ({
     ...r,

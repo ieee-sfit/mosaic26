@@ -91,6 +91,9 @@ export function solveTower(c: Circuit, plan: Plan, towerId: string): string | nu
 // ---------------------------------------------------------------- Module C: balancer
 export interface Controls { split: number; qualityIdx: number; divert: boolean }
 
+/** Whole percent, rounded down so a displayed 80% is never shown as passing the 80% limit. */
+export const pctOf = (u: number) => Math.floor(u * 100 + 1e-9);
+
 export function simulate(stint: Stint, c: Controls) {
   const prof = QUALITY_PROFILES[c.qualityIdx];
   const cfg = STATION2_CONFIG;
@@ -106,7 +109,7 @@ export function simulate(stint: Stint, c: Controls) {
 
   const nodes = [
     { id: 'mulsanne', label: 'MULSANNE', load: mul, cap: stint.capacity.mulsanne, active: true },
-    { id: 'arnage', label: 'ARNAGE RELAY', load: arn, cap: stint.capacity.arnage, active: c.divert },
+    { id: 'arnage', label: 'BACKUP RELAY', load: arn, cap: stint.capacity.arnage, active: c.divert },
     { id: 'pit', label: 'PIT STRAIGHT', load: pit, cap: stint.capacity.pit, active: true },
   ].map((n) => ({ ...n, util: n.load / n.cap }));
 
@@ -114,11 +117,11 @@ export function simulate(stint: Stint, c: Controls) {
   const queue = cfg.queueBaseMs / Math.max(0.01, 1 - Math.min(worstUtil, 0.99));
   const latency = Math.round(stint.baseLatencyMs + prof.latencyMs + queue + (c.divert ? cfg.relayHopMs : 0));
 
-  const latencyOk = latency < cfg.latencyLimitMs;
+  const latencyOk = latency < stint.latencyLimitMs;
   const capacityOk = nodes.every((n) => !n.active || n.util < cfg.utilLimit);
   const qualityOk = c.qualityIdx <= stint.worstQualityIdx;
   const locked = latencyOk && capacityOk && qualityOk;
-  return { nodes, latency, latencyOk, capacityOk, qualityOk, locked, worstUtil };
+  return { nodes, latency, latencyOk, capacityOk, qualityOk, locked, worstUtil, worstPct: pctOf(worstUtil) };
 }
 
 /** Finds a control setting that locks the stint (Hint 2 uses it; solves for 0 points). */

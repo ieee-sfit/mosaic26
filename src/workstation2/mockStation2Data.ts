@@ -12,10 +12,9 @@ export const STATION2_CONFIG = {
   hintPenalty: { hint1: 0.4, hint2: 1.0 }, // fraction of that item's points
   wrongAnswerPenalty: 0.2, // fraction of the item's points per wrong try (same -20% as every station)
   gasketPips: 3,
-  latencyLimitMs: 1500,
   utilLimit: 0.8,
   idleLimitMs: 40000, // no slider touched for this long while unbalanced: engine overheats, gasket blows
-  relayHopMs: 90,
+  relayHopMs: 90, // BACKUP RELAY adds this much latency
   queueBaseMs: 45,
 };
 
@@ -24,7 +23,7 @@ export const PAR = { A: 100, B: 240, C: 300 } as const;
 export const TIPS = {
   A: 'Read the whole question, then check the cheat sheet before guessing.',
   B: 'Start with the anchor tower. Its neighbours cannot match it.',
-  C: 'Fix the red node first, then check latency, then quality.',
+  C: 'Fix the node over 80% first, then latency, then quality. Use the relay only if a node cannot cope.',
 } as const;
 
 export const CHEAT_COLUMNS: CheatColumn[] = [
@@ -115,21 +114,24 @@ export const QUALITY_PROFILES: QualityProfile[] = [
   { id: '720', label: '720p', mbps: 3, latencyMs: 120 },
 ];
 
+/**
+ * Three race laps. Contract per lap: latency under its limit, worst node under 80%, quality at or above the minimum.
+ * Lap 1: no relay needed. Lap 2: the Mulsanne mast cannot take the spike, so BACKUP RELAY is required.
+ * Lap 3: both ways work; the relay widens the split window but costs +90 ms against a tight limit.
+ * (Checked by `solveStint` in logic.ts and by the Playwright run.)
+ */
 export const STINTS: Stint[] = [
   {
-    id: 'day', name: 'DAY', tag: 'SAT 16:00 · CLEAR', goal: 'CONTRACT: 4K',
-    viewersM: 2.4, spikeM: 0.8, spikeTarget: 'mulsanne',
-    capacity: { mulsanne: 45, pit: 45, arnage: 30 }, baseLatencyMs: 180, worstQualityIdx: 0,
+    id: 'dry', name: 'DRY', tag: 'LAP 1 · CLEAR', viewersM: 1.6, spikeM: 0.6, spikeTarget: 'mulsanne',
+    capacity: { mulsanne: 14, pit: 20, arnage: 20 }, baseLatencyMs: 180, worstQualityIdx: 1, latencyLimitMs: 1100,
   },
   {
-    id: 'rain', name: 'RAIN', tag: 'SAT 23:40 · HEAVY RAIN', goal: 'CONTRACT: 1080p OR BETTER',
-    viewersM: 5.0, spikeM: 1.6, spikeTarget: 'mulsanne',
-    capacity: { mulsanne: 30, pit: 55, arnage: 35 }, baseLatencyMs: 520, worstQualityIdx: 1,
+    id: 'rain', name: 'RAIN', tag: 'LAP 2 · HEAVY RAIN', viewersM: 3.0, spikeM: 1.4, spikeTarget: 'mulsanne',
+    capacity: { mulsanne: 12, pit: 40, arnage: 30 }, baseLatencyMs: 420, worstQualityIdx: 1, latencyLimitMs: 1150,
   },
   {
-    id: 'sprint', name: 'FINAL', tag: 'SUN 15:30 · CHEQUERED FLAG', goal: 'CONTRACT: 1080p OR BETTER',
-    viewersM: 6.5, spikeM: 2.5, spikeTarget: 'mulsanne',
-    capacity: { mulsanne: 34, pit: 40, arnage: 28 }, baseLatencyMs: 380, worstQualityIdx: 1,
+    id: 'final', name: 'FINAL', tag: 'LAP 3 · CHEQUERED FLAG', viewersM: 4.0, spikeM: 1.0, spikeTarget: 'mulsanne',
+    capacity: { mulsanne: 30, pit: 26, arnage: 28 }, baseLatencyMs: 380, worstQualityIdx: 1, latencyLimitMs: 1000,
   },
 ];
 

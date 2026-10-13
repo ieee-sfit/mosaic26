@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { speedBonus } from '../core/scoring';
+import { gridPosition, lapSeconds } from './race';
 import { useSession } from '../session/sessionContext';
 import { STATION2_CONFIG } from './mockStation2Data';
 import PitWallBackdrop from './components/PitWallBackdrop';
@@ -30,7 +31,7 @@ type ModuleId = 'A' | 'B' | 'C';
 export type Track = (m: ModuleId, kind: 'wrong' | 'hint', label?: string) => void;
 
 const MODULES: ModuleId[] = ['A', 'B', 'C'];
-const NAMES: Record<ModuleId, string> = { A: 'TELEMETRY', B: 'RELAY TOWERS', C: 'BALANCER' };
+const NAMES: Record<ModuleId, string> = { A: 'TELEMETRY', B: 'RELAY TOWERS', C: 'RACE' };
 const ID_RE = /^\d{6}$/;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -172,6 +173,8 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
         )}
         {playing && mod === 'C' && (
           <ModuleC
+            grid={gridPosition(lapSeconds(score.b / STATION2_CONFIG.moduleMax.B))}
+            onLap={() => { /* lap points are banked in score.c; boards read them in a later stage */ }}
             track={track} onShake={shake} onFlash={flashRed} onGaskets={setGaskets}
             onScore={(c) => setScore((s) => ({ ...s, c }))}
             onFinish={() => finish('complete', secondsLeft())}
