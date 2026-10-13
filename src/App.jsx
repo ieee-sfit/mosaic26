@@ -7,6 +7,7 @@ import Launcher from './launcher/Launcher'
 import Leaderboard from './launcher/Leaderboard'
 import LaunchLoader from './launcher/LaunchLoader'
 import { saveRun } from './lib/saveRun'
+import { normalizeStation1 } from './core/scoring'
 import { SessionContext, createSession } from './session/sessionContext'
 
 const STATION_COMPONENTS = { 1: Station1, 2: Station2, 3: Station3, 4: Station4 }
@@ -18,12 +19,13 @@ function recordRun(stationId, session, payload) {
   const isGoat = stationId === 1 // Station1 emits its own result shape
   const ops = isGoat ? payload?.operators ?? [] : []
   const pick = (own, fallback) => (ID_RE.test(own ?? '') ? own : fallback)
+  // Station 1 reports on a 0-1000 scale; rescale to the shared 0-120 contract (base 100 + speed bonus 20).
+  const norm = isGoat ? normalizeStation1(payload) : { raw_score: payload.raw_score, time_left: payload.time_left }
   saveRun({
     p1_id: isGoat ? pick(ops[0], session.p1_id) : payload.p1_id,
     p2_id: isGoat ? pick(ops[1], session.p2_id) : payload.p2_id,
     station_id: `station${stationId}`,
-    raw_score: isGoat ? payload.total : payload.raw_score,
-    time_left: isGoat ? payload.secondsRemaining : payload.time_left,
+    ...norm,
   })
 }
 
@@ -51,7 +53,7 @@ function App() {
         <Station
           key={session.startedAt}
           onComplete={(payload) => recordRun(session.stationId, session, payload)}
-          onNavigateStation={(id) => setSession({ ...createSession(id, session.p1_id, session.p2_id) })}
+          onNavigateStation={returnToLauncher} // every new attempt goes back through the ID and attempt check
           onOpenStationChooser={returnToLauncher}
         />
       </SessionContext.Provider>

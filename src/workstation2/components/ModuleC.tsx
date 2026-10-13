@@ -1,231 +1,309 @@
 import { useEffect, useRef, useState } from 'react';
 import { BALANCER_DEFAULTS, QUALITY_PROFILES, STATION2_CONFIG, STINTS } from '../mockStation2Data';
-import { simulate } from '../logic';
+import { fmt, itemPoints, pctOf, simulate, solveStint } from '../logic';
 import type { Controls } from '../logic';
-import { SteamOverlay, Tachometer, Waveform } from './HudBits';
+import { fmtLap, lapSeconds } from '../race';
+import HintDock from '../../core/HintDock';
+import type { HintLevel } from '../../core/HintDock';
+import Gauge from './Gauge';
+import Panel from './Panel';
+import type { Track } from '../Station2';
 
 interface Props {
-  onProgress: (total: number) => void;
+  /** Grid slot earned in qualifying, shown as a badge. */
+  grid: number | null;
+  onScore: (total: number) => void;
+  /** Called each time a lap is banked, with that lap's points. */
+  onLap: (lapPoints: number) => void;
+  onGaskets: (left: number) => void;
   onForfeit: () => void;
   onFinish: () => void;
   onShake: () => void;
+  onFlash: () => void;
+  track: Track;
 }
 
 const PER_STINT = STATION2_CONFIG.moduleMax.C / STINTS.length;
+const GASKETS = STATION2_CONFIG.gasketPips;
+const IDLE_S = STATION2_CONFIG.idleLimitMs / 1000;
+const LIMIT = STATION2_CONFIG.utilLimit;
+const STOPS = QUALITY_PROFILES.length;
+const HOP = STATION2_CONFIG.relayHopMs;
 
-export default function ModuleC({ onProgress, onForfeit, onFinish, onShake }: Props) {
-  const [stintIdx, setStintIdx] = useState(0);
-  const [controls, setControls] = useState<Controls>({ ...BALANCER_DEFAULTS, split: BALANCER_DEFAULTS.split });
-  const [pips, setPips] = useState(STATION2_CONFIG.gasketPips);
-  const [idleMs, setIdleMs] = useState(0);
-  const [steam, setSteam] = useState(false);
-  const [slam, setSlam] = useState(false);
-  const [cleared, setCleared] = useState(0);
-  const [msg, setMsg] = useState<{ kind: 'ok' | 'bad' | 'info'; text: string }>({
-    kind: 'info', text: 'BALANCE THE NODES, THEN COMMIT. IDLE TOO LONG AND THE ENGINE OVERHEATS.',
-  });
-  const [finished, setFinished] = useState(false);
+/** Module C: three race laps. Meet the CONTRACT (latency, worst node, quality) on each lap, then commit. */
+export default function ModuleC({ grid, onScore, onLap, onGaskets, onForfeit, onFinish, onShake, onFlash, track }: Props) {
+  const [idx, setIdx] = useState(0);
+  const [ctl, setCtl] = useState<Controls>({ ...BALANCER_DEFAULTS });
+  const [gaskets, setGaskets] = useState(GASKETS);
+  const [idle, setIdle] = useState(0);
+  const [earned, setEarned] = useState(0);
+  const [laps, setLaps] = useState<{ pts: number; sec: number }[]>([]);
+  const [wrongs, setWrongs] = useState<Record<string, number>>({});
+  const [hints, setHints] = useState<Record<string, HintLevel>>({});
+  const [solving, setSolving] = useState(false);
+  const [over, setOver] = useState<'none' | 'won' | 'lost'>('none');
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'bad' | 'info'; text: string }>({ kind: 'info', text: '' });
+  const [slam, setSlam] = useState(0);
 
-  const stint = STINTS[stintIdx];
-  const sim = simulate(stint, controls);
+  const stint = STINTS[idx];
+  const sim = simulate(stint, ctl);
+  const level: HintLevel = hints[stint.id] ?? 0;
+  const busy = solving || over !== 'none';
 
-  // Mutable mirrors for the interval callback (written only in handlers / effects)
-  const idleRef = useRef(0);
-  const pipsRef = useRef(STATION2_CONFIG.gasketPips);
-  const lockedRef = useRef(false);
-  const doneRef = useRef(false);
-  const timers = useRef<number[]>([]);
-  const cb = useRef({ onForfeit, onShake });
-
+  // mirrors for the 1s idle timer (written in effects only)
+  const live = useRef({ locked: false, busy: false, idle: 0, gaskets: GASKETS });
+  const cb = useRef({ onForfeit, onShake, onFlash, onGaskets, track, idx });
   useEffect(() => {
-    lockedRef.current = sim.locked;
-    cb.current = { onForfeit, onShake };
+    live.current.locked = sim.locked;
+    live.current.busy = busy;
+    cb.current = { onForfeit, onShake, onFlash, onGaskets, track, idx };
   });
-  useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
 
-  const later = (fn: () => void, ms: number) => {
-    timers.current.push(window.setTimeout(fn, ms));
-  };
-
-  const overheat = (reason: string) => {
-    if (doneRef.current) return;
-    pipsRef.current -= 1;
-    setPips(pipsRef.current);
-    idleRef.current = 0;
-    setIdleMs(0);
-    setSteam(true);
-    setSlam(true);
-    later(() => setSlam(false), 900);
-    later(() => setSteam(false), 2800);
+  const blow = (why: string, wrongTry: boolean) => {
+    const l = live.current;
+    const id = STINTS[cb.current.idx].id;
+    l.gaskets -= 1;
+    l.idle = 0;
+    setGaskets(l.gaskets);
+    setIdle(0);
+    setSlam((n) => n + 1);
+    if (wrongTry) setWrongs((w) => ({ ...w, [id]: (w[id] ?? 0) + 1 }));
+    cb.current.onGaskets(l.gaskets);
     cb.current.onShake();
-    if (pipsRef.current <= 0) {
-      doneRef.current = true;
-      setFinished(true);
-      setMsg({ kind: 'bad', text: 'ALL 3 GASKETS BLOWN // ENGINE SEIZED // MODULE C POINTS FORFEITED' });
-      later(() => cb.current.onForfeit(), 2600);
+    cb.current.onFlash();
+    cb.current.track('C', 'wrong', `L${cb.current.idx + 1} ${why}`);
+    if (l.gaskets <= 0) {
+      setOver('lost');
+      setMsg({ kind: 'bad', text: 'ALL GASKETS BLOWN' });
     } else {
-      setMsg({ kind: 'bad', text: `${reason} // TACHOMETER AT REDLINE // GASKET BLOWN // ${pipsRef.current}/${STATION2_CONFIG.gasketPips} REMAIN` });
+      setMsg({ kind: 'bad', text: `${why} · GASKET BLOWN · ${l.gaskets} LEFT${wrongTry ? ' · -20%' : ''}` });
     }
   };
 
   useEffect(() => {
-    const id = window.setInterval(() => {
-      if (doneRef.current) return;
-      if (lockedRef.current) {
-        idleRef.current = 0;
-        setIdleMs(0);
-        return;
-      }
-      idleRef.current += 200;
-      if (idleRef.current >= STATION2_CONFIG.idleLimitMs) overheat('IDLE TIMEOUT');
-      else setIdleMs(idleRef.current);
-    }, 200);
-    return () => window.clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const t = window.setInterval(() => {
+      const l = live.current;
+      if (l.busy) return;
+      if (l.locked) { l.idle = 0; setIdle(0); return; }
+      l.idle += 1;
+      if (l.idle >= IDLE_S) blow('OVERHEAT', false);
+      else setIdle(l.idle);
+    }, 1000);
+    return () => window.clearInterval(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const touch = (patch: Partial<Controls>) => {
-    if (finished) return;
-    idleRef.current = 0;
-    setIdleMs(0);
-    setControls({ ...controls, ...patch });
+  useEffect(() => {
+    if (over !== 'lost') return undefined;
+    const t = window.setTimeout(() => cb.current.onForfeit(), 2200);
+    return () => window.clearTimeout(t);
+  }, [over]);
+
+  const touch = (p: Partial<Controls>) => {
+    if (busy) return;
+    live.current.idle = 0;
+    setIdle(0);
+    setCtl({ ...ctl, ...p });
   };
+
+  const bank = (lv: HintLevel) => {
+    const gain = itemPoints(PER_STINT, lv, wrongs[stint.id] ?? 0);
+    const total = Math.round((earned + gain) * 100) / 100;
+    const sec = lapSeconds(gain / PER_STINT);
+    setEarned(total);
+    setLaps((l) => [...l, { pts: gain, sec }]);
+    onScore(total);
+    onLap(gain);
+    live.current.idle = 0;
+    setIdle(0);
+    setSolving(false);
+    if (idx === STINTS.length - 1) {
+      setOver('won');
+      setMsg({ kind: 'ok', text: `LAP ${idx + 1} ${fmtLap(sec)} · CHEQUERED FLAG` });
+      window.setTimeout(onFinish, 1500);
+    } else {
+      setIdx(idx + 1);
+      setCtl({ ...BALANCER_DEFAULTS });
+      setMsg({ kind: 'ok', text: `LAP ${idx + 1} ${fmtLap(sec)} · +${fmt(gain, 1)}` });
+    }
+  };
+
+  // Hint 2: let the player watch the needles settle, then commit
+  useEffect(() => {
+    if (!solving) return undefined;
+    const t = window.setTimeout(() => bank(2), 1300);
+    return () => window.clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [solving]);
 
   const commit = () => {
-    if (finished) return;
-    if (!sim.locked) {
-      overheat('UNBALANCED SUBMIT');
-      return;
-    }
-    const n = cleared + 1;
-    setCleared(n);
-    onProgress(n * PER_STINT);
-    idleRef.current = 0;
-    setIdleMs(0);
-    if (stintIdx === STINTS.length - 1) {
-      doneRef.current = true;
-      setFinished(true);
-      setMsg({ kind: 'ok', text: 'CHEQUERED FLAG // ALL STINTS BALANCED' });
-      later(() => onFinish(), 1500);
-    } else {
-      setStintIdx(stintIdx + 1);
-      setControls({ ...BALANCER_DEFAULTS });
-      setMsg({ kind: 'ok', text: `${stint.name} CLEARED +${PER_STINT} PTS // ${STINTS[stintIdx + 1].name} INBOUND` });
+    if (busy) return;
+    if (!sim.locked) { blow('NOT MET', true); return; }
+    bank(level);
+  };
+
+  const hint = (next: 1 | 2) => {
+    if (busy || level >= next) return;
+    setHints({ ...hints, [stint.id]: next });
+    track('C', 'hint', `L${idx + 1} H${next}`);
+    if (next === 2) {
+      const sol = solveStint(stint);
+      if (sol) { setCtl(sol); setSolving(true); setMsg({ kind: 'info', text: 'AUTO-SET · 0 PTS' }); }
     }
   };
 
-  const heat = sim.locked ? 0.12 : Math.max(idleMs / STATION2_CONFIG.idleLimitMs, sim.severity * 0.6);
-  const rpm = 2400 + heat * 6200;
-  const signal = sim.locked ? 100 : Math.max(5, Math.round((1 - sim.severity) * 90));
-  const prof = QUALITY_PROFILES[controls.qualityIdx];
-  const idleLeft = Math.max(0, Math.ceil((STATION2_CONFIG.idleLimitMs - idleMs) / 1000));
+  const hint1 = !sim.capacityOk
+    ? 'Block 6: a node is over 80%. Move the split, or send the spike to BACKUP RELAY.'
+    : !sim.latencyOk
+      ? 'Block 6: latency is over the limit. Step quality down or turn the relay off.'
+      : !sim.qualityOk
+        ? 'Block 6: quality is under the contract. Step it up, then recheck load.'
+        : 'Block 6: all three lines pass. Commit.';
+
+  const heat = sim.locked ? 0 : Math.min(1, idle / IDLE_S);
+  const spikeNode = ctl.divert ? 'arnage' : stint.spikeTarget;
+  const okCount = [sim.latencyOk, sim.capacityOk, sim.qualityOk].filter(Boolean).length;
+  const prof = QUALITY_PROFILES[ctl.qualityIdx];
+  const worstProf = QUALITY_PROFILES[stint.worstQualityIdx];
+  const rows = [
+    { id: 'lat', label: 'LATENCY', now: `${sim.latency} ms`, need: `< ${stint.latencyLimitMs} ms`, ok: sim.latencyOk },
+    { id: 'load', label: 'WORST NODE', now: `${sim.worstPct}%`, need: `< ${Math.round(LIMIT * 100)}%`, ok: sim.capacityOk },
+    { id: 'q', label: 'QUALITY', now: prof.label, need: `≥ ${worstProf.label}`, ok: sim.qualityOk },
+  ];
+  const bestLap = laps.length ? Math.min(...laps.map((l) => l.sec)) : null;
+  // Allowed zone on the quality slider: stops 0..worst are allowed. The thumb centre travels 10px..(W-10px).
+  const zoneF = stint.worstQualityIdx / (STOPS - 1);
+  const zoneEdge = `calc(${zoneF * 100}% + ${20 - 20 * zoneF}px)`;
 
   return (
-    <section className={`ws2-mod ws2-mod-c ${steam ? 'is-steaming' : ''}`} aria-label="Module C Pit Wall Load and Quality Balancer">
-      <SteamOverlay active={steam} />
-      <div className="ws2-mod-head">
-        <span className="ws2-tag">MODULE C</span>
-        <h2>PIT WALL 3-NODE LOAD &amp; QUALITY BALANCER</h2>
-        <span className="ws2-mod-pts">{cleared * PER_STINT} / {STATION2_CONFIG.moduleMax.C} PTS</span>
+    <section className={`ws2-modC ws2-in ${slam ? 'is-slam' : ''}`} aria-label="Module C race">
+      <div className="ws2-modhead">
+        <b>MODULE C</b><span>RACE</span>
+        <em>{fmt(earned, 1)} / {STATION2_CONFIG.moduleMax.C}</em>
       </div>
 
-      <div className="ws2-c-top">
+      <div className="ws2-cstrip">
         <ol className="ws2-stints">
-          {STINTS.map((s, i) => (
-            <li key={s.id} className={i < cleared ? 'is-done' : i === stintIdx ? 'is-active' : ''}>
-              <b>{i + 1}. {s.name}</b><span>{s.tag}</span>
-            </li>
-          ))}
-        </ol>
-        <div className="ws2-pips" aria-label={`${pips} of ${STATION2_CONFIG.gasketPips} gaskets intact`}>
-          <span>GASKETS</span>
-          {Array.from({ length: STATION2_CONFIG.gasketPips }, (_, i) => (
-            <i key={i} className={i < pips ? 'ok' : 'blown'} title={i < pips ? 'Intact' : 'Blown'} />
-          ))}
-        </div>
-      </div>
-      <p className="ws2-briefing">&gt; {stint.briefing}</p>
-
-      <div className="ws2-c-grid">
-        <div className="ws2-nodes">
-          {sim.nodes.map((n) => {
-            const pct = Math.round(n.util * 100);
-            const over = n.active && n.util >= STATION2_CONFIG.utilLimit;
+          {STINTS.map((s, i) => {
+            const done = i < laps.length;
+            const best = done && bestLap !== null && laps[i].sec === bestLap && laps.length > 1;
+            const now = !done && i === idx && over !== 'won';
             return (
-              <div key={n.id} className={`ws2-node ws2-chamfer ${n.active ? '' : 'is-standby'} ${over ? 'is-over' : ''}`}>
-                <div className="ws2-node-head"><b>{n.label}</b><span>{n.active ? (over ? 'OVERLOAD' : 'ONLINE') : 'STANDBY'}</span></div>
-                <div className="ws2-node-bar" role="meter" aria-valuenow={n.active ? pct : 0} aria-valuemin={0} aria-valuemax={100}>
-                  <i style={{ width: `${Math.min(100, n.active ? pct : 0)}%` }} />
-                  <em style={{ left: `${STATION2_CONFIG.utilLimit * 100}%` }} />
-                </div>
-                <div className="ws2-node-read">
-                  <span>{n.active ? `${pct}%` : '--'}</span>
-                  <span>{n.active ? n.load.toFixed(1) : '0.0'} / {n.cap} Tbps</span>
-                </div>
-              </div>
+              <li key={s.id} className={done ? 'is-done' : now ? 'is-now' : ''}>
+                <b>LAP {i + 1} · {s.name}</b>
+                <span>{done ? `${fmtLap(laps[i].sec)}${best ? ' ★' : ''}` : now ? 'LIVE' : '--:--.---'}</span>
+              </li>
             );
           })}
+        </ol>
+        <div className="ws2-grid-badge" aria-label={grid ? `Grid position ${grid}` : 'No grid position'}>
+          <small>GRID</small><b>{grid ? `P${grid}` : '--'}</b>
         </div>
-
-        <div className="ws2-c-center ws2-chamfer">
-          <div className={`ws2-signal ${sim.locked ? 'is-locked' : ''}`} role="status">
-            {sim.locked ? '[TELEMETRY LOCKED / SIGNAL 100%]' : `[SIGNAL DEGRADED / ${signal}%]`}
-          </div>
-          <Waveform locked={sim.locked} severity={sim.severity} />
-          <div className="ws2-c-dials">
-            <Tachometer rpm={rpm} slam={slam} />
-            <div className="ws2-readouts">
-              <div className={`ws2-lat ${sim.latencyOk ? 'ok' : 'bad'}`}>
-                <span>TOTAL LATENCY</span>
-                <b>{sim.latency.toLocaleString('en-US')} ms</b>
-                <div className="ws2-node-bar"><i style={{ width: `${Math.min(100, (sim.latency / (STATION2_CONFIG.latencyLimitMs * 1.4)) * 100)}%` }} />
-                  <em style={{ left: `${(1 / 1.4) * 100}%` }} /></div>
-                <small>LIMIT &lt; {STATION2_CONFIG.latencyLimitMs} ms</small>
-              </div>
-              <ul className="ws2-checks">
-                <li className={sim.latencyOk ? 'ok' : 'bad'}>LATENCY &lt; 1500 ms</li>
-                <li className={sim.capacityOk ? 'ok' : 'bad'}>ALL NODES &lt; 80%</li>
-                <li className={sim.qualityOk ? 'ok' : 'bad'}>CONTRACT ≥ {QUALITY_PROFILES[stint.worstQualityIdx].label}</li>
-              </ul>
-              <div className={`ws2-idle ${idleLeft <= 8 && !sim.locked ? 'warn' : ''}`}>
-                {sim.locked ? 'HOLD // READY TO COMMIT' : `ENGINE HEAT IN ${idleLeft}s IF IDLE`}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="ws2-controls ws2-chamfer">
-          <div className="ws2-ctl">
-            <label htmlFor="ws2-split">SLIDER 1 // TRACK LOAD BALANCE</label>
-            <input id="ws2-split" type="range" min={0} max={100} step={1} value={controls.split} disabled={finished}
-              onChange={(e) => touch({ split: Number(e.target.value) })} />
-            <div className="ws2-ctl-scale"><span>MULSANNE {controls.split}%</span><span>PIT STRAIGHT {100 - controls.split}%</span></div>
-          </div>
-          <div className="ws2-ctl">
-            <label htmlFor="ws2-quality">SLIDER 2 // QUALITY PROFILE</label>
-            <input id="ws2-quality" type="range" min={0} max={QUALITY_PROFILES.length - 1} step={1} value={controls.qualityIdx} disabled={finished}
-              onChange={(e) => touch({ qualityIdx: Number(e.target.value) })} />
-            <div className="ws2-ctl-scale ws2-ctl-ticks">
-              {QUALITY_PROFILES.map((p, i) => <span key={p.id} className={i === controls.qualityIdx ? 'on' : ''}>{p.label}</span>)}
-            </div>
-            <small className="ws2-dim">{prof.mbps} Mbps/viewer // +{prof.latencyMs} ms encode</small>
-          </div>
-          <div className="ws2-ctl">
-            <label id="ws2-divert-lbl">TOGGLE // EMERGENCY ARNAGE RELAY</label>
-            <button type="button" role="switch" aria-checked={controls.divert} aria-labelledby="ws2-divert-lbl" disabled={finished}
-              className={`ws2-switch ${controls.divert ? 'on' : ''}`} onClick={() => touch({ divert: !controls.divert })}>
-              <span className="ws2-switch-knob" />
-              <span className="ws2-switch-txt">{controls.divert ? 'DIVERTING SPIKE' : 'RELAY OFF'}</span>
-            </button>
-            <small className="ws2-dim">SPIKE +{stint.spikeM}M viewers hits {stint.spikeTarget.toUpperCase()} (+{STATION2_CONFIG.relayHopMs} ms if diverted)</small>
-          </div>
-          <button type="button" className="ws2-btn ws2-btn-red ws2-btn-wide" onClick={commit} disabled={finished}>
-            [COMMIT STINT BALANCE]
-          </button>
+        <div className={`ws2-gaskets ${gaskets <= 1 && over === 'none' ? 'is-last' : ''}`} aria-label={`${gaskets} of ${GASKETS} gaskets left`}>
+          <small>GASKETS</small>
+          {Array.from({ length: GASKETS }, (_, i) => (
+            <svg key={i} viewBox="0 0 32 32" className={i < gaskets ? 'is-ok' : 'is-blown'}>
+              <polygon points="16,2 28,9 28,23 16,30 4,23 4,9" />
+              <circle cx="16" cy="16" r="6" />
+              {i >= gaskets && <path d="M 8 8 L 24 24 M 24 8 L 8 24" />}
+            </svg>
+          ))}
         </div>
       </div>
 
-      <div className={`ws2-flash ws2-flash-${msg.kind === 'info' ? 'info' : msg.kind}`} role="status">{msg.text}</div>
+      <div className="ws2-cgrid">
+        <div className="ws2-cleft">
+          <Panel title="NODES" tag={stint.tag} className="ws2-cluster">
+            <div className="ws2-cluster__row">
+              {sim.nodes.map((n) => (
+                <Gauge
+                  key={n.id} value={n.util} limitAt={LIMIT} limitLines={['80%', 'LIMIT']} label={n.label}
+                  readout={`${pctOf(n.util)}%`} active={n.active} alert={n.active && n.util >= LIMIT}
+                  badge={spikeNode === n.id ? `SPIKE +${stint.spikeM}M` : undefined}
+                />
+              ))}
+            </div>
+          </Panel>
+
+          <Panel className="ws2-ctrl">
+            <div className="ws2-ctrl__row">
+              <div className="ws2-ctl">
+                <label htmlFor="ws2-split">LOAD SPLIT</label>
+                <input id="ws2-split" type="range" min={0} max={100} step={1} value={ctl.split} disabled={busy}
+                  onChange={(e) => touch({ split: Number(e.target.value) })} />
+                <div className="ws2-ctl__scale"><span>MULSANNE {ctl.split}</span><span>{100 - ctl.split} PIT</span></div>
+              </div>
+
+              <div className="ws2-ctl">
+                <label htmlFor="ws2-quality">QUALITY</label>
+                <div className="ws2-qz">
+                  <i className="ws2-qz__ok" style={{ width: zoneEdge }} aria-hidden />
+                  <i className="ws2-qz__no" style={{ left: zoneEdge }} aria-hidden />
+                  <input id="ws2-quality" type="range" min={0} max={STOPS - 1} step={1} value={ctl.qualityIdx} disabled={busy}
+                    onChange={(e) => touch({ qualityIdx: Number(e.target.value) })} />
+                </div>
+                <div className="ws2-ctl__scale ws2-ctl__ticks">
+                  {QUALITY_PROFILES.map((p, i) => (
+                    <button key={p.id} type="button" disabled={busy} className={`${i === ctl.qualityIdx ? 'on' : ''} ${i > stint.worstQualityIdx ? 'is-no' : ''}`} onClick={() => touch({ qualityIdx: i })}>{p.label}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="ws2-ctl ws2-ctl--sw">
+                <span id="ws2-relay-lbl">BACKUP RELAY</span>
+                <button type="button" role="switch" aria-checked={ctl.divert} aria-labelledby="ws2-relay-lbl" disabled={busy}
+                  className={`ws2-switch ${ctl.divert ? 'on' : ''}`} onClick={() => touch({ divert: !ctl.divert })}>
+                  <i /><b>{ctl.divert ? 'ON' : 'OFF'}</b>
+                </button>
+                <small className="ws2-ctl__cost">+{HOP} ms</small>
+              </div>
+            </div>
+
+            <div className="ws2-ctrl__foot">
+              <span className="ws2-heat" aria-label="Engine heat"><small>HEAT</small><span className="ws2-heat__bar"><i style={{ transform: `scaleX(${heat})` }} /></span></span>
+              <span className={`ws2-ctrl__msg is-${msg.kind}`} role="status">{msg.text || ' '}</span>
+              <button type="button" className={`ws2-btn ws2-btn--commit ${sim.locked ? 'is-ready' : ''}`} onClick={commit} disabled={busy}>
+                COMMIT
+              </button>
+            </div>
+          </Panel>
+        </div>
+
+        <Panel title="CONTRACT" tag={stint.tag} className={`ws2-contract ${sim.locked ? 'is-met' : ''}`}>
+          <ul className="ws2-crows">
+            <li className="ws2-crows__head" aria-hidden><span /><span>NOW</span><span>NEED</span><span /></li>
+            {rows.map((r) => (
+              <li key={r.id} className={r.ok ? 'ok' : 'bad'}>
+                <span className="ws2-crows__lbl">{r.label}</span>
+                <b className="ws2-crows__now">{r.now}</b>
+                <span className="ws2-crows__need">{r.need}</span>
+                <span className="ws2-crows__tick" role="img" aria-label={r.ok ? 'met' : 'not met'}>{r.ok ? '✓' : '✕'}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="ws2-cdial">
+            <Gauge
+              value={sim.latency / (stint.latencyLimitMs * 1.5)} limitAt={1 / 1.5}
+              limitLines={['LIMIT', String(stint.latencyLimitMs)]} label="LATENCY" readout={`${sim.latency} ms`}
+              alert={!sim.latencyOk} ends={['0', String(Math.round(stint.latencyLimitMs * 1.5))]}
+            />
+            <div className={`ws2-cstate ${sim.locked ? 'ok' : 'bad'}`}>
+              <b>{okCount}/3</b>
+              <span>{sim.locked ? 'COMMIT' : 'FIX'}</span>
+            </div>
+          </div>
+        </Panel>
+      </div>
+
+      <HintDock
+        level={level}
+        itemLabel={`LAP ${idx + 1}/${STINTS.length}`}
+        hint1Text={hint1}
+        hint2Text="The balancer was set for you and committed. This lap scores 0."
+        cost1={STATION2_CONFIG.hintPenalty.hint1}
+        disabled={busy}
+        onHint={hint}
+      />
     </section>
   );
 }

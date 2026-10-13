@@ -1,6 +1,7 @@
 import type { QuestionResult, RoundResult, ScoringConfig, StepResult } from '../types';
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /** Hint 2 forfeits everything; Hint 1 costs a flat fraction; wrong picks cost extra. */
 export function scoreQuestion(
@@ -10,19 +11,19 @@ export function scoreQuestion(
 ): number {
   if (hintsUsed === 2) return 0;
   const lost = (hintsUsed === 1 ? cfg.hint1Penalty : 0) + wrongAttempts * cfg.wrongAttemptPenalty;
-  return Math.round(cfg.pointsPerQuestion * clamp01(1 - lost));
+  return round2(cfg.pointsPerQuestion * clamp01(1 - lost));
 }
 
 export function scoreStep(cfg: ScoringConfig['moduleB'], wrongAttempts: number, hintsUsed: 0 | 1 | 2 = 0): number {
   if (hintsUsed === 2) return 0;
   const lost = (hintsUsed === 1 ? cfg.hint1Penalty : 0) + wrongAttempts * cfg.wrongAttemptPenalty;
-  return Math.round(cfg.pointsPerStep * clamp01(1 - lost));
+  return round2(cfg.pointsPerStep * clamp01(1 - lost));
 }
 
 export function scoreRound(cfg: ScoringConfig['moduleC'], misses: number, hintsUsed: 0 | 1 | 2 = 0): number {
   if (hintsUsed === 2) return 0;
   const lost = (hintsUsed === 1 ? cfg.hint1Penalty : 0) + misses * cfg.missPenalty;
-  return Math.round(cfg.pointsPerRound * clamp01(1 - lost));
+  return round2(cfg.pointsPerRound * clamp01(1 - lost));
 }
 
 export const sum = (xs: { points: number }[]) => xs.reduce((a, x) => a + x.points, 0);

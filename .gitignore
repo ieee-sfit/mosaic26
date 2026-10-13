@@ -25,3 +25,9 @@ dist-ssr
 
 .env
 .env.local
+
+# build targets / secrets
+dist-kiosk
+dist-board
+.env.kiosk
+.env.board

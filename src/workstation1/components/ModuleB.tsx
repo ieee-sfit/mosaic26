@@ -5,6 +5,7 @@ import { normalizeAnswer, resolveProblem } from '../utils/lookup';
 import { scoreStep } from '../utils/scoring';
 import type { StepResult } from '../types';
 import { Datapad } from './Datapad';
+import HintDock from '../../core/HintDock';
 import { HudPanel, TeleChip } from './HudPanel';
 import { ModuleHeader } from './ModuleHeader';
 import { TokamakReactor } from './TokamakReactor';
@@ -31,15 +32,15 @@ export function ModuleB({ operators, onRecord, onComplete }: Props) {
   const ignited = stepsDone === totalSteps;
   const pct = Math.round((stepsDone / totalSteps) * 100);
 
-  const submit = (p: number, step: number, value: string): boolean => {
+  const submit = (p: number, step: number, value: string, hintLevel: 0 | 1 | 2 = hints[p][step]): boolean => {
     if (normalizeAnswer(value) === normalizeAnswer(answers[p][step])) {
       const attempts = wrong[p][step];
       onRecord({
         problemId: LOOKUP_PROBLEMS[p].id,
         stepIndex: step,
         wrongAttempts: attempts,
-        hintsUsed: hints[p][step],
-        points: scoreStep(SCORING.moduleB, attempts, hints[p][step]),
+        hintsUsed: hintLevel,
+        points: scoreStep(SCORING.moduleB, attempts, hintLevel),
         maxPoints: SCORING.moduleB.pointsPerStep,
       });
       setDone((d) => (p === 0 ? [d[0] + 1, d[1]] : [d[0], d[1] + 1]));
@@ -52,13 +53,20 @@ export function ModuleB({ operators, onRecord, onComplete }: Props) {
     return false;
   };
 
-  /** Hint 1 reveals the column; Hint 2 returns the answer to pre-fill (step then scores 0). */
-  const hint = (p: number, step: number): string | null => {
-    const stage = hints[p][step];
-    if (stage >= 2) return null;
-    const next = (stage + 1) as 1 | 2;
-    setHints((h) => h.map((row, i) => (i === p ? row.map((v, s) => (s === step ? next : v)) : row)));
-    return next === 2 ? answers[p][step] : null;
+  // The shared hint dock targets the pad the player last focused, falling back to the first unfinished one.
+  const [focusP, setFocusP] = useState<0 | 1>(0);
+  const dockP: 0 | 1 = done[focusP] < STEPS_PER_PROBLEM ? focusP : done[0] < STEPS_PER_PROBLEM ? 0 : 1;
+  const dockStep = done[dockP];
+  const dockActive = !ignited && dockStep < STEPS_PER_PROBLEM;
+  const dockLevel = dockActive ? hints[dockP][dockStep] : 0;
+  const stepDef = LOOKUP_PROBLEMS[dockP].steps[Math.min(dockStep, STEPS_PER_PROBLEM - 1)];
+  const readCol = TELEMETRY_SHEET.columns.find((c) => c.index === stepDef.readColumn)?.label ?? `COL_${stepDef.readColumn}`;
+
+  /** Hint 1 points at the sheet column; Hint 2 submits the answer for the player (step scores 0). */
+  const requestHint = (next: 1 | 2) => {
+    if (!dockActive || dockLevel >= next) return;
+    setHints((h) => h.map((row, i) => (i === dockP ? row.map((v, s) => (s === dockStep ? next : v)) : row)));
+    if (next === 2) submit(dockP, dockStep, answers[dockP][dockStep], 2);
   };
 
   return (
@@ -67,7 +75,7 @@ export function ModuleB({ operators, onRecord, onComplete }: Props) {
       {flash && <div key={`${flash.kind}${flash.n}`} className={flash.kind === 'bad' ? 'hull-flash' : 'ok-flash'} />}
 
       <div className="grid flex-1 items-stretch gap-3 p-3 pb-24 lg:grid-cols-[minmax(300px,1fr)_minmax(340px,1.15fr)_minmax(300px,1fr)]">
-        <Datapad problem={LOOKUP_PROBLEMS[0]} columns={TELEMETRY_SHEET.columns} answers={answers[0]} done={done[0]} wrong={wrong[0]} hints={hints[0]} hintCost={SCORING.moduleB.hint1Penalty} onHint={(s) => hint(0, s)} accent="cyan" onSubmit={(s, v) => submit(0, s, v)} />
+        <Datapad problem={LOOKUP_PROBLEMS[0]} columns={TELEMETRY_SHEET.columns} answers={answers[0]} done={done[0]} wrong={wrong[0]} onActivate={() => setFocusP(0)} accent="cyan" onSubmit={(s, v) => submit(0, s, v)} />
 
         <HudPanel
           title="Reactor Core"
@@ -98,12 +106,12 @@ export function ModuleB({ operators, onRecord, onComplete }: Props) {
           </div>
         </HudPanel>
 
-        <Datapad problem={LOOKUP_PROBLEMS[1]} columns={TELEMETRY_SHEET.columns} answers={answers[1]} done={done[1]} wrong={wrong[1]} hints={hints[1]} hintCost={SCORING.moduleB.hint1Penalty} onHint={(s) => hint(1, s)} accent="gold" onSubmit={(s, v) => submit(1, s, v)} />
+        <Datapad problem={LOOKUP_PROBLEMS[1]} columns={TELEMETRY_SHEET.columns} answers={answers[1]} done={done[1]} wrong={wrong[1]} onActivate={() => setFocusP(1)} accent="gold" onSubmit={(s, v) => submit(1, s, v)} />
       </div>
 
       <footer className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-goat-gold/60 bg-goat-void/95">
         <div className="hazard-stripe h-1 w-full opacity-70" aria-hidden />
-        <div className="flex items-center gap-3 px-3 py-2.5">
+        <div className="flex items-center gap-3 px-3 py-2.5 lg:pr-[380px]">
           <span className={`font-tele text-[11px] uppercase tracking-widest ${ignited ? 'goat-blink text-goat-plasma' : 'text-goat-mute'}`}>
             {ignited ? '● PLASMA STABLE — MODULE C UNLOCKED' : `◌ RESOLVE BOTH ISSUES TO IGNITE (${stepsDone}/${totalSteps})`}
           </span>
@@ -117,6 +125,16 @@ export function ModuleB({ operators, onRecord, onComplete }: Props) {
           </button>
         </div>
       </footer>
+      {dockActive && (
+        <HintDock
+          level={dockLevel}
+          itemLabel={`${LOOKUP_PROBLEMS[dockP].id} · STEP ${dockStep + 1}/${STEPS_PER_PROBLEM}`}
+          hint1Text={`The answer is in cheat-sheet column ${stepDef.readColumn}: ${readCol}.`}
+          hint2Text="The answer was submitted for you. This step scores 0."
+          cost1={SCORING.moduleB.hint1Penalty}
+          onHint={requestHint}
+        />
+      )}
     </div>
   );
 }

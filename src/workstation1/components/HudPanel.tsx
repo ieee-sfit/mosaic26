@@ -45,19 +45,23 @@ export function HudPanel({
       className={`${outer} ${t.border} p-px ${className}`}
       style={{ ['--c' as string]: `${chamfer}px`, ...style }}
     >
-      <div className={`${inner} relative flex h-full min-h-0 flex-col bg-goat-navy/95`}>
+      <div className={`${inner} hw-body relative flex h-full min-h-0 flex-col`}>
+        <span className="hw-screw left-1.5 top-1.5" aria-hidden />
+        <span className="hw-screw right-1.5 top-1.5" aria-hidden />
+        <span className="hw-screw bottom-1.5 left-1.5" aria-hidden />
+        <span className="hw-screw bottom-1.5 right-1.5" aria-hidden />
         {(title || tag) && (
-          <header className={`flex items-center justify-between gap-3 border-b border-white/5 px-3 py-1.5 ${t.bg}`}>
+          <header className={`hw-plate flex items-center justify-between gap-3 px-4 py-1.5 ${t.bg}`}>
             {title && (
               <h2 className={`font-hud text-[11px] font-bold uppercase tracking-[0.22em] ${t.text}`}>
-                <span className="mr-2 inline-block h-2 w-2 bg-current align-middle" />
+                <span className="hw-led mr-2 inline-block h-2 w-2 bg-current align-middle" />
                 {title}
               </h2>
             )}
             {tag && <span className="font-tele text-[10px] uppercase tracking-wider text-goat-mute">{tag}</span>}
           </header>
         )}
-        <div className={`relative min-h-0 flex-1 ${bodyClassName}`}>{children}</div>
+        <div className={`hw-screen relative min-h-0 flex-1 ${bodyClassName}`}>{children}</div>
       </div>
     </section>
   );

@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:kiosk": "vite build --mode kiosk --outDir dist-kiosk",
+    "build:board": "vite build --mode board --outDir dist-board",
     "lint": "eslint .",
     "preview": "vite preview"
   },

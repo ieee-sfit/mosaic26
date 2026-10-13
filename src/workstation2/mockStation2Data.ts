@@ -1,27 +1,30 @@
 /**
- * STATION 2 — MOCK DATA (isolated, swap this file to change content).
- * Questions, cheat-sheet columns, lookup matrix, track nodes, beams and balancer configs live here.
+ * STATION 2 — DATA (isolated, swap this file to change content).
+ * Questions, cheat-sheet columns, route sections and race stints live here, not in components.
  */
-import type {
-  Beam, CheatColumn, LookupStep, MatrixColumn, MatrixRow, QualityProfile, QuizQuestion, Stint, TrackNode,
-} from './types';
+import type { Beam, CheatColumn, LapId, Need, QualityProfile, QuizQuestion, Section, Stint } from './types';
 
 export const STATION2_CONFIG = {
   totalSeconds: 720,
-  idDigits: 6,
   moduleMax: { A: 15, B: 40, C: 45 },
   speedBonusMax: 20,
   questionsPerRun: 3,
-  hintPenalty: { hint1: 0.4, hint2: 1.0 }, // fraction of that question's points
-  wrongAnswerPenalty: 0.25, // fraction of question points per wrong transmit
-  stepWrongPenalty: 1, // points lost per wrong lookup entry
+  hintPenalty: { hint1: 0.4, hint2: 1.0 }, // fraction of that item's points
+  wrongAnswerPenalty: 0.2, // fraction of the item's points per wrong try (same -20% as every station)
   gasketPips: 3,
-  latencyLimitMs: 1500,
   utilLimit: 0.8,
-  idleLimitMs: 25000,
-  relayHopMs: 90,
+  idleLimitMs: 40000, // no slider touched for this long while unbalanced: engine overheats, gasket blows
+  relayHopMs: 90, // BACKUP RELAY adds this much latency
   queueBaseMs: 45,
 };
+
+/** Expected clean-run time per module (seconds), used only to flag slow modules on the debrief. */
+export const PAR = { A: 100, B: 240, C: 300 } as const;
+export const TIPS = {
+  A: 'Read the whole question, then check the cheat sheet before guessing.',
+  B: 'Check every NEED line before you send. Latency adds, loss compounds, bandwidth is the narrowest link.',
+  C: 'Fix the node over 80% first, then latency, then quality. Use the relay only if a node cannot cope.',
+} as const;
 
 export const CHEAT_COLUMNS: CheatColumn[] = [
   { id: 'COL-1', label: 'CDN EDGE CACHING' },
@@ -69,95 +72,155 @@ export const QUESTION_BANK: QuizQuestion[] = [
 ];
 
 // ---------------------------------------------------------------- MODULE B
-export const MATRIX_COLUMNS: MatrixColumn[] = [
-  'UNIT', 'SECTOR', 'GEAR', 'RPM', 'FUEL_L', 'TYRE_PSI', 'RELAY_CH', 'NEXT_UNIT',
-];
+/**
+ * Route builder. Each section is a route from the trackside tower (T) to the pit wall (P) over relay sites.
+ *   latency adds along the route, loss compounds (1 - product of what survives), bandwidth is the narrowest beam.
+ * Any route that meets every NEED line scores full marks (rule-based; see routes in logic.ts).
+ * PRACTICE scores latency and loss with generous limits. QUALIFYING adds bandwidth with tighter limits.
+ * Two laps x 4 sections x 5 points = 40. Every section has at least one valid route and several tempting wrong ones.
+ */
+export const LAP_NEED: Record<LapId, Need> = {
+  practice: { ms: 82, loss: 3.0, mbps: null },
+  qualifying: { ms: 64, loss: 1.6, mbps: 400 },
+};
+export const LAP_LABEL: Record<LapId, string> = { practice: 'PRACTICE', qualifying: 'QUALIFYING' };
+export const SECTIONS_PER_LAP = 4;
+export const POINTS_PER_SECTION = 5;
 
-export const MATRIX: MatrixRow[] = [
-  { UNIT: 'A1', SECTOR: 'MULSANNE', GEAR: 5, RPM: 6850, FUEL_L: 92, TYRE_PSI: 31, RELAY_CH: 'CH-14', NEXT_UNIT: 'C2' },
-  { UNIT: 'A2', SECTOR: 'ARNAGE', GEAR: 2, RPM: 5400, FUEL_L: 88, TYRE_PSI: 29, RELAY_CH: 'CH-07', NEXT_UNIT: 'D1' },
-  { UNIT: 'B1', SECTOR: 'PITS', GEAR: 3, RPM: 6200, FUEL_L: 75, TYRE_PSI: 33, RELAY_CH: 'CH-21', NEXT_UNIT: 'A2' },
-  { UNIT: 'B2', SECTOR: 'INDIANAPOLIS', GEAR: 4, RPM: 6620, FUEL_L: 81, TYRE_PSI: 30, RELAY_CH: 'CH-03', NEXT_UNIT: 'E1' },
-  { UNIT: 'C1', SECTOR: 'MULSANNE', GEAR: 6, RPM: 7000, FUEL_L: 67, TYRE_PSI: 32, RELAY_CH: 'CH-18', NEXT_UNIT: 'B1' },
-  { UNIT: 'C2', SECTOR: 'ARNAGE', GEAR: 3, RPM: 5900, FUEL_L: 59, TYRE_PSI: 28, RELAY_CH: 'CH-11', NEXT_UNIT: 'B2' },
-  { UNIT: 'D1', SECTOR: 'PITS', GEAR: 2, RPM: 4800, FUEL_L: 98, TYRE_PSI: 34, RELAY_CH: 'CH-26', NEXT_UNIT: 'C1' },
-  { UNIT: 'D2', SECTOR: 'PORSCHE', GEAR: 4, RPM: 6400, FUEL_L: 52, TYRE_PSI: 27, RELAY_CH: 'CH-09', NEXT_UNIT: 'E2' },
-  { UNIT: 'E1', SECTOR: 'INDIANAPOLIS', GEAR: 5, RPM: 6980, FUEL_L: 44, TYRE_PSI: 35, RELAY_CH: 'CH-30', NEXT_UNIT: 'A1' },
-  { UNIT: 'E2', SECTOR: 'DUNLOP', GEAR: 3, RPM: 5600, FUEL_L: 71, TYRE_PSI: 26, RELAY_CH: 'CH-16', NEXT_UNIT: 'D2' },
-];
+/** Landmark names and lap shares (km) of the four sections; they sum to the 13.629 km lap. */
+const SITE: Record<'1' | '2' | '3' | '4', { name: string; km: number; nodes: Record<string, readonly [number, number]> }> = {
+  '1': { name: 'ESSES', km: 3.12, nodes: { T: [104, 198], A: [190, 152], B: [358, 234], C: [513, 138], D: [625, 281], P: [330, 318] } },
+  '2': { name: 'MULSANNE', km: 4.46, nodes: { T: [520, 84], A: [330, 150], B: [710, 150], C: [236, 222], D: [520, 232], E: [810, 232], P: [330, 318] } },
+  '3': { name: 'INDY', km: 3.3, nodes: { T: [876, 222], A: [700, 130], B: [700, 285], C: [540, 200], D: [420, 238], P: [330, 318] } },
+  '4': { name: 'S-CURVES', km: 2.749, nodes: { T: [700, 300], A: [600, 200], B: [820, 205], C: [430, 140], D: [500, 275], P: [330, 318] } },
+};
 
-export const LOOKUP_STEPS: LookupStep[] = [
-  { id: 'P1S1', problem: 1, n: 1, brief: 'Ken Miles radios in from the Mulsanne tower zone.',
-    find: { column: 'UNIT', value: 'A1' }, read: 'NEXT_UNIT' },
-  { id: 'P1S2', problem: 1, n: 2, brief: 'Route the relay to the unit you just found.',
-    find: { column: 'UNIT', fromPrev: true }, read: 'RPM' },
-  { id: 'P1S3', problem: 1, n: 3, brief: 'Engine note drifts up. Track the unit running hotter.',
-    find: { column: 'RPM', fromPrev: true, offset: 300 }, read: 'TYRE_PSI' },
-  { id: 'P1S4', problem: 1, n: 4, brief: 'Tyre pressure bleeds off. Find the matching unit and lock its channel.',
-    find: { column: 'TYRE_PSI', fromPrev: true, offset: -3 }, read: 'RELAY_CH' },
+const sec = (id: string, lap: LapId, rows: (readonly [string, string, number, number, number])[]): Section => {
+  const index = Number(id[1]);
+  const site = SITE[String(index) as '1' | '2' | '3' | '4'];
+  const nodes = Object.fromEntries(Object.entries(site.nodes).map(([k, [x, y]]) => [k, { x, y }]));
+  const beams: Beam[] = rows.map(([a, b, ms, loss, mbps]) => ({ a, b, ms, loss, mbps }));
+  return { id, lap, index, name: site.name, km: site.km, nodes, beams, need: LAP_NEED[lap] };
+};
 
-  { id: 'P2S1', problem: 2, n: 1, brief: 'Arnage tower reports a second car on the relay.',
-    find: { column: 'UNIT', value: 'D2' }, read: 'NEXT_UNIT' },
-  { id: 'P2S2', problem: 2, n: 2, brief: 'Check how much fuel the next unit carries.',
-    find: { column: 'UNIT', fromPrev: true }, read: 'FUEL_L' },
-  { id: 'P2S3', problem: 2, n: 3, brief: 'Pit wall tops up the tank. Find the refuelled unit.',
-    find: { column: 'FUEL_L', fromPrev: true, offset: 10 }, read: 'RPM' },
-  { id: 'P2S4', problem: 2, n: 4, brief: 'Final sprint to the Pit Straight. Lock the closing channel.',
-    find: { column: 'RPM', fromPrev: true, offset: 360 }, read: 'RELAY_CH' },
-];
-
-/** Track nodes sit on the SVG track at the given path fraction (0..1). */
-export const TRACK_PATH =
-  'M 150 335 L 400 335 C 470 335 500 310 560 310 C 620 310 650 345 700 320 C 740 300 735 250 700 235 ' +
-  'C 665 225 650 190 690 170 C 730 150 745 100 710 80 L 230 70 C 170 66 130 90 130 130 ' +
-  'C 130 180 190 190 190 230 C 190 280 100 280 100 310 C 100 330 120 335 150 335 Z';
-
-export const TRACK_NODES: TrackNode[] = [
-  { id: 'pit', label: 'PIT STRAIGHT', fraction: 0.06 },
-  { id: 'arnage', label: 'ARNAGE', fraction: 0.4 },
-  { id: 'mulsanne', label: 'MULSANNE', fraction: 0.68 },
-];
-
-/** GT40 waypoints: index = number of verified lookup steps (0..8). */
-export const CAR_FRACTIONS = [0.02, 0.12, 0.22, 0.33, 0.45, 0.55, 0.66, 0.78, 0.9];
-
-/** Beams light up one per verified step, in order. `car` is Ken Miles' GT40. */
-export const BEAMS: Beam[] = [
-  { id: 'b1', from: 'car', to: 'mulsanne', bow: 40 },
-  { id: 'b2', from: 'car', to: 'arnage', bow: -40 },
-  { id: 'b3', from: 'car', to: 'pit', bow: 40 },
-  { id: 'b4', from: 'mulsanne', to: 'arnage', bow: -50 },
-  { id: 'b5', from: 'arnage', to: 'pit', bow: 50 },
-  { id: 'b6', from: 'mulsanne', to: 'pit', bow: 60 },
-  { id: 'b7', from: 'car', to: 'mulsanne', bow: -70 },
-  { id: 'b8', from: 'car', to: 'pit', bow: -70 },
+export const SECTIONS: Section[] = [
+  sec('P1', 'practice', [
+    ['A', 'T', 14, 0.4, 800],
+    ['B', 'T', 16, 2.5, 150],
+    ['A', 'B', 21, 0.3, 150],
+    ['A', 'C', 26, 0.8, 500],
+    ['B', 'C', 26, 0.8, 500],
+    ['B', 'D', 24, 0.6, 150],
+    ['C', 'D', 14, 0.2, 250],
+    ['C', 'P', 18, 2.5, 200],
+    ['D', 'P', 19, 0.2, 500],
+  ]),
+  sec('P2', 'practice', [
+    ['A', 'T', 13, 0.2, 500],
+    ['B', 'T', 17, 0.6, 500],
+    ['D', 'T', 21, 2.5, 1000],
+    ['A', 'C', 24, 0.2, 500],
+    ['A', 'D', 16, 1.5, 400],
+    ['B', 'D', 26, 0.2, 800],
+    ['B', 'E', 13, 1.5, 200],
+    ['D', 'E', 19, 0.1, 300],
+    ['C', 'P', 17, 0.1, 200],
+    ['D', 'P', 23, 0.6, 1000],
+  ]),
+  sec('P3', 'practice', [
+    ['A', 'T', 17, 1, 1000],
+    ['B', 'T', 22, 0.8, 200],
+    ['A', 'B', 13, 0.1, 800],
+    ['A', 'C', 23, 0.2, 200],
+    ['B', 'C', 24, 0.6, 1000],
+    ['C', 'D', 19, 0.1, 600],
+    ['D', 'P', 14, 1, 150],
+    ['C', 'P', 36, 2, 500],
+    ['B', 'D', 32, 2, 250],
+  ]),
+  sec('P4', 'practice', [
+    ['A', 'T', 21, 1.5, 600],
+    ['B', 'T', 21, 1.2, 800],
+    ['D', 'T', 17, 2.5, 400],
+    ['A', 'B', 18, 1.2, 500],
+    ['A', 'C', 18, 0.1, 800],
+    ['A', 'D', 22, 0.6, 400],
+    ['C', 'D', 19, 1, 150],
+    ['C', 'P', 26, 0.3, 1000],
+    ['D', 'P', 15, 0.6, 600],
+  ]),
+  sec('Q1', 'qualifying', [
+    ['A', 'T', 25, 0.4, 800],
+    ['B', 'T', 16, 0.1, 400],
+    ['A', 'B', 21, 0.6, 1000],
+    ['A', 'C', 24, 0.4, 800],
+    ['B', 'C', 18, 0.6, 500],
+    ['B', 'D', 22, 1.5, 500],
+    ['C', 'D', 12, 0.2, 400],
+    ['C', 'P', 26, 0.2, 150],
+    ['D', 'P', 14, 0.4, 400],
+  ]),
+  sec('Q2', 'qualifying', [
+    ['A', 'T', 21, 0.2, 400],
+    ['B', 'T', 23, 0.1, 400],
+    ['D', 'T', 26, 1.2, 400],
+    ['A', 'C', 16, 0.3, 250],
+    ['A', 'D', 16, 0.2, 1000],
+    ['B', 'D', 26, 0.4, 600],
+    ['B', 'E', 11, 1.2, 800],
+    ['D', 'E', 20, 0.3, 500],
+    ['C', 'P', 12, 0.2, 200],
+    ['D', 'P', 20, 1, 500],
+  ]),
+  sec('Q3', 'qualifying', [
+    ['A', 'T', 15, 0.3, 400],
+    ['B', 'T', 11, 0.3, 800],
+    ['A', 'B', 14, 1, 150],
+    ['A', 'C', 19, 0.4, 1000],
+    ['B', 'C', 16, 0.3, 400],
+    ['C', 'D', 16, 0.2, 500],
+    ['D', 'P', 18, 0.4, 1000],
+    ['C', 'P', 32, 1.2, 1000],
+    ['B', 'D', 29, 0.8, 200],
+  ]),
+  sec('Q4', 'qualifying', [
+    ['A', 'T', 11, 0.2, 1000],
+    ['B', 'T', 11, 0.6, 500],
+    ['D', 'T', 21, 2.5, 150],
+    ['A', 'B', 15, 0.4, 1000],
+    ['A', 'C', 21, 0.3, 800],
+    ['A', 'D', 13, 0.8, 250],
+    ['C', 'D', 13, 2, 500],
+    ['C', 'P', 20, 0.1, 1000],
+    ['D', 'P', 15, 0.6, 500],
+  ]),
 ];
 
 // ---------------------------------------------------------------- MODULE C
 export const QUALITY_PROFILES: QualityProfile[] = [
-  { id: '4K', label: '4K RAW', mbps: 25, latencyMs: 700 },
+  { id: '4K', label: '4K', mbps: 25, latencyMs: 700 },
   { id: '1080', label: '1080p', mbps: 8, latencyMs: 350 },
-  { id: '720', label: '720p LOW LATENCY', mbps: 3, latencyMs: 120 },
+  { id: '720', label: '720p', mbps: 3, latencyMs: 120 },
 ];
 
+/**
+ * Three race laps. Contract per lap: latency under its limit, worst node under 80%, quality at or above the minimum.
+ * Lap 1: no relay needed. Lap 2: the Mulsanne mast cannot take the spike, so BACKUP RELAY is required.
+ * Lap 3: both ways work; the relay widens the split window but costs +90 ms against a tight limit.
+ * (Checked by `solveStint` in logic.ts and by the Playwright run.)
+ */
 export const STINTS: Stint[] = [
   {
-    id: 'day', name: 'DAY STINT', tag: 'SAT 16:00 // CLEAR',
-    briefing: 'Fans flood in. Mulsanne gets a 0.8M viewer spike. Broadcast contract demands 4K RAW.',
-    viewersM: 2.4, spikeM: 0.8, spikeTarget: 'mulsanne',
-    capacity: { mulsanne: 45, pit: 45, arnage: 30 }, baseLatencyMs: 180, worstQualityIdx: 0,
+    id: 'dry', name: 'DRY', tag: 'LAP 1 · CLEAR', viewersM: 1.6, spikeM: 0.6, spikeTarget: 'mulsanne',
+    capacity: { mulsanne: 14, pit: 20, arnage: 20 }, baseLatencyMs: 180, worstQualityIdx: 1, latencyLimitMs: 1100,
   },
   {
-    id: 'rain', name: 'RAIN STINT', tag: 'SAT 23:40 // HEAVY RAIN',
-    briefing: 'Rain fade chokes Mulsanne. Pit lane crowd surges. Contract allows 1080p or better.',
-    viewersM: 5.0, spikeM: 1.6, spikeTarget: 'mulsanne',
-    capacity: { mulsanne: 30, pit: 55, arnage: 35 }, baseLatencyMs: 520, worstQualityIdx: 1,
+    id: 'rain', name: 'RAIN', tag: 'LAP 2 · HEAVY RAIN', viewersM: 3.0, spikeM: 1.4, spikeTarget: 'mulsanne',
+    capacity: { mulsanne: 12, pit: 40, arnage: 30 }, baseLatencyMs: 420, worstQualityIdx: 1, latencyLimitMs: 1150,
   },
   {
-    id: 'sprint', name: 'FINAL SPRINT', tag: 'SUN 15:30 // CHEQUERED FLAG',
-    briefing: 'Record audience. Every node near the ceiling. Hold 1080p or better to the flag.',
-    viewersM: 6.5, spikeM: 2.5, spikeTarget: 'mulsanne',
-    capacity: { mulsanne: 32, pit: 38, arnage: 28 }, baseLatencyMs: 380, worstQualityIdx: 1,
+    id: 'final', name: 'FINAL', tag: 'LAP 3 · CHEQUERED FLAG', viewersM: 4.0, spikeM: 1.0, spikeTarget: 'mulsanne',
+    capacity: { mulsanne: 30, pit: 26, arnage: 28 }, baseLatencyMs: 380, worstQualityIdx: 1, latencyLimitMs: 1000,
   },
 ];
 

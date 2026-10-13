@@ -1,8 +1,10 @@
+import { useSession } from '../../session/sessionContext'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { STATION4_CONFIG, TELEMETRY_BASELINE } from '../mockStation4Data'
 import { speedBonus } from './logic'
 import LaunchScreen from './LaunchScreen'
 import EndScreen from './EndScreen'
+import LabBackdrop from './LabBackdrop'
 import ModuleA from './ModuleA'
 import ModuleB from './ModuleB'
 import ModuleC from './ModuleC'
@@ -12,6 +14,9 @@ const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 
 const MODULES = ['A', 'B', 'C']
 
 export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
+  const session = useSession()
+  const preset = /^\d{6}$/.test(session?.p1_id ?? '') && /^\d{6}$/.test(session?.p2_id ?? '')
+    ? [session.p1_id, session.p2_id] : null
   const [stage, setStage] = useState('launch') // launch | play | end
   const [ids, setIds] = useState({ p1: '', p2: '' })
   const [mod, setMod] = useState('A')
@@ -24,25 +29,47 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
   const endAt = useRef(0)
   const live = useRef({})
   const finished = useRef(false)
-  useEffect(() => { live.current = { ids, score, timeLeft } })
+  // Diagnostics: per-module time, wrong tries, hints and the worst moments (shown on the end screen)
+  const stats = useRef({})
+  const modStart = useRef(0)
+  const modRef = useRef('A')
+  useEffect(() => { live.current = { ids, score, timeLeft }; modRef.current = mod })
+  const resetStats = () => {
+    stats.current = Object.fromEntries(MODULES.map((m) => [m, { seconds: 0, wrong: 0, hints: 0, flags: [] }]))
+    modStart.current = Date.now()
+  }
+  const track = useCallback((m, kind, label) => {
+    const s = stats.current[m]
+    if (!s) return
+    if (kind === 'hint') s.hints += 1
+    else s.wrong += 1
+    if (label && s.flags.length < 6) s.flags.push(label)
+  }, [])
+  const closeModule = useCallback(() => {
+    const s = stats.current[modRef.current]
+    if (s) s.seconds += Math.round((Date.now() - modStart.current) / 1000)
+    modStart.current = Date.now()
+  }, [])
+  const goMod = (next) => { closeModule(); setMod(next) }
 
   const fx = useCallback((kind) => {
     setFxOn((f) => ({ ...f, [kind]: true }))
     setTimeout(() => setFxOn((f) => ({ ...f, [kind]: false })), kind === 'strobe' ? 1200 : 600)
   }, [])
   const log = useCallback((msg, type = 'info') => {
-    setLogs((l) => [{ id: Math.random(), t: new Date().toLocaleTimeString('en-GB'), msg, type }, ...l].slice(0, 6))
+    setLogs((l) => [{ id: Math.random(), t: new Date().toLocaleTimeString('en-GB'), msg, type }, ...l].slice(0, 2))
   }, [])
 
   const finish = useCallback((outcome, tl) => {
     if (finished.current) return
     finished.current = true
+    closeModule()
     const { ids: i, score: s } = live.current
     const c = outcome === 'forfeit' ? 0 : s.c
-    const bonus = speedBonus(tl, outcome === 'complete')
+    const bonus = speedBonus(tl, outcome === 'complete', s.a + s.b + c)
     const raw = Math.round((s.a + s.b + c + bonus) * 100) / 100
     const summary = { p1_id: i.p1, p2_id: i.p2, game_id: 'station4', raw_score: raw, time_left: tl }
-    setReport({ result: { outcome, a: s.a, b: s.b, c, bonus }, summary })
+    setReport({ result: { outcome, a: s.a, b: s.b, c, bonus }, summary, diag: JSON.parse(JSON.stringify(stats.current)) })
     setStage('end')
     try { onComplete?.(summary) } catch { /* host callback must not break the end screen */ }
     try {
@@ -52,7 +79,7 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(summary),
       }).catch(() => {})
     } catch { /* storage / network unavailable */ }
-  }, [onComplete])
+  }, [onComplete, closeModule])
 
   // timestamp-driven 12:00 countdown
   useEffect(() => {
@@ -69,13 +96,16 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
   const launch = (p1, p2) => {
     endAt.current = Date.now() + STATION4_CONFIG.totalSeconds * 1000
     setIds({ p1, p2 })
+    resetStats()
     setStage('play')
-    log('QUARANTINE PROTOCOL ENGAGED // 12:00 ON THE CLOCK', 'ok')
+    log('QUARANTINE ENGAGED', 'ok')
   }
   const restart = () => {
+    // Replays go back through the launcher so the attempt cap is checked
+    if (onOpenStationChooser) { onOpenStationChooser(); return }
     finished.current = false
     setScore({ a: 0, b: 0, c: 0 }); setSeals(STATION4_CONFIG.moduleC.seals)
-    setMod('A'); setTimeLeft(STATION4_CONFIG.totalSeconds); setLogs([]); setReport(null); setStage('launch')
+    setMod('A'); modRef.current = 'A'; setTimeLeft(STATION4_CONFIG.totalSeconds); setLogs([]); setReport(null); setStage('launch')
   }
 
   const critical = timeLeft <= 120 && stage === 'play'
@@ -85,6 +115,7 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
 
   return (
     <div className={shellCls}>
+      <LabBackdrop />
       <div className="mz-scan" aria-hidden="true" />
       {fxOn.strobe && <div className="mz-strobe" aria-hidden="true" />}
 
@@ -102,10 +133,9 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
             ))}
           </nav>
           <div className="mz-telemetry mz-hdr-tele">
-            <span>CONTAINMENT_SEAL: LEVEL-4</span>
-            <span className={Number(pathogen) > 50 ? 'mz-red' : 'mz-amber'}>PATHOGEN_LOAD: {pathogen}%</span>
-            <span>SEALS: {seals}/{STATION4_CONFIG.moduleC.seals}</span>
-            <span>SCORE: {Math.round((score.a + score.b + score.c) * 10) / 10}</span>
+            <span className={Number(pathogen) > 50 ? 'mz-red' : 'mz-amber'}>PATHOGEN {pathogen}%</span>
+            <span>SEALS {seals}/{STATION4_CONFIG.moduleC.seals}</span>
+            <span>SCORE {Math.round((score.a + score.b + score.c) * 10) / 10}</span>
           </div>
         </header>
       )}
@@ -119,22 +149,22 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
       )}
 
       <main className="mz-main">
-        {stage === 'launch' && <LaunchScreen onLaunch={launch} onOpenStationChooser={onOpenStationChooser} />}
+        {stage === 'launch' && <LaunchScreen preset={preset} onLaunch={launch} onOpenStationChooser={onOpenStationChooser} />}
         {stage === 'play' && mod === 'A' && (
-          <ModuleA fx={fx} log={log} onScore={(a) => setScore((s) => ({ ...s, a }))} onDone={() => setMod('B')} />
+          <ModuleA fx={fx} log={log} track={track} onScore={(a) => setScore((s) => ({ ...s, a }))} onDone={() => goMod('B')} />
         )}
         {stage === 'play' && mod === 'B' && (
-          <ModuleB fx={fx} log={log} onScore={(b) => setScore((s) => ({ ...s, b }))} onDone={() => setMod('C')} />
+          <ModuleB fx={fx} log={log} track={track} onScore={(b) => setScore((s) => ({ ...s, b }))} onDone={() => goMod('C')} />
         )}
         {stage === 'play' && mod === 'C' && (
           <ModuleC
-            fx={fx} log={log} onSeals={setSeals}
+            fx={fx} log={log} track={track} onSeals={setSeals}
             onScore={(c) => setScore((s) => ({ ...s, c }))}
             onDone={() => finish('complete', Math.max(0, Math.ceil((endAt.current - Date.now()) / 1000)))}
             onForfeit={() => finish('forfeit', Math.max(0, Math.ceil((endAt.current - Date.now()) / 1000)))}
           />
         )}
-        {stage === 'end' && report && <EndScreen result={report.result} summary={report.summary} onRestart={restart} />}
+        {stage === 'end' && report && <EndScreen result={report.result} summary={report.summary} diag={report.diag} onRestart={restart} />}
       </main>
 
       {stage === 'play' && (

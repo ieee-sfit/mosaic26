@@ -20,12 +20,12 @@ export const SCORING: ScoringConfig = {
   totalSeconds: 12 * 60,
   moduleA: {
     questionCount: 3,
-    pointsPerQuestion: 100,
+    pointsPerQuestion: 5, // 3 x 5 = 15
     hint1Penalty: 0.4,
-    wrongAttemptPenalty: 0.25,
+    wrongAttemptPenalty: 0.2,
   },
-  moduleB: { pointsPerStep: 50, hint1Penalty: 0.4, wrongAttemptPenalty: 0.2 },
-  moduleC: { pointsPerRound: 100, hint1Penalty: 0.4, missPenalty: 0.35, hullPips: 3 },
+  moduleB: { pointsPerStep: 5, hint1Penalty: 0.4, wrongAttemptPenalty: 0.2 }, // 8 x 5 = 40
+  moduleC: { pointsPerRound: 15, hint1Penalty: 0.4, missPenalty: 0.35, hullPips: 3 }, // 3 x 15 = 45
 };
 
 /* ── Module A · physical cheat-sheet column names (Hint 1 target) ── */

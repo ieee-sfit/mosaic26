@@ -4,7 +4,7 @@ import { useShake } from '../hooks/useScreenShake';
 import { scoreRound } from '../utils/scoring';
 import { alignmentFor, ampFromSlider, disturbanceDb, freqFromSlider, targetsFor, type Controls } from '../utils/waves';
 import type { EndReason, RoundResult } from '../types';
-import { HintButton } from './HintButton';
+import HintDock from '../../core/HintDock';
 import { HudPanel, TeleChip } from './HudPanel';
 import { HullPips } from './HullPips';
 import { ModuleHeader } from './ModuleHeader';
@@ -117,11 +117,18 @@ export function ModuleC({ operators, onRecord, onHullChange, onFinish }: Props) 
   const targets = targetsFor(CAL, profile);
 
   /** Hint 1 marks the target band on every control; Hint 2 dials the controls in (round scores 0). */
-  const requestHint = () => {
+  const requestHint = (next: 1 | 2) => {
     const cur = latest.current;
-    if (cur.status !== 'tuning' || cur.hints >= 2) return;
-    if (cur.hints === 0) setS({ ...cur, hints: 1 });
-    else setS({ ...cur, hints: 2, controls: { amp: targets.amp, freq: targets.freq, phase: targets.phase } });
+    if (cur.status !== 'tuning' || cur.hints >= next) return;
+    if (next === 1) {
+      setS({ ...cur, hints: 1 });
+      return;
+    }
+    // Hint 2 dials the controls in and fires for the player: the round scores 0
+    const tuned = { ...cur, hints: 2 as const, controls: { amp: targets.amp, freq: targets.freq, phase: targets.phase } };
+    latest.current = tuned;
+    setS(tuned);
+    resolve(true);
   };
 
   const set = (patch: Partial<Controls>) => setS((cur) => (cur.status === 'tuning' ? { ...cur, controls: { ...cur.controls, ...patch } } : cur));
@@ -194,18 +201,6 @@ export function ModuleC({ operators, onRecord, onHullChange, onFinish }: Props) 
 
           <HudPanel title="Phase Inversion" tag="0° — 360°" tone="gold" cut="both" chamfer={18} className="md:w-[330px]" bodyClassName="flex flex-col items-center gap-3 p-3">
             <RotaryDial value={s.controls.phase} onChange={(d) => set({ phase: d })} disabled={!tuning} marker={s.hints >= 1 ? { deg: targets.phase, band: CAL.tolerance * 360 } : undefined} />
-            <div className="w-full">
-              <HintButton stage={s.hints} onClick={requestHint} disabled={!tuning} />
-              <div className="mt-1 font-tele text-[9px] uppercase tracking-wider text-goat-mute">
-                H1: −{Math.round(cfg.hint1Penalty * 100)}% · BANDS · H2: AUTO-TUNE · 0 PTS
-              </div>
-              {s.hints >= 1 && (
-                <div key={`h${s.hints}`} className="goat-slide-in mt-1 border-l-2 border-goat-gold bg-goat-gold/10 px-2 py-1 font-tele text-[10px] uppercase tracking-wider text-goat-gold" role="status">
-                  ▲ INTEL: AMP {ampFromSlider(CAL, targets.amp).toFixed(2)} · FREQ {freqFromSlider(CAL, targets.freq).toFixed(2)}× · PHASE {Math.round(targets.phase)}°
-                  {s.hints === 2 && <span className="block text-goat-crimson">AUTO-TUNED · ROUND WORTH 0 PTS</span>}
-                </div>
-              )}
-            </div>
             <button
               type="button"
               disabled={!tuning}
@@ -228,7 +223,7 @@ export function ModuleC({ operators, onRecord, onHullChange, onFinish }: Props) 
       {/* status strip */}
       <footer className="sticky bottom-0 z-40 border-t-2 border-goat-gold/60 bg-goat-void/95">
         <div className="hazard-stripe h-1 w-full opacity-70" aria-hidden />
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-3 py-2">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-3 py-2 lg:pr-[380px]">
           <div className="flex min-w-[220px] flex-1 items-center gap-3">
             <span className="font-tele text-[10px] uppercase tracking-widest text-goat-mute">WAVE_TIMER</span>
             <div className="h-2 flex-1 bg-goat-mute/20">
@@ -249,6 +244,15 @@ export function ModuleC({ operators, onRecord, onHullChange, onFinish }: Props) 
           </button>
         </div>
       </footer>
+      <HintDock
+        level={s.hints}
+        itemLabel={`TARGET ${s.round + 1}/${WAVE_PROFILES.length}`}
+        hint1Text={`Aim for AMP ${ampFromSlider(CAL, targets.amp).toFixed(2)}, FREQ ${freqFromSlider(CAL, targets.freq).toFixed(2)}x, PHASE ${Math.round(targets.phase)} deg. The target bands are marked on every control.`}
+        hint2Text="The controls were dialled in and fired for you. This target scores 0."
+        cost1={cfg.hint1Penalty}
+        disabled={!tuning}
+        onHint={requestHint}
+      />
     </div>
   );
 }

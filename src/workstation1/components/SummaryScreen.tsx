@@ -1,5 +1,6 @@
 import { SCORING } from '../mockStation1Data';
 import { gradeFor } from '../utils/scoring';
+import { normalizeStation1 } from '../../core/scoring';
 import type { EndReason, Station1Result } from '../types';
 import { HudPanel, TeleChip, type Tone } from './HudPanel';
 
@@ -22,6 +23,8 @@ export function SummaryScreen({ result, onRestart }: { result: Station1Result; o
   const r = REASON[result.endReason];
   const grade = gradeFor(result.total, result.maxTotal);
   const used = SCORING.totalSeconds - result.secondsRemaining;
+  const final = normalizeStation1(result); // shared 0-120 scale: base 100 + speed bonus 20
+  const bonus = final.raw_score - Math.round(result.total);
   const mm = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   const aHints = result.moduleA.reduce((n, q) => n + q.hintsUsed, 0);
   const bWrong = result.moduleB.reduce((n, s) => n + s.wrongAttempts, 0);
@@ -52,13 +55,16 @@ export function SummaryScreen({ result, onRestart }: { result: Station1Result; o
             {r.label}
           </h1>
           <p className="mt-2 font-tele text-xs uppercase tracking-widest text-goat-mute">&gt; {r.line}</p>
+          <p className="mt-1 font-tele text-xs uppercase tracking-widest text-goat-mute">
+            &gt; BASE {Math.round(result.total)}/100 · SPEED BONUS +{bonus}/20
+          </p>
 
           <div className="mt-8 flex items-end gap-6">
             <div>
               <div className="font-tele text-[10px] uppercase tracking-[0.3em] text-goat-mute">TOTAL_SCORE</div>
               <div className="font-tele text-[clamp(56px,9vw,120px)] font-extrabold leading-none tabular-nums text-white" style={{ textShadow: '0 0 30px rgba(0,242,254,0.5)' }}>
-                {result.total}
-                <span className="text-2xl text-goat-mute">/{result.maxTotal}</span>
+                {final.raw_score}
+                <span className="text-2xl text-goat-mute">/120</span>
               </div>
             </div>
             <div className="chamfer flex h-28 w-28 shrink-0 flex-col items-center justify-center bg-goat-cyan text-goat-void" style={{ ['--c' as string]: '20px' }}>

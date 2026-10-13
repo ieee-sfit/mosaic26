@@ -8,42 +8,39 @@ export interface QuizQuestion {
   correct: number; // index into options
 }
 
-export interface MatrixRow {
-  UNIT: string;
-  SECTOR: string;
-  GEAR: number;
-  RPM: number;
-  FUEL_L: number;
-  TYRE_PSI: number;
-  RELAY_CH: string;
-  NEXT_UNIT: string;
-}
-export type MatrixColumn = keyof MatrixRow;
+/** Module B: one beam between two relay sites. Latency adds, loss compounds, bandwidth is the narrowest link. */
+export interface Beam { a: string; b: string; ms: number; loss: number; mbps: number }
 
-export interface LookupStep {
-  id: string;
-  problem: 1 | 2;
-  n: 1 | 2 | 3 | 4;
-  brief: string;
-  // Row selector: match `column` against a literal, or the previous step's answer (+ optional numeric offset)
-  find: { column: MatrixColumn; value?: string | number; fromPrev?: boolean; offset?: number };
-  read: MatrixColumn;
-}
+/** The NEED lines of a lap. `mbps` is null when bandwidth is not scored (practice). */
+export interface Need { ms: number; loss: number; mbps: number | null }
 
-export interface TrackNode { id: string; label: string; fraction: number }
-export interface Beam { id: string; from: string; to: string; bow: number }
+export type LapId = 'practice' | 'qualifying';
+
+/** One section: a route from the trackside tower (T) to the pit wall (P). Node positions are on the 1000x400 plate. */
+export interface Section {
+  id: string; // P1..P4, Q1..Q4
+  lap: LapId;
+  index: number; // 1..4 within its lap
+  name: string; // landmark the tower stands at
+  km: number;
+  nodes: Record<string, { x: number; y: number }>;
+  beams: Beam[];
+  need: Need;
+}
 
 export interface QualityProfile { id: string; label: string; mbps: number; latencyMs: number }
 
 export interface Stint {
   id: string;
-  name: string;
-  tag: string;
-  briefing: string;
+  name: string; // short lap name
+  tag: string; // one short line, e.g. "RAIN"
   viewersM: number; // millions of concurrent viewers
   spikeM: number; // extra viewers in the traffic spike
   spikeTarget: 'mulsanne' | 'pit';
   capacity: { mulsanne: number; pit: number; arnage: number }; // Tbps
   baseLatencyMs: number;
-  worstQualityIdx: number; // lowest profile index (0=4K) the broadcast contract accepts
+  /** Contract: worst accepted quality (index into QUALITY_PROFILES, 0 = 4K). */
+  worstQualityIdx: number;
+  /** Contract: latency must stay under this. */
+  latencyLimitMs: number;
 }

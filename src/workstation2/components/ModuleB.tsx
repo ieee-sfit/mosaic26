@@ -1,135 +1,282 @@
-import { useState } from 'react';
-import TrackMap from './TrackMap';
-import { LOOKUP_STEPS, MATRIX, MATRIX_COLUMNS, STATION2_CONFIG } from '../mockStation2Data';
-import { describeStep, expectedAnswer, fmt, stepsOfProblem } from '../logic';
-import type { LookupStep } from '../types';
+import { useEffect, useRef, useState } from 'react';
+import { LAP_LABEL, POINTS_PER_SECTION, SECTIONS, SECTIONS_PER_LAP, STATION2_CONFIG } from '../mockStation2Data';
+import { fmt, fmtLoss, fmtMbps, itemPoints, metricsOf, neighbours, solveSection, verdictOf } from '../logic';
+import { fmtLap, secondsFor, speedFor } from '../race';
+import HintDock from '../../core/HintDock';
+import type { HintLevel } from '../../core/HintDock';
+import LeMansMap from './LeMansMap';
+import { PILL_H, PILL_W, pillPositions } from '../pills';
+import Panel from './Panel';
+import type { LapId, Section } from '../types';
+import type { Track } from '../Station2';
+
+export interface RouteSummary {
+  practice: { pts: number; sec: number };
+  qualifying: { pts: number; sec: number };
+}
 
 interface Props {
   onScore: (total: number) => void;
-  onDone: () => void;
+  onDone: (summary: RouteSummary) => void;
   onShake: () => void;
+  track: Track;
 }
 
-const STEP_PTS = STATION2_CONFIG.moduleMax.B / LOOKUP_STEPS.length;
+interface Tries { wrong: number; hint: HintLevel }
+const LAPS: LapId[] = ['practice', 'qualifying'];
+const PTS = POINTS_PER_SECTION;
+const labelOf = (id: string) => (id === 'T' ? 'TWR' : id === 'P' ? 'PIT' : id);
 
-export default function ModuleB({ onScore, onDone, onShake }: Props) {
-  const [answers, setAnswers] = useState<Record<string, { value: string; pts: number }>>({});
-  const [inputs, setInputs] = useState<Record<string, string>>({});
-  const [wrongs, setWrongs] = useState<Record<string, number>>({});
-  const [msg, setMsg] = useState<Record<number, { kind: 'ok' | 'bad'; text: string } | undefined>>({});
-  const [interlocked, setInterlocked] = useState(false);
+const PILLS = Object.fromEntries(SECTIONS.map((s) => [s.id, pillPositions(s)]));
+const lapOf = (lap: LapId) => SECTIONS.filter((s) => s.lap === lap);
+/** Lap time = sum over its sections of (km / speed earned by that section's points). Points only, never the clock. */
+function lapSummary(lap: LapId, pts: Record<string, number>) {
+  const secs = lapOf(lap);
+  const total = secs.reduce((n, s) => n + (pts[s.id] ?? 0), 0);
+  const sec = secs.reduce((n, s) => n + secondsFor(s.km, (pts[s.id] ?? 0) / PTS), 0);
+  return { pts: total, sec };
+}
 
-  const verifiedCount = Object.keys(answers).length;
-  const total = Object.values(answers).reduce((a, b) => a + b.pts, 0);
-  const allVerified = verifiedCount === LOOKUP_STEPS.length;
+/** Module B: build the route from the trackside tower to the pit wall that meets every NEED line. */
+export default function ModuleB({ onScore, onDone, onShake, track }: Props) {
+  const [si, setSi] = useState(0);
+  const [route, setRoute] = useState<string[]>(['T']);
+  const [pts, setPts] = useState<Record<string, number>>({});
+  const [tries, setTries] = useState<Record<string, Tries>>({});
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'bad' | 'info'; text: string }>({ kind: 'info', text: '' });
+  const [bad, setBad] = useState(0);
+  const [banner, setBanner] = useState<string | null>(null);
+  const timers = useRef<number[]>([]);
+  const cb = useRef({ onDone, onScore });
+  useEffect(() => { cb.current = { onDone, onScore }; });
+  useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
+  const later = (fn: () => void, ms: number) => { timers.current.push(window.setTimeout(fn, ms)); };
 
-  const prevOf = (s: LookupStep) => {
-    const prev = LOOKUP_STEPS.find((x) => x.problem === s.problem && x.n === s.n - 1);
-    return prev ? answers[prev.id]?.value ?? null : null;
+  const sec: Section = SECTIONS[si];
+  const lap = sec.lap;
+  const secs = lapOf(lap);
+  const t = tries[sec.id] ?? { wrong: 0, hint: 0 as HintLevel };
+  const last = route[route.length - 1];
+  const complete = last === 'P';
+  const m = metricsOf(sec, route);
+  const v = verdictOf(sec, m);
+  const started = route.length > 1;
+  const open = !busy && !complete ? neighbours(sec, last).filter((n) => !route.includes(n)) : [];
+  const total = Object.values(pts).reduce((n, x) => n + x, 0);
+  const onRoute = (a: string, b: string) => route.some((r, i) => i > 0 && ((route[i - 1] === a && r === b) || (route[i - 1] === b && r === a)));
+
+  const patchTries = (p: Partial<Tries>) => setTries((all) => ({ ...all, [sec.id]: { ...t, ...p } }));
+
+  const pick = (id: string) => {
+    if (busy) return;
+    const at = route.indexOf(id);
+    if (at > 0) { setRoute(route.slice(0, at)); setMsg({ kind: 'info', text: '' }); return; }
+    if (at === 0) { setRoute(['T']); return; }
+    if (complete) return;
+    if (!neighbours(sec, last).includes(id)) { setMsg({ kind: 'info', text: `NO BEAM ${labelOf(last)} TO ${labelOf(id)}` }); return; }
+    setRoute([...route, id]);
+    setMsg({ kind: 'info', text: '' });
   };
 
-  const verify = (s: LookupStep) => {
-    const exp = expectedAnswer(s, prevOf(s));
-    const got = (inputs[s.id] ?? '').trim().toUpperCase();
-    if (!got) return;
-    if (exp && got === exp.toUpperCase()) {
-      const pts = Math.max(0, STEP_PTS - (wrongs[s.id] ?? 0) * STATION2_CONFIG.stepWrongPenalty);
-      const next = { ...answers, [s.id]: { value: exp, pts } };
-      setAnswers(next);
-      onScore(Object.values(next).reduce((a, b) => a + b.pts, 0));
-      setMsg({ ...msg, [s.problem]: { kind: 'ok', text: `STEP ${s.n} VERIFIED // BEAM ${verifiedCount + 1}/8 LINKED // +${fmt(pts)} PTS` } });
-    } else {
-      setWrongs({ ...wrongs, [s.id]: (wrongs[s.id] ?? 0) + 1 });
-      setMsg({ ...msg, [s.problem]: { kind: 'bad', text: `STEP ${s.n} MISMATCH // RE-CHECK MATRIX ROW // −${STATION2_CONFIG.stepWrongPenalty} PT` } });
-      onShake();
+  const advance = (nextPts: Record<string, number>) => {
+    const nextIdx = si + 1;
+    if (nextIdx >= SECTIONS.length) {
+      cb.current.onDone({ practice: lapSummary('practice', nextPts), qualifying: lapSummary('qualifying', nextPts) });
+      return;
     }
+    const reset = () => { setSi(nextIdx); setRoute(['T']); setMsg({ kind: 'info', text: '' }); setBusy(false); };
+    if (SECTIONS[nextIdx].lap !== lap) {
+      setBanner(`${LAP_LABEL[lap]} ${fmtLap(lapSummary(lap, nextPts).sec)}`);
+      later(() => { setBanner(null); reset(); }, 1700);
+      return;
+    }
+    reset();
   };
 
-  const pad = (p: 1 | 2) => {
-    const steps = stepsOfProblem(p);
-    const done = steps.filter((s) => answers[s.id]).length;
-    const active = steps.find((s) => !answers[s.id]);
-    const m = msg[p];
-    return (
-      <div className={`ws2-pad ws2-chamfer ${p === 1 ? 'ws2-pad-amber' : 'ws2-pad-red'}`}>
-        <div className="ws2-pad-head">
-          <b>PROBLEM {p}</b><span>{done}/4 STEPS</span>
-        </div>
-        <ol className="ws2-steps">
-          {steps.map((s) => {
-            const a = answers[s.id];
-            const isActive = active?.id === s.id;
-            return (
-              <li key={s.id} className={a ? 'is-done' : isActive ? 'is-active' : 'is-locked'}>
-                <div className="ws2-step-top">
-                  <span className="ws2-step-n">STEP {s.n}</span>
-                  {a && <span className="ws2-step-ans">✓ {a.value}</span>}
-                  {!a && !isActive && <span className="ws2-dim">LOCKED</span>}
-                </div>
-                {(a || isActive) && (
-                  <>
-                    <div className="ws2-step-brief">{s.brief}</div>
-                    <div className="ws2-step-find">{describeStep(s, prevOf(s))}</div>
-                  </>
-                )}
-                {isActive && (
-                  <form className="ws2-step-form" onSubmit={(e) => { e.preventDefault(); verify(s); }}>
-                    <input aria-label={`Problem ${p} step ${s.n} answer`} className="ws2-input" autoComplete="off" spellCheck={false}
-                      value={inputs[s.id] ?? ''} placeholder="ENTER VALUE"
-                      onChange={(e) => setInputs({ ...inputs, [s.id]: e.target.value })} />
-                    <button type="submit" className="ws2-btn ws2-btn-amber" disabled={!(inputs[s.id] ?? '').trim()}>[VERIFY]</button>
-                  </form>
-                )}
-              </li>
-            );
-          })}
-        </ol>
-        {m && <div className={`ws2-flash ws2-flash-${m.kind}`} role="status">{m.text}</div>}
-      </div>
-    );
+  const commit = (hint: HintLevel, wrong: number) => {
+    const earned = itemPoints(PTS, hint, wrong);
+    const nextPts = { ...pts, [sec.id]: earned };
+    setPts(nextPts);
+    cb.current.onScore(Object.values(nextPts).reduce((n, x) => n + x, 0));
+    setBusy(true);
+    setMsg({ kind: 'ok', text: `S${sec.index} +${fmt(earned, 1)} · ${Math.round(speedFor(earned / PTS))} km/h` });
+    later(() => advance(nextPts), 1100);
   };
+
+  const send = () => {
+    if (busy || !complete) return;
+    if (v.ok) { commit(t.hint, t.wrong); return; }
+    patchTries({ wrong: t.wrong + 1 });
+    const why = [
+      !v.lat && `LATENCY ${Math.round(m.ms)} > ${sec.need.ms}`,
+      !v.loss && `LOSS ${fmtLoss(m.loss)} > ${fmtLoss(sec.need.loss)}`,
+      !v.bw && `BANDWIDTH ${fmtMbps(m.mbps)} < ${sec.need.mbps}`,
+    ].filter(Boolean)[0] as string;
+    setMsg({ kind: 'bad', text: `${why} · -${STATION2_CONFIG.wrongAnswerPenalty * 100}%` });
+    setBad((n) => n + 1);
+    track('B', 'wrong', `${sec.id} ${!v.lat ? 'LAT' : !v.loss ? 'LOSS' : 'BW'}`);
+    onShake();
+  };
+
+  const hint = (next: 1 | 2) => {
+    if (busy || t.hint >= next) return;
+    track('B', 'hint', `${sec.id} H${next}`);
+    if (next === 1) { patchTries({ hint: 1 }); return; }
+    const sol = solveSection(sec);
+    if (!sol) return;
+    patchTries({ hint: 2 });
+    setRoute(sol);
+    setBusy(true);
+    setMsg({ kind: 'info', text: 'AUTO-SENT · 0 PTS' });
+    later(() => commit(2, t.wrong), 1000);
+  };
+
+  const hint1 = !complete
+    ? 'Block 5: latency adds, loss compounds, bandwidth is the narrowest beam. Pick a route, then read the ticks.'
+    : !v.lat
+      ? 'Block 5: latency adds along the route. Use fewer or faster beams.'
+      : !v.loss
+        ? 'Block 5: loss compounds beam after beam. Avoid the lossy beam.'
+        : !v.bw
+          ? 'Block 5: bandwidth is the narrowest beam on the route. Raise the weakest one.'
+          : 'Block 5: every NEED line passes. Send it.';
+
+  const rows = [
+    { id: 'lat', label: 'LATENCY', now: started ? `${Math.round(m.ms)} ms` : '--', need: `≤ ${sec.need.ms} ms`, ok: v.lat },
+    { id: 'loss', label: 'LOSS', now: started ? fmtLoss(m.loss) : '--', need: `≤ ${fmtLoss(sec.need.loss)}`, ok: v.loss },
+    ...(sec.need.mbps !== null ? [{ id: 'bw', label: 'BANDWIDTH', now: started ? `${fmtMbps(m.mbps)} M` : '--', need: `≥ ${sec.need.mbps} M`, ok: v.bw }] : []),
+  ];
+  const okCount = rows.filter((r) => r.ok).length;
+  const lapDone = secs.every((s) => s.id in pts);
+  const sum = lapSummary(lap, pts);
 
   return (
-    <section className="ws2-mod ws2-mod-b" aria-label="Module B Le Mans Track Relay Beacon Tower">
-      <div className="ws2-mod-head">
-        <span className="ws2-tag">MODULE B</span>
-        <h2>LE MANS TRACK RELAY BEACON TOWER</h2>
-        <span className="ws2-mod-pts">{fmt(total, 2)} / {STATION2_CONFIG.moduleMax.B} PTS</span>
+    <section className="ws2-modB ws2-in" aria-label="Module B route builder">
+      <div className="ws2-modhead">
+        <b>MODULE B</b><span>ROUTES</span>
+        <em>{fmt(total, 1)} / {STATION2_CONFIG.moduleMax.B}</em>
       </div>
 
-      <div className="ws2-b-grid">
-        {pad(1)}
-        <div className="ws2-b-center ws2-chamfer">
-          <TrackMap verified={verifiedCount} interlocked={interlocked} />
-          <div className="ws2-b-interlock">
-            <span className="ws2-step-n">STEP 5 // INTERLOCK</span>
-            {!interlocked ? (
-              <button type="button" className="ws2-btn ws2-btn-red" disabled={!allVerified}
-                onClick={() => setInterlocked(true)}>
-                [ENGAGE TELEMETRY LOOP]
-              </button>
-            ) : (
-              <button type="button" className="ws2-btn ws2-btn-blue" onClick={onDone}>[OPEN PIT WALL BALANCER ▸]</button>
-            )}
-            <span className="ws2-dim">{interlocked ? 'ALL BEACONS 100% — LOOP STABLE' : allVerified ? 'ALL 8 STEPS VERIFIED — ENGAGE' : `${verifiedCount}/8 STEPS VERIFIED`}</span>
+      <div className="ws2-laptabs" role="list">
+        {LAPS.map((l) => (
+          <div key={l} role="listitem" className={`ws2-laptab ${l === lap ? 'is-now' : ''} ${lapOf(l).every((s) => s.id in pts) ? 'is-done' : ''}`}>
+            <b>{LAP_LABEL[l]}</b>
+            <span className="ws2-laptab__pips" aria-label={`${lapOf(l).filter((s) => s.id in pts).length} of ${SECTIONS_PER_LAP} sections done`}>
+              {lapOf(l).map((s) => <i key={s.id} className={s.id in pts ? 'on' : s.id === sec.id ? 'now' : ''} />)}
+            </span>
+          </div>
+        ))}
+        <span className="ws2-laptabs__tip">SECTION {sec.index}/{SECTIONS_PER_LAP} · {sec.name}</span>
+      </div>
+
+      <div className="ws2-bgrid">
+        <div className="ws2-bmain">
+          <Panel title="TOWER → PIT WALL" tag={`${LAP_LABEL[lap]} · S${sec.index}`} className="ws2-bmap">
+            <LeMansMap className={`ws2-map ${banner ? 'is-dim' : ''}`} label={`Route map, section ${sec.index}`} names>
+              <g className="ws2-rb">
+                {sec.beams.map((b) => {
+                  const A = sec.nodes[b.a]; const B = sec.nodes[b.b];
+                  const live = onRoute(b.a, b.b);
+                  const next = (b.a === last && open.includes(b.b)) || (b.b === last && open.includes(b.a));
+                  return (
+                    <line key={`${b.a}${b.b}`} x1={A.x} y1={A.y} x2={B.x} y2={B.y} className={`ws2-beam ${live ? 'is-route' : ''} ${next ? 'is-next' : ''}`} />
+                  );
+                })}
+                {sec.beams.map((b) => {
+                  const at = PILLS[sec.id][`${b.a}${b.b}`];
+                  const live = onRoute(b.a, b.b);
+                  return (
+                    <g key={`p${b.a}${b.b}`} transform={`translate(${at.x} ${at.y})`} className={`ws2-pill ${live ? 'is-route' : ''}`} aria-hidden>
+                      <rect x={-PILL_W / 2} y={-PILL_H / 2} width={PILL_W} height={PILL_H} />
+                      <text y="-3" textAnchor="middle">{b.ms}ms {b.loss}%</text>
+                      <text y="14" textAnchor="middle" className={sec.need.mbps === null ? 'is-dim' : ''}>{b.mbps}M</text>
+                    </g>
+                  );
+                })}
+                {Object.entries(sec.nodes).map(([id, p]) => {
+                  const inRoute = route.includes(id);
+                  const isNext = open.includes(id);
+                  const w = id === 'T' || id === 'P' ? 58 : 38;
+                  return (
+                    <g
+                      key={`${sec.id}${id}`} transform={`translate(${p.x} ${p.y})`}
+                      className={`ws2-node ${inRoute ? 'is-route' : ''} ${isNext ? 'is-next' : ''} ${id === 'T' ? 'is-tower' : ''} ${id === 'P' ? 'is-pit' : ''} ${complete && id === 'P' ? 'is-hit' : ''}`}
+                      role="button" tabIndex={busy ? -1 : 0}
+                      aria-label={`${id === 'T' ? `Tower ${sec.name}` : id === 'P' ? 'Pit wall' : `Relay ${id}`}${inRoute ? ', on route' : isNext ? ', next' : ''}`}
+                      onClick={() => pick(id)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(id); } }}
+                    >
+                      <rect x={-w / 2 - 5} y="-23" width={w + 10} height="46" className="ws2-node__hit" />
+                      {isNext && <rect x={-w / 2 - 5} y="-22" width={w + 10} height="44" className="ws2-node__ring" />}
+                      <rect x={-w / 2} y="-17" width={w} height="34" className="ws2-node__box" />
+                      <text y="5.5" textAnchor="middle" className="ws2-node__txt">{labelOf(id)}</text>
+                    </g>
+                  );
+                })}
+              </g>
+            </LeMansMap>
+            {banner && <div className="ws2-lapbanner" role="status"><small>LAP DONE</small><b>{banner}</b></div>}
+          </Panel>
+
+          <div className="ws2-bact">
+            <button type="button" className="ws2-btn ws2-btn--ghost" onClick={() => pick('T')} disabled={busy || !started}>CLEAR</button>
+            <button type="button" className={`ws2-btn ws2-btn--send ${complete && v.ok ? 'is-ready' : ''}`} onClick={send} disabled={busy || !complete}>SEND</button>
+            <span className={`ws2-bact__msg is-${msg.kind}`} role="status" key={bad}>{msg.text || ' '}</span>
           </div>
         </div>
-        {pad(2)}
+
+        <aside className="ws2-bside">
+          <Panel title="NOW vs NEED" tag={complete ? 'ROUTE' : started ? 'SO FAR' : 'PICK A BEAM'} className={`ws2-btotals ${complete && v.ok ? 'is-met' : ''}`}>
+            <div className="ws2-route" aria-label="Route">
+              {route.map((id, i) => (
+                <span key={id} className={id === 'P' ? 'is-end' : ''}>{i > 0 && <i aria-hidden>→</i>}{labelOf(id)}</span>
+              ))}
+            </div>
+            <ul className="ws2-crows" key={bad}>
+              <li className="ws2-crows__head" aria-hidden><span>NOW</span><span>NEED</span><span /></li>
+              {rows.map((r) => (
+                <li key={r.id} className={started ? (r.ok ? 'ok' : 'bad') : 'idle'}>
+                  <span className="ws2-crows__cell"><small>{r.label}</small><b className="ws2-crows__now">{r.now}</b></span>
+                  <span className="ws2-crows__need">{r.need}</span>
+                  <span className="ws2-crows__tick" role="img" aria-label={!started ? 'no route yet' : r.ok ? 'met' : 'not met'}>{!started ? '·' : r.ok ? '✓' : '✕'}</span>
+                </li>
+              ))}
+            </ul>
+            <div className={`ws2-bstate ${complete && v.ok ? 'ok' : 'bad'}`}>
+              <b>{started ? `${okCount}/${rows.length}` : `0/${rows.length}`}</b>
+              <span>{complete && v.ok ? 'SEND' : complete ? 'FIX' : 'BUILD'}</span>
+            </div>
+          </Panel>
+
+          <Panel title={`${LAP_LABEL[lap]} LAP`} tag={lapDone ? fmtLap(sum.sec) : '--:--.---'} tone="steel" className="ws2-bsecs">
+            <ol>
+              {secs.map((s) => {
+                const p = pts[s.id];
+                const done = p !== undefined;
+                return (
+                  <li key={s.id} className={done ? 'is-done' : s.id === sec.id ? 'is-now' : ''}>
+                    <b>S{s.index}</b>
+                    <span className="ws2-bsecs__name">{s.name}</span>
+                    <span>{done ? `${fmt(p, 1)}/${PTS}` : '--'}</span>
+                    <span>{done ? `${Math.round(speedFor(p / PTS))} km/h` : '--'}</span>
+                  </li>
+                );
+              })}
+            </ol>
+          </Panel>
+        </aside>
       </div>
 
-      <div className="ws2-matrix ws2-chamfer">
-        <div className="ws2-matrix-head">RACE ENGINEERING MATRIX // 8 COLUMNS</div>
-        <div className="ws2-matrix-scroll">
-          <table>
-            <thead><tr>{MATRIX_COLUMNS.map((c) => <th key={c}>{c}</th>)}</tr></thead>
-            <tbody>
-              {MATRIX.map((r) => (
-                <tr key={r.UNIT}>{MATRIX_COLUMNS.map((c) => <td key={c}>{String(r[c])}</td>)}</tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <HintDock
+        level={t.hint}
+        itemLabel={`${LAP_LABEL[lap]} S${sec.index}`}
+        hint1Text={hint1}
+        hint2Text="A valid route was sent for you. This section scores 0."
+        cost1={STATION2_CONFIG.hintPenalty.hint1}
+        disabled={busy}
+        onHint={hint}
+      />
     </section>
   );
 }

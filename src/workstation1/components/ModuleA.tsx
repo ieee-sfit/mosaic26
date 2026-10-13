@@ -3,7 +3,7 @@ import { CHEAT_SHEET_COLUMNS, SCORING } from '../mockStation1Data';
 import { useShake } from '../hooks/useScreenShake';
 import { scoreQuestion } from '../utils/scoring';
 import type { McqQuestion, QuestionResult } from '../types';
-import { HintButton } from './HintButton';
+import HintDock from '../../core/HintDock';
 import { HudPanel, TeleChip } from './HudPanel';
 import { ModuleHeader } from './ModuleHeader';
 import { StarshipWireframe } from './StarshipWireframe';
@@ -61,14 +61,11 @@ export function ModuleA({ questions, operators, onRecord, onComplete }: Props) {
     }
   };
 
-  const requestIntel = () => {
-    if (solved || q.hints >= 2) return;
-    if (q.hints === 0) {
-      setQ((s) => ({ ...s, hints: 1 }));
-    } else {
-      setQ((s) => ({ ...s, hints: 2 }));
-      record(question.correctIndex, 2, q.wrong.length);
-    }
+  const requestIntel = (next: 1 | 2) => {
+    if (solved || q.hints >= next) return;
+    setQ((s) => ({ ...s, hints: next }));
+    // Hint 2 submits the correct answer for the player (0 pts)
+    if (next === 2) record(question.correctIndex, 2, q.wrong.length);
   };
 
   const advance = () => {
@@ -129,16 +126,6 @@ export function ModuleA({ questions, operators, onRecord, onComplete }: Props) {
             })}
           </div>
 
-          <div>
-            <HintButton stage={q.hints} onClick={requestIntel} disabled={solved} />
-            {q.hints >= 1 && (
-              <div key={`${question.id}-inline`} className="goat-slide-in mt-2 border-l-2 border-goat-gold bg-goat-gold/10 px-2.5 py-1.5 font-tele text-[11px] uppercase tracking-wider text-goat-gold" role="status">
-                ▲ INTEL: CHEAT SHEET COLUMN <b className="text-white">{question.cheatSheetColumn}</b> · {column?.label ?? 'UNKNOWN'}
-                {q.hints === 2 && <span className="block text-goat-crimson">ANSWER AUTO-SELECTED · 0 PTS</span>}
-              </div>
-            )}
-          </div>
-
           <div className="mt-auto flex flex-wrap gap-x-4 gap-y-1 border-t border-white/5 pt-2">
             <TeleChip label="HINT_1" value="-40% SCORE" tone="gold" />
             <TeleChip label="HINT_2" value="AUTO-SOLVE · 0 PTS" tone="crimson" />
@@ -150,30 +137,8 @@ export function ModuleA({ questions, operators, onRecord, onComplete }: Props) {
       {/* lower action strip */}
       <footer className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-goat-gold/60 bg-goat-void/95">
         <div className="hazard-stripe h-1 w-full opacity-70" aria-hidden />
-        <div className="flex flex-wrap items-center gap-3 px-3 py-2.5">
-          <HintButton stage={q.hints} onClick={requestIntel} disabled={solved} size="strip" />
-
-          {/* docked cheat-sheet pointer (Hint 1) */}
-          <div className="min-h-[44px] flex-1">
-            {q.hints >= 1 && (
-              <div key={`${question.id}-intel`} className="goat-slide-in flex items-center gap-3 border-l-2 border-goat-gold bg-goat-gold/10 px-3 py-1.5" role="status">
-                <div className="flex h-6 gap-px" aria-hidden>
-                  {CHEAT_SHEET_COLUMNS.map((c) => (
-                    <span
-                      key={c.index}
-                      className={`flex w-4 items-end justify-center pb-px font-tele text-[8px] ${c.index === question.cheatSheetColumn ? 'bg-goat-gold font-bold text-goat-void' : 'bg-goat-mute/25 text-goat-mute'}`}
-                    >
-                      {c.index}
-                    </span>
-                  ))}
-                </div>
-                <span className="goat-blink text-goat-gold" aria-hidden>▲</span>
-                <span className="font-tele text-[11px] uppercase tracking-wider text-goat-gold">
-                  CHEAT SHEET ▸ COLUMN {question.cheatSheetColumn} · <b className="text-white">{column?.label ?? 'UNKNOWN'}</b>
-                </span>
-              </div>
-            )}
-          </div>
+        <div className="flex flex-wrap items-center gap-3 px-3 py-2.5 lg:pr-[380px]">
+          <div className="flex-1" />
 
           <span className="hidden font-tele text-[11px] uppercase tracking-widest text-goat-mute sm:inline">
             QUERY {idx + 1}/{questions.length}
@@ -188,6 +153,15 @@ export function ModuleA({ questions, operators, onRecord, onComplete }: Props) {
           </button>
         </div>
       </footer>
+      <HintDock
+        level={q.hints}
+        itemLabel={`QUERY ${idx + 1}/${questions.length}`}
+        hint1Text={`Check cheat-sheet column ${question.cheatSheetColumn}: ${column?.label ?? 'UNKNOWN'}.`}
+        hint2Text="The correct option was submitted for you. This query scores 0."
+        cost1={cfg.hint1Penalty}
+        disabled={solved}
+        onHint={requestIntel}
+      />
     </div>
   );
 }
