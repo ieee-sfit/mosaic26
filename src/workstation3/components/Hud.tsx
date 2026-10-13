@@ -13,20 +13,26 @@ export function StationTimer({ timeLeft }: { timeLeft: number }) {
 
 const MODULES = [
   { id: 'A', label: 'ANPR FORENSICS', max: 15 },
-  { id: 'B', label: 'RADAR & STROBE', max: 40 },
+  { id: 'B', label: 'PLATE REBUILD', max: 40 },
   { id: 'C', label: 'LENS SHUFFLER', max: 45 },
+  { id: 'D', label: 'BONUS · BLOCKADE', max: 20 },
 ] as const;
 
 export function StationHeader({
   active,
+  showD,
   score,
   onOpenStationChooser,
 }: {
-  active: 'A' | 'B' | 'C' | null;
+  active: 'A' | 'B' | 'C' | 'D' | null;
+  /** The bonus chip is only shown once Module D is on offer. */
+  showD: boolean;
   score: number;
   onOpenStationChooser?: () => void;
 }) {
-  const activeIdx = MODULES.findIndex((m) => m.id === active);
+  const shown = showD ? MODULES : MODULES.slice(0, 3);
+  const activeIdx = shown.findIndex((m) => m.id === active);
+  const allDone = active === null && showD;
   return (
     <header className="ws3-header">
       <div className="ws3-brand">
@@ -41,10 +47,10 @@ export function StationHeader({
         </div>
       </div>
       <nav className="ws3-steps" aria-label="Module progress">
-        {MODULES.map((m, i) => (
+        {shown.map((m, i) => (
           <div
             key={m.id}
-            className={`ws3-step ${i === activeIdx ? 'is-active' : ''} ${activeIdx === -1 ? '' : i < activeIdx ? 'is-done' : ''}`}
+            className={`ws3-step ${i === activeIdx ? 'is-active' : ''} ${allDone ? (i < 3 ? 'is-done' : '') : activeIdx === -1 ? '' : i < activeIdx ? 'is-done' : ''}`}
           >
             <span className="ws3-step-id">MOD_{m.id}</span>
             <span className="ws3-step-name">{m.label}</span>

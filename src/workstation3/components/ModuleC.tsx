@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import {
   CONFIG,
   FILTER_DEFS,
-  ROUNDS,
   computeConfidence,
   formatPlate,
   registryRow,
+  type CaseFile,
   tierFor,
   type FilterKey,
   type FilterLevels,
@@ -32,16 +32,19 @@ interface ChallanEntry {
 }
 
 export default function ModuleC({
+  cas,
   onScore,
   onDone,
   onForfeit,
   fx,
 }: {
+  cas: CaseFile;
   onScore: (delta: number) => void;
   onDone: () => void;
   onForfeit: () => void;
   fx: Fx;
 }) {
+  const ROUNDS = cas.rounds;
   const [roundIdx, setRoundIdx] = useState(0);
   const [levels, setLevels] = useState<FilterLevels>(OFF);
   const [status, setStatus] = useState<PursuitStatus>('live');
@@ -128,7 +131,7 @@ export default function ModuleC({
   };
 
   const issue = (pts: number) => {
-    const row = registryRow(round.plate);
+    const row = registryRow(cas, round.plate);
     const tier = tierFor(row.radar - row.limit);
     onScore(pts);
     setLastPts(pts);
