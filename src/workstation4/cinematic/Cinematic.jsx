@@ -72,7 +72,7 @@ export default function Cinematic({ sceneId, tokens, muted, onMute, onDone, gate
   }
 
   return (
-    <div className={`mz-cine mz-cine--${scene.ken} ${scene.alert ? 'is-alert' : ''} ${scene.celebrate ? 'is-win' : ''} ${scene.info ? 'is-info' : ''}`}>
+    <div className={`mz-cine mz-cine--${scene.ken} ${scene.id === 'escape' ? 'is-exit' : ''} ${scene.alert ? 'is-alert' : ''} ${scene.celebrate ? 'is-win' : ''} ${scene.info ? 'is-info' : ''}`}>
       <div className="mz-cine-stage" aria-hidden="true">
         {scene.src && !broken ? (
           <img

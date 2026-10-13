@@ -11,9 +11,11 @@
   filter: saturate(0.85) contrast(1.08);
 }
 .mz-cine--slow .mz-cine-art { animation: mz-cine-ken 28s ease-in-out infinite alternate; }
+.mz-cine.is-exit .mz-cine-art { animation: mz-cine-exit 18s ease-in-out forwards; }
 .mz-cine--push .mz-cine-art { animation: mz-cine-push 12s ease-out forwards; }
 .mz-cine--drift .mz-cine-art { animation: mz-cine-drift 22s ease-in-out infinite alternate; }
 @keyframes mz-cine-ken { from { transform: scale(1); } to { transform: scale(1.12); } }
+@keyframes mz-cine-exit { 0% { transform: scale(1); filter: saturate(.7) brightness(.75); } 65% { transform: scale(1.12) translateY(-1%); filter: saturate(.95) brightness(1); } 100% { transform: scale(1.2) translateY(-2%); filter: saturate(1.1) brightness(1.15); } }
 @keyframes mz-cine-push { from { transform: scale(1); } to { transform: scale(1.18) translateY(-3%); } }
 @keyframes mz-cine-drift { from { transform: scale(1.04) translateX(-2%); } to { transform: scale(1.1) translateX(2%); } }
 

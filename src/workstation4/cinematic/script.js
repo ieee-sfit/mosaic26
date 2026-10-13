@@ -137,13 +137,12 @@ export const SCENES = {
     kicker: 'SYSTEM OVERRIDE ACCEPTED',
     title: 'YOU HAVE ESCAPED',
     subtitle: 'THE APOCALYPSE',
+    holdMs: 4200,
     lines: [
-      'System override accepted. Logic circuit verified. Security lock disengaged.',
-      'For the first time in hours, the exit is opening.',
-      'Behind you lies a facility consumed by fear and chaos. Before you lies an uncertain world, but at least it is a world you can still fight for.',
-      'You answered the questions. You uncovered the information. You solved the final circuit.',
-      'You did not survive by luck alone. You survived because you stayed calm, thought clearly, and refused to give up.',
-      'The door is open. You have escaped the apocalypse.',
+      'Override accepted. The final lock releases.',
+      'The exit opens. Daylight breaks through the dust.',
+      'You solved every challenge and made it out together.',
+      'The world is uncertain, but you are free. Keep moving.',
     ],
   },
   winner: {
