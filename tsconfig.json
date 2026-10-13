@@ -21,6 +21,7 @@
   },
   "include": [
     "src/workstation1",
+    "src/workstation2",
     "src/core",
     "src/lib",
     "src/session",

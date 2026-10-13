@@ -1,183 +1,225 @@
-import { useState } from 'react';
-import TrackMap from './TrackMap';
-import { LOOKUP_STEPS, MATRIX, MATRIX_COLUMNS, STATION2_CONFIG } from '../mockStation2Data';
-import { describeStep, expectedAnswer, fmt, stepsOfProblem } from '../logic';
-import type { LookupStep } from '../types';
+import { useEffect, useRef, useState } from 'react';
+import { CIRCUITS, STATION2_CONFIG, TRACK_PATH } from '../mockStation2Data';
+import { anchorsOf, checkLock, fmt, itemPoints, neighbours, solveTower } from '../logic';
+import type { Plan } from '../logic';
+import type { Tower } from '../types';
 import HintDock from '../../core/HintDock';
 import type { HintLevel } from '../../core/HintDock';
+import Panel from './Panel';
+import type { Track } from '../Station2';
 
 interface Props {
   onScore: (total: number) => void;
   onDone: () => void;
   onShake: () => void;
+  track: Track;
 }
 
-const STEP_PTS = STATION2_CONFIG.moduleMax.B / LOOKUP_STEPS.length;
+interface TState { ch: string | null; wrong: number; struck: string[]; hint: HintLevel; pts: number }
+const fresh = (): TState => ({ ch: null, wrong: 0, struck: [], hint: 0, pts: 0 });
 
-export default function ModuleB({ onScore, onDone, onShake }: Props) {
-  const [answers, setAnswers] = useState<Record<string, { value: string; pts: number }>>({});
-  const [inputs, setInputs] = useState<Record<string, string>>({});
-  const [wrongs, setWrongs] = useState<Record<string, number>>({});
-  const [msg, setMsg] = useState<Record<number, { kind: 'ok' | 'bad'; text: string } | undefined>>({});
-  const [interlocked, setInterlocked] = useState(false);
-  const [stepHints, setStepHints] = useState<Record<string, HintLevel>>({});
-  const [focusId, setFocusId] = useState<string | null>(null);
+const SCORED = CIRCUITS.reduce((n, c) => n + c.towers.filter((t) => !t.anchor).length, 0);
+const PER_TOWER = STATION2_CONFIG.moduleMax.B / SCORED;
+const short = (ch: string) => ch.replace('CH-', '');
 
-  const verifiedCount = Object.keys(answers).length;
-  const total = Object.values(answers).reduce((a, b) => a + b.pts, 0);
-  const allVerified = verifiedCount === LOOKUP_STEPS.length;
+const REASON = {
+  unsupported: (ch: string) => `${ch} IS NOT ON THE SHEET`,
+  clash: (_ch: string, w?: string) => `CLASH WITH ${w}`,
+  dead: () => 'DEAD END: BLOCKS ANOTHER TOWER',
+} as const;
 
-  const prevOf = (s: LookupStep) => {
-    const prev = LOOKUP_STEPS.find((x) => x.problem === s.problem && x.n === s.n - 1);
-    return prev ? answers[prev.id]?.value ?? null : null;
+/** Module B: give every relay tower a channel. Linked towers may not share one. Any valid plan scores. */
+export default function ModuleB({ onScore, onDone, onShake, track }: Props) {
+  const [ci, setCi] = useState(0);
+  const circuit = CIRCUITS[ci];
+  const [tw, setTw] = useState<Record<string, TState>>({});
+  const [sel, setSel] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'bad' | 'info'; text: string }>({ kind: 'info', text: '' });
+  const [bad, setBad] = useState<{ n: number; a: string; b?: string } | null>(null);
+  const [cleared, setCleared] = useState(false);
+  const timers = useRef<number[]>([]);
+  const doneRef = useRef(onDone);
+  useEffect(() => { doneRef.current = onDone; });
+  useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
+  const later = (fn: () => void, ms: number) => { timers.current.push(window.setTimeout(fn, ms)); };
+
+  const key = (t: Tower) => `${circuit.id}:${t.id}`;
+  const get = (t: Tower): TState => tw[key(t)] ?? fresh();
+  const scored = circuit.towers.filter((t) => !t.anchor);
+  const open = scored.filter((t) => !get(t).ch);
+  const cur = open.find((t) => t.id === sel) ?? open[0] ?? null;
+  const curState = cur ? get(cur) : null;
+  const total = Object.values(tw).reduce((n, x) => n + x.pts, 0);
+
+  const plan: Plan = { ...anchorsOf(circuit) };
+  for (const t of scored) { const c = get(t).ch; if (c) plan[t.id] = c; }
+  const lockedCount = scored.length - open.length;
+
+  // advance to the next circuit (or finish) once everything is locked
+  useEffect(() => {
+    if (!cleared) return undefined;
+    const t = window.setTimeout(() => {
+      if (ci + 1 < CIRCUITS.length) { setCi(ci + 1); setSel(null); setCleared(false); setMsg({ kind: 'info', text: '' }); }
+      else doneRef.current();
+    }, 1200);
+    return () => window.clearTimeout(t);
+  }, [cleared, ci]);
+
+  const commit = (t: Tower, ch: string, hint: HintLevel, wrong: number) => {
+    const pts = itemPoints(PER_TOWER, hint, wrong);
+    setTw((all) => ({ ...all, [key(t)]: { ...(all[key(t)] ?? fresh()), ch, hint, wrong, pts } }));
+    onScore(total + pts);
+    setMsg({ kind: 'ok', text: `${t.id} LOCKED ${ch} · +${fmt(pts, 1)}` });
+    setBad(null);
+    const left = open.filter((o) => o.id !== t.id);
+    setSel(left[0]?.id ?? null);
+    if (!left.length) later(() => setCleared(true), 400);
   };
 
-  const isOpen = (s: LookupStep) =>
-    !answers[s.id] && (s.n === 1 || LOOKUP_STEPS.some((x) => x.problem === s.problem && x.n === s.n - 1 && answers[x.id]));
-  const openSteps = LOOKUP_STEPS.filter(isOpen);
-  const dockStep = openSteps.find((s) => s.id === focusId) ?? openSteps[0] ?? null;
-  const dockLevel: HintLevel = dockStep ? stepHints[dockStep.id] ?? 0 : 0;
-
-  const stepPoints = (s: LookupStep, hint: HintLevel) => {
-    if (hint >= 2) return 0;
-    const base = Math.max(0, STEP_PTS - (wrongs[s.id] ?? 0) * STATION2_CONFIG.stepWrongPenalty);
-    return hint === 1 ? Math.round(base * (1 - STATION2_CONFIG.hintPenalty.hint1) * 100) / 100 : base;
+  const press = (ch: string) => {
+    if (!cur || !curState || cleared) return;
+    const res = checkLock(circuit, plan, cur.id, ch);
+    if (res.ok) { commit(cur, ch, curState.hint, curState.wrong); return; }
+    setTw((all) => ({ ...all, [key(cur)]: { ...curState, wrong: curState.wrong + 1, struck: [...curState.struck, ch] } }));
+    setMsg({ kind: 'bad', text: res.reason === 'clash' ? REASON.clash(ch, res.with) : res.reason === 'dead' ? REASON.dead() : REASON.unsupported(ch) });
+    setBad({ n: Date.now(), a: cur.id, b: res.reason === 'clash' ? res.with : undefined });
+    track('B', 'wrong', `${cur.id} ${res.reason.toUpperCase()}`);
+    onShake();
+    later(() => setBad(null), 900);
   };
 
-  const complete = (s: LookupStep, value: string, pts: number, hint: HintLevel) => {
-    const next = { ...answers, [s.id]: { value, pts } };
-    setAnswers(next);
-    onScore(Object.values(next).reduce((a, b) => a + b.pts, 0));
-    setMsg({
-      ...msg,
-      [s.problem]: {
-        kind: 'ok',
-        text: `STEP ${s.n} ${hint >= 2 ? 'AUTO-SUBMITTED' : 'VERIFIED'} // BEAM ${verifiedCount + 1}/8 LINKED // +${fmt(pts)} PTS`,
-      },
-    });
+  const hint = (next: 1 | 2) => {
+    if (!cur || !curState || cleared || curState.hint >= next) return;
+    track('B', 'hint', `${cur.id} H${next}`);
+    if (next === 1) { setTw((all) => ({ ...all, [key(cur)]: { ...curState, hint: 1 } })); return; }
+    const ch = solveTower(circuit, plan, cur.id);
+    if (ch) commit(cur, ch, 2, curState.wrong);
   };
 
-  const requestHint = (next: 1 | 2) => {
-    if (!dockStep) return;
-    setStepHints({ ...stepHints, [dockStep.id]: next });
-    if (next === 2) {
-      const exp = expectedAnswer(dockStep, prevOf(dockStep));
-      if (exp) complete(dockStep, exp, 0, 2);
-    }
-  };
-
-  const verify = (s: LookupStep) => {
-    const exp = expectedAnswer(s, prevOf(s));
-    const got = (inputs[s.id] ?? '').trim().toUpperCase();
-    if (!got) return;
-    if (exp && got === exp.toUpperCase()) {
-      const pts = stepPoints(s, stepHints[s.id] ?? 0);
-      complete(s, exp, pts, stepHints[s.id] ?? 0);
-    } else {
-      setWrongs({ ...wrongs, [s.id]: (wrongs[s.id] ?? 0) + 1 });
-      setMsg({ ...msg, [s.problem]: { kind: 'bad', text: `STEP ${s.n} MISMATCH // RE-CHECK MATRIX ROW // −${STATION2_CONFIG.stepWrongPenalty} PT` } });
-      onShake();
-    }
-  };
-
-  const hintCols = new Set<string>(dockStep && dockLevel >= 1 ? [String(dockStep.find.column), String(dockStep.read)] : []);
-
-  const pad = (p: 1 | 2) => {
-    const steps = stepsOfProblem(p);
-    const done = steps.filter((s) => answers[s.id]).length;
-    const active = steps.find((s) => !answers[s.id]);
-    const m = msg[p];
-    return (
-      <div className={`ws2-pad ws2-chamfer ${p === 1 ? 'ws2-pad-amber' : 'ws2-pad-red'}`}>
-        <div className="ws2-pad-head">
-          <b>PROBLEM {p}</b><span>{done}/4 STEPS</span>
-        </div>
-        <ol className="ws2-steps">
-          {steps.map((s) => {
-            const a = answers[s.id];
-            const isActive = active?.id === s.id;
-            return (
-              <li key={s.id} className={a ? 'is-done' : isActive ? 'is-active' : 'is-locked'}>
-                <div className="ws2-step-top">
-                  <span className="ws2-step-n">STEP {s.n}</span>
-                  {a && <span className="ws2-step-ans">✓ {a.value}</span>}
-                  {!a && !isActive && <span className="ws2-dim">LOCKED</span>}
-                </div>
-                {(a || isActive) && (
-                  <>
-                    <div className="ws2-step-brief">{s.brief}</div>
-                    <div className="ws2-step-find">{describeStep(s, prevOf(s))}</div>
-                  </>
-                )}
-                {isActive && (
-                  <form className="ws2-step-form" onSubmit={(e) => { e.preventDefault(); verify(s); }}>
-                    <input aria-label={`Problem ${p} step ${s.n} answer`} className="ws2-input" autoComplete="off" spellCheck={false}
-                      value={inputs[s.id] ?? ''} placeholder="ENTER VALUE"
-                      onFocus={() => setFocusId(s.id)}
-                      onChange={(e) => setInputs({ ...inputs, [s.id]: e.target.value })} />
-                    <button type="submit" className="ws2-btn ws2-btn-amber" disabled={!(inputs[s.id] ?? '').trim()}>[VERIFY]</button>
-                  </form>
-                )}
-              </li>
-            );
-          })}
-        </ol>
-        {m && <div className={`ws2-flash ws2-flash-${m.kind}`} role="status">{m.text}</div>}
-      </div>
-    );
-  };
+  const linkedToCur = cur ? neighbours(circuit, cur.id) : [];
+  const hinted = !!curState && curState.hint >= 1;
+  const byId = (id: string) => circuit.towers.find((t) => t.id === id) as Tower;
 
   return (
-    <section className="ws2-mod ws2-mod-b" aria-label="Module B Le Mans Track Relay Beacon Tower">
-      <div className="ws2-mod-head">
-        <span className="ws2-tag">MODULE B</span>
-        <h2>LE MANS TRACK RELAY BEACON TOWER</h2>
-        <span className="ws2-mod-pts">{fmt(total, 2)} / {STATION2_CONFIG.moduleMax.B} PTS</span>
+    <section className="ws2-modB ws2-in" aria-label="Module B relay towers">
+      <div className="ws2-modhead">
+        <b>MODULE B</b><span>RELAY TOWERS</span>
+        <em>{fmt(total, 1)} / {STATION2_CONFIG.moduleMax.B}</em>
       </div>
 
-      <div className="ws2-b-grid">
-        {pad(1)}
-        <div className="ws2-b-center ws2-chamfer">
-          <TrackMap verified={verifiedCount} interlocked={interlocked} />
-          <div className="ws2-b-interlock">
-            <span className="ws2-step-n">STEP 5 // INTERLOCK</span>
-            {!interlocked ? (
-              <button type="button" className="ws2-btn ws2-btn-red" disabled={!allVerified}
-                onClick={() => setInterlocked(true)}>
-                [ENGAGE TELEMETRY LOOP]
-              </button>
-            ) : (
-              <button type="button" className="ws2-btn ws2-btn-blue" onClick={onDone}>[OPEN PIT WALL BALANCER ▸]</button>
-            )}
-            <span className="ws2-dim">{interlocked ? 'ALL BEACONS 100% — LOOP STABLE' : allVerified ? 'ALL 8 STEPS VERIFIED — ENGAGE' : `${verifiedCount}/8 STEPS VERIFIED`}</span>
+      <div className="ws2-modB__grid">
+        <div className="ws2-modB__main">
+          <Panel title={`CIRCUIT ${ci + 1}/${CIRCUITS.length}`} tag={`${lockedCount}/${scored.length} LOCKED`} className="ws2-mapplate">
+            <svg viewBox="0 0 640 380" className={`ws2-map ${cleared ? 'is-cleared' : ''}`} role="group" aria-label="Relay tower map">
+              <path d={TRACK_PATH} className="ws2-map__kerb-r" />
+              <path d={TRACK_PATH} className="ws2-map__kerb-w" />
+              <path d={TRACK_PATH} className="ws2-map__asphalt" />
+              <path d={TRACK_PATH} className="ws2-map__centre" />
+              <text x="320" y="196" className="ws2-map__legend" textAnchor="middle">LE MANS 1966</text>
+
+              {circuit.links.map(([a, b]) => {
+                const A = byId(a); const B = byId(b);
+                const both = !!plan[a] && !!plan[b];
+                const focus = cur && (a === cur.id || b === cur.id);
+                const flash = bad && bad.b && ((bad.a === a && bad.b === b) || (bad.a === b && bad.b === a));
+                return (
+                  <line
+                    key={`${a}${b}${flash ? bad?.n : ''}`} x1={A.x} y1={A.y - 4} x2={B.x} y2={B.y - 4}
+                    className={`ws2-link ${both ? 'is-both' : ''} ${focus ? 'is-focus' : ''} ${flash ? 'is-bad' : ''}`}
+                  />
+                );
+              })}
+
+              {circuit.towers.map((t) => {
+                const s = t.anchor ? null : get(t);
+                const ch = t.anchor ?? s?.ch ?? null;
+                const isSel = cur?.id === t.id;
+                const ring = hinted && linkedToCur.includes(t.id);
+                const flash = bad && bad.a === t.id;
+                return (
+                  <g
+                    key={`${t.id}${flash ? bad?.n : ''}`} transform={`translate(${t.x} ${t.y})`}
+                    className={`ws2-tower ${ch ? 'is-lit' : ''} ${isSel ? 'is-sel' : ''} ${t.anchor ? 'is-anchor' : ''} ${ring ? 'is-ring' : ''} ${flash ? 'is-bad' : ''}`}
+                    role="button" tabIndex={t.anchor || ch ? -1 : 0}
+                    aria-label={`Tower ${t.id} ${t.label}${ch ? `, ${ch}` : ''}`}
+                    onClick={() => { if (!t.anchor && !ch) setSel(t.id); }}
+                    onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !t.anchor && !ch) setSel(t.id); }}
+                  >
+                    <circle r="22" cy="-26" className="ws2-tower__halo" />
+                    <circle r="26" cy="-26" className="ws2-tower__pulse" />
+                    <path d="M -9 14 L 0 -20 L 9 14 Z" className="ws2-tower__mast" />
+                    <path d="M -6 2 L 6 2 M -4 -8 L 4 -8" className="ws2-tower__bars" />
+                    <circle r="8" cy="-26" className="ws2-tower__lamp" />
+                    <rect x="-34" y="19" width="68" height="19" className="ws2-tower__plate" />
+                    <text y="32.5" textAnchor="middle" className="ws2-tower__txt">{t.id} · {ch ? short(ch) : '--'}</text>
+                    {t.anchor && <text y="52" textAnchor="middle" className="ws2-tower__anchor">ANCHOR</text>}
+                    <rect x="-40" y="-44" width="80" height="94" className="ws2-tower__hit" />
+                  </g>
+                );
+              })}
+            </svg>
+          </Panel>
+
+          <div className="ws2-keys" role="group" aria-label="Channel">
+            <span className="ws2-keys__for">{cur ? <>TOWER <b>{cur.id}</b></> : 'DONE'}</span>
+            {circuit.channels.map((ch) => {
+              const struck = !!curState?.struck.includes(ch);
+              return (
+                <button key={ch} type="button" className={`ws2-key ${struck ? 'is-struck' : ''}`} disabled={!cur || struck || cleared} onClick={() => press(ch)}>
+                  {ch}
+                </button>
+              );
+            })}
+            <span className={`ws2-keys__msg is-${msg.kind}`} role="status">{msg.text || ' '}</span>
           </div>
         </div>
-        {pad(2)}
+
+        <aside className="ws2-modB__side">
+          <div className="ws2-rule" aria-label="Rule: linked towers must use different channels">
+            <div><span className="ws2-chip">03</span><i className="ws2-rule__link" /><span className="ws2-chip">03</span><b className="is-no">✕</b></div>
+            <div><span className="ws2-chip">03</span><i className="ws2-rule__link" /><span className="ws2-chip">07</span><b className="is-yes">✓</b></div>
+            <p>LINKED = DIFFERENT</p>
+          </div>
+
+          <div className="ws2-sheet ws2-sheet--tower">
+            <header className="ws2-sheet__head"><b>TOWER SHEET</b><span>ALLOWED CHANNELS</span></header>
+            <table>
+              <tbody>
+                {circuit.towers.map((t) => {
+                  const s = t.anchor ? null : get(t);
+                  const ch = t.anchor ?? s?.ch ?? null;
+                  const isCur = cur?.id === t.id;
+                  return (
+                    <tr
+                      key={t.id}
+                      className={`${isCur ? 'is-cur' : ''} ${isCur && hinted ? 'is-hint' : ''} ${ch ? 'is-done' : ''}`}
+                      onClick={() => { if (!t.anchor && !ch) setSel(t.id); }}
+                    >
+                      <th>{t.id}</th>
+                      <td className="ws2-sheet__sector">{t.label}</td>
+                      <td className="ws2-sheet__allowed">
+                        {t.anchor
+                          ? <span className="ws2-chip is-set">{short(t.anchor)} · LOCKED</span>
+                          : t.allowed.map((a) => <span key={a} className={`ws2-chip ${ch === a ? 'is-set' : ''}`}>{short(a)}</span>)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </aside>
       </div>
 
-      <div className="ws2-matrix ws2-chamfer">
-        <div className="ws2-matrix-head">RACE ENGINEERING MATRIX // 8 COLUMNS</div>
-        <div className="ws2-matrix-scroll">
-          <table>
-            <thead><tr>{MATRIX_COLUMNS.map((c) => <th key={c} className={hintCols.has(c) ? 'is-hint' : ''}>{c}</th>)}</tr></thead>
-            <tbody>
-              {MATRIX.map((r) => (
-                <tr key={r.UNIT}>{MATRIX_COLUMNS.map((c) => <td key={c} className={hintCols.has(c) ? 'is-hint' : ''}>{String(r[c])}</td>)}</tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {dockStep && (
-        <HintDock
-          level={dockLevel}
-          itemLabel={`PROBLEM ${dockStep.problem} · STEP ${dockStep.n}`}
-          hint1Text={`Use cheat-sheet matrix columns ${dockStep.find.column} (to find the row) and ${dockStep.read} (to read the answer). They are highlighted in the table.`}
-          hint2Text={`The value was entered for you. Step ${dockStep.n} scores 0.`}
-          cost1={STATION2_CONFIG.hintPenalty.hint1}
-          onHint={requestHint}
-        />
-      )}
+      <HintDock
+        level={curState?.hint ?? 0}
+        itemLabel={cur ? `${circuit.name} · ${cur.id}` : 'CIRCUIT CLEARED'}
+        hint1Text={cur ? `Read the sheet row for ${cur.id}, then check the channels of the towers linked to it.` : ''}
+        hint2Text="A valid channel was locked for you. This tower scores 0."
+        cost1={STATION2_CONFIG.hintPenalty.hint1}
+        disabled={!cur || cleared}
+        onHint={hint}
+      />
     </section>
   );
 }

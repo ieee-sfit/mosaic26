@@ -1,12 +1,15 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { speedBonus } from '../core/scoring';
 import { useSession } from '../session/sessionContext';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { STATION2_CONFIG } from './mockStation2Data';
+import PitWallBackdrop from './components/PitWallBackdrop';
+import Stopwatch from './components/Stopwatch';
+import LaunchScreen from './components/LaunchScreen';
+import EndScreen from './components/EndScreen';
+import type { Outcome, Report } from './components/EndScreen';
 import ModuleA from './components/ModuleA';
 import ModuleB from './components/ModuleB';
 import ModuleC from './components/ModuleC';
-import { HudTicker, TimerBadge } from './components/HudBits';
-import { STATION2_CONFIG } from './mockStation2Data';
-import { fmt, mmss } from './logic';
 import './station2.css';
 
 export interface Station2Summary {
@@ -24,196 +27,152 @@ interface Props {
 }
 
 type ModuleId = 'A' | 'B' | 'C';
-type Reason = 'complete' | 'timeout' | 'forfeit';
+export type Track = (m: ModuleId, kind: 'wrong' | 'hint', label?: string) => void;
 
+const MODULES: ModuleId[] = ['A', 'B', 'C'];
+const NAMES: Record<ModuleId, string> = { A: 'TELEMETRY', B: 'RELAY TOWERS', C: 'BALANCER' };
 const ID_RE = /^\d{6}$/;
-const digits = (v: string) => v.replace(/\D/g, '').slice(0, STATION2_CONFIG.idDigits);
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
-export default function Station2({ onNavigateStation, onOpenStationChooser, onComplete }: Props) {
-  const [phase, setPhase] = useState<'id' | 'play' | 'done'>('id');
-  const session = useSession() as { p1_id?: string; p2_id?: string } | null;
-  const locked = !!session && ID_RE.test(session.p1_id ?? '') && ID_RE.test(session.p2_id ?? '');
-  const [p1, setP1] = useState(locked ? (session?.p1_id as string) : '');
-  const [p2, setP2] = useState(locked ? (session?.p2_id as string) : '');
-  const [idError, setIdError] = useState('');
+type Diag = Report['diag'];
+const blankDiag = (): Diag => Object.fromEntries(MODULES.map((m) => [m, { seconds: 0, wrong: 0, hints: 0, flags: [] as string[] }]));
+
+export default function Station2({ onOpenStationChooser, onComplete }: Props) {
+  const session = useSession();
+  const ids: [string, string] | null =
+    session && ID_RE.test(session.p1_id) && ID_RE.test(session.p2_id) ? [session.p1_id, session.p2_id] : null;
+
+  const [stage, setStage] = useState<'launch' | 'play' | 'end'>('launch');
   const [mod, setMod] = useState<ModuleId>('A');
-  const [done, setDone] = useState<Record<ModuleId, boolean>>({ A: false, B: false, C: false });
-  const [scoreA, setScoreA] = useState(0);
-  const [scoreB, setScoreB] = useState(0);
-  const [scoreC, setScoreC] = useState(0);
+  const [score, setScore] = useState({ a: 0, b: 0, c: 0 });
+  const [gaskets, setGaskets] = useState(STATION2_CONFIG.gasketPips);
   const [timeLeft, setTimeLeft] = useState(STATION2_CONFIG.totalSeconds);
-  const [result, setResult] = useState<{ reason: Reason; timeLeft: number } | null>(null);
-  const [shake, setShake] = useState({ n: 0, on: false });
-  const startRef = useRef(0);
-  const emittedRef = useRef(false);
-  const shakeTimer = useRef<number | null>(null);
+  const [flash, setFlash] = useState(false);
+  const [report, setReport] = useState<Report | null>(null);
 
-  const triggerShake = useCallback(() => {
-    setShake((s) => ({ n: s.n + 1, on: true }));
-    if (shakeTimer.current) window.clearTimeout(shakeTimer.current);
-    shakeTimer.current = window.setTimeout(() => setShake((s) => ({ ...s, on: false })), 520);
+  const endAt = useRef(0);
+  const finished = useRef(false);
+  const live = useRef({ score, ids });
+  const stats = useRef<Diag>(blankDiag());
+  const modStart = useRef(0);
+  const modRef = useRef<ModuleId>('A');
+  const stage$ = useRef<HTMLDivElement | null>(null);
+  useEffect(() => { live.current = { score, ids }; modRef.current = mod; });
+
+  const secondsLeft = () => Math.max(0, Math.ceil((endAt.current - Date.now()) / 1000));
+
+  const track = useCallback<Track>((m, kind, label) => {
+    const s = stats.current[m];
+    if (kind === 'hint') s.hints += 1; else s.wrong += 1;
+    if (label && s.flags.length < 6) s.flags.push(label);
+  }, []);
+  const closeModule = useCallback(() => {
+    stats.current[modRef.current].seconds += Math.round((Date.now() - modStart.current) / 1000);
+    modStart.current = Date.now();
+  }, []);
+  const goMod = (next: ModuleId) => { closeModule(); setMod(next); };
+
+  /**
+   * Screen shake via the Web Animations API (no remounts, so focus and drags survive). It moves the module content
+   * but never the hint dock: a transformed ancestor would pull the fixed dock off the viewport corner.
+   */
+  const shake = useCallback(() => {
+    const el = stage$.current;
+    if (!el) return;
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const px = reduced ? 1.5 : 7;
+    const frames = [0, 1, 2, 3, 4, 5].map((i) => ({ transform: `translate(${(i % 2 ? -1 : 1) * px * (1 - i / 6)}px, ${(i % 3 ? 1 : -1) * px * 0.5 * (1 - i / 6)}px)` }));
+    el.querySelectorAll(':scope > * > :not([data-hint-dock])').forEach((n) => {
+      if (typeof n.animate === 'function') n.animate(frames, { duration: 360, easing: 'linear' });
+    });
+  }, []);
+  const flashRed = useCallback(() => {
+    setFlash(true);
+    window.setTimeout(() => setFlash(false), 700);
   }, []);
 
-  const remaining = () =>
-    Math.max(0, STATION2_CONFIG.totalSeconds - Math.floor((Date.now() - startRef.current) / 1000));
+  const finish = useCallback((outcome: Outcome, left: number) => {
+    if (finished.current) return;
+    finished.current = true;
+    closeModule();
+    const { score: s, ids: i } = live.current;
+    const base = s.a + s.b + s.c;
+    const bonus = speedBonus(left, outcome === 'complete', base);
+    const raw = round2(base + bonus);
+    const summary: Station2Summary = { p1_id: i?.[0] ?? '', p2_id: i?.[1] ?? '', game_id: 'station2', raw_score: raw, time_left: left };
+    setReport({ outcome, a: s.a, b: s.b, c: s.c, bonus, raw, diag: JSON.parse(JSON.stringify(stats.current)) });
+    setStage('end');
+    try { onComplete?.(summary); } catch { /* host callback must not break the end screen */ }
+    try { window.dispatchEvent(new CustomEvent('mosaic:station-complete', { detail: summary })); } catch { /* ignore */ }
+  }, [onComplete, closeModule]);
 
-  const finish = useCallback((reason: Reason, left: number) => {
-    setResult((r) => r ?? { reason, timeLeft: left });
-    setPhase('done');
-  }, []);
-
-  // Countdown (timestamp-driven so it cannot drift)
+  // timestamp-driven 12:00 countdown (cannot drift)
   useEffect(() => {
-    if (phase !== 'play') return;
-    const id = window.setInterval(() => {
-      const left = Math.max(0, STATION2_CONFIG.totalSeconds - Math.floor((Date.now() - startRef.current) / 1000));
+    if (stage !== 'play') return undefined;
+    const t = window.setInterval(() => {
+      const left = Math.max(0, Math.ceil((endAt.current - Date.now()) / 1000));
       setTimeLeft(left);
-      if (left <= 0) {
-        window.clearInterval(id);
-        finish('timeout', 0);
-      }
+      if (left <= 0) finish('timeout', 0);
     }, 250);
-    return () => window.clearInterval(id);
-  }, [phase, finish]);
+    return () => window.clearInterval(t);
+  }, [stage, finish]);
 
-  const rawScore = Math.round((scoreA + scoreB + scoreC) * 100) / 100;
-  const bonusEarned = result ? speedBonus(result.timeLeft, result.reason === 'complete', rawScore) : 0;
-
-  // Emit the session summary exactly once on completion / timeout
-  useEffect(() => {
-    if (!result || emittedRef.current) return;
-    emittedRef.current = true;
-    const summary: Station2Summary = {
-      p1_id: p1, p2_id: p2, game_id: 'station2', raw_score: Math.round((rawScore + bonusEarned) * 100) / 100, time_left: result.timeLeft,
-    };
-    onComplete?.(summary);
-    window.dispatchEvent(new CustomEvent('mosaic:station-complete', { detail: summary }));
-    console.info('[station2] session summary', summary);
-  }, [result, p1, p2, rawScore, bonusEarned, onComplete]);
-
-  const handleStart = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ID_RE.test(p1) || !ID_RE.test(p2)) {
-      setIdError('BOTH OPERATOR IDs MUST BE EXACTLY 6 DIGITS.');
-      return;
-    }
-    if (p1 === p2) {
-      setIdError('OPERATOR 1 AND OPERATOR 2 MUST HAVE DIFFERENT IDs.');
-      return;
-    }
-    setIdError('');
-    startRef.current = Date.now();
+  const go = useCallback(() => {
+    endAt.current = Date.now() + STATION2_CONFIG.totalSeconds * 1000;
+    stats.current = blankDiag();
+    modStart.current = Date.now();
     setTimeLeft(STATION2_CONFIG.totalSeconds);
-    setPhase('play');
-  };
+    setStage('play');
+  }, []);
 
-  const advance = (from: ModuleId, to: ModuleId) => {
-    setDone((d) => ({ ...d, [from]: true }));
-    setMod(to);
-  };
+  // Replays always go back through the launcher so the attempt cap is checked and counted.
+  const restart = () => { onOpenStationChooser?.(); };
 
-  const sector = mod === 'A' ? 1 : mod === 'B' ? 2 : 3;
-  const shakeCls = shake.on ? (shake.n % 2 ? 'ws2-shake-a' : 'ws2-shake-b') : '';
-
-  const header = (
-    <header className="ws2-header">
-      <div className="ws2-brand">
-        <span className="ws2-brand-mark">SHELBY-AMERICAN</span>
-        <h1>F1 0-LAG STREAM <small>STATION 02 // PIT WALL TELEMETRY</small></h1>
-      </div>
-      <HudTicker sector={sector} />
-      {onOpenStationChooser && (
-        <button type="button" className="ws2-btn ws2-btn-ghost" onClick={onOpenStationChooser}>[STATIONS]</button>
-      )}
-    </header>
-  );
-
-  if (phase === 'id') {
-    return (
-      <div className="ws2-shell">
-        {header}
-        <main className="ws2-id-wrap">
-          <form className="ws2-id-card ws2-chamfer" onSubmit={handleStart} noValidate>
-            <span className="ws2-tag">CIRCUIT_DE_LA_SARTHE // 24H LE MANS 1966</span>
-            <h2>PIT WALL OPERATOR LOGIN</h2>
-            <p className="ws2-dim">
-              Ford GT40 vs Ferrari. Keep the 0-lag stream alive for 12 minutes. 100 base points + up to {STATION2_CONFIG.speedBonusMax} speed bonus.
-              No audio — watch the gauges.
-            </p>
-            <label htmlFor="ws2-p1">OPERATOR 1 ID</label>
-            <input id="ws2-p1" className="ws2-input" inputMode="numeric" autoComplete="off" maxLength={6} placeholder="000000" readOnly={locked}
-              value={p1} onChange={(e) => setP1(digits(e.target.value))} />
-            <label htmlFor="ws2-p2">OPERATOR 2 ID</label>
-            <input id="ws2-p2" className="ws2-input" inputMode="numeric" autoComplete="off" maxLength={6} placeholder="000000" readOnly={locked}
-              value={p2} onChange={(e) => setP2(digits(e.target.value))} />
-            {idError && <div className="ws2-flash ws2-flash-bad" role="alert">{idError}</div>}
-            <button type="submit" className="ws2-btn ws2-btn-red ws2-btn-wide" disabled={!ID_RE.test(p1) || !ID_RE.test(p2)}>
-              [START ENGINES // BEGIN 12:00]
-            </button>
-            <ul className="ws2-id-rules">
-              <li>MODULE A — PIT TELEMETRY PROTOCOL — 15 PTS</li>
-              <li>MODULE B — RELAY BEACON TOWER — 40 PTS</li>
-              <li>MODULE C — 3-NODE BALANCER — 45 PTS</li>
-            </ul>
-          </form>
-        </main>
-      </div>
-    );
-  }
-
-  if (phase === 'done' && result) {
-    const bonus = bonusEarned;
-    const title = result.reason === 'complete' ? 'CHEQUERED FLAG' : result.reason === 'timeout' ? 'TIME EXPIRED' : 'ENGINE SEIZED';
-    return (
-      <div className="ws2-shell">
-        {header}
-        <main className="ws2-id-wrap">
-          <div className="ws2-id-card ws2-chamfer ws2-result">
-            <span className="ws2-tag">{result.reason.toUpperCase()}</span>
-            <h2>{title}</h2>
-            <table className="ws2-score-table">
-              <tbody>
-                <tr><td>MODULE A — PIT TELEMETRY</td><td>{fmt(scoreA, 2)} / {STATION2_CONFIG.moduleMax.A}</td></tr>
-                <tr><td>MODULE B — RELAY BEACONS</td><td>{fmt(scoreB, 2)} / {STATION2_CONFIG.moduleMax.B}</td></tr>
-                <tr><td>MODULE C — BALANCER</td><td>{fmt(scoreC, 2)} / {STATION2_CONFIG.moduleMax.C}</td></tr>
-                <tr className="ws2-total"><td>RAW SCORE</td><td>{fmt(rawScore, 2)} / 100</td></tr>
-                <tr><td>SPEED BONUS (TIME LEFT {mmss(result.timeLeft)})</td><td>+{bonus} / {STATION2_CONFIG.speedBonusMax}</td></tr>
-              </tbody>
-            </table>
-            <pre className="ws2-json">{JSON.stringify({ p1_id: p1, p2_id: p2, game_id: 'station2', raw_score: rawScore + bonus, time_left: result.timeLeft }, null, 2)}</pre>
-            <button type="button" className="ws2-btn ws2-btn-blue ws2-btn-wide"
-              onClick={() => (onNavigateStation ? onNavigateStation(2) : window.location.reload())}>
-              [NEW SESSION]
-            </button>
-          </div>
-        </main>
-      </div>
-    );
-  }
+  const playing = stage === 'play';
+  const alarm = playing && (timeLeft <= 120 || (mod === 'C' && gaskets <= 1));
+  const idx = MODULES.indexOf(mod);
 
   return (
-    <div className={`ws2-shell ${shakeCls}`}>
-      {header}
-      <TimerBadge timeLeft={timeLeft} total={STATION2_CONFIG.totalSeconds} />
-      <nav className="ws2-modbar" aria-label="Modules">
-        {(['A', 'B', 'C'] as ModuleId[]).map((m) => (
-          <span key={m} className={`${mod === m ? 'is-active' : ''} ${done[m] ? 'is-done' : ''}`}>
-            {done[m] ? '✓' : m} {m === 'A' ? 'PIT TELEMETRY' : m === 'B' ? 'RELAY TOWERS' : 'BALANCER'}
-          </span>
-        ))}
-        <span className="ws2-modbar-ids">OP1 {p1} · OP2 {p2}</span>
-      </nav>
-      <main className="ws2-main">
-        {mod === 'A' && <ModuleA onScore={setScoreA} onShake={triggerShake} onDone={() => advance('A', 'B')} />}
-        {mod === 'B' && <ModuleB onScore={setScoreB} onShake={triggerShake} onDone={() => advance('B', 'C')} />}
-        {mod === 'C' && (
+    <div className={`ws2-shell ${alarm ? 'is-alarm' : ''} ${flash ? 'fx-flash' : ''}`}>
+      <PitWallBackdrop />
+      <div className="ws2-shell__flash" aria-hidden />
+
+      {playing && (
+        <header className="ws2-header">
+          <div className="ws2-brand">
+            <b>F1 0-LAG STREAM</b>
+            <span>STATION 02 · OPS {ids?.[0]} + {ids?.[1]}</span>
+          </div>
+          <nav className="ws2-modnav" aria-label="Module progress">
+            {MODULES.map((m, i) => (
+              <span key={m} className={`${m === mod ? 'on' : ''} ${idx > i ? 'done' : ''}`}>
+                <i>{idx > i ? '■' : m === mod ? '▶' : '□'}</i> {m} {NAMES[m]}
+              </span>
+            ))}
+          </nav>
+          <div className="ws2-hscore"><small>SCORE</small><b>{Math.round((score.a + score.b + score.c) * 10) / 10}</b></div>
+        </header>
+      )}
+
+      {playing && <Stopwatch seconds={timeLeft} total={STATION2_CONFIG.totalSeconds} running alarm={alarm} />}
+
+      <main className="ws2-main" ref={stage$}>
+        {stage === 'launch' && <LaunchScreen ids={ids} onGo={go} onBack={onOpenStationChooser} />}
+        {playing && mod === 'A' && (
+          <ModuleA track={track} onShake={shake} onScore={(a) => setScore((s) => ({ ...s, a }))} onDone={() => goMod('B')} />
+        )}
+        {playing && mod === 'B' && (
+          <ModuleB track={track} onShake={shake} onScore={(b) => setScore((s) => ({ ...s, b }))} onDone={() => goMod('C')} />
+        )}
+        {playing && mod === 'C' && (
           <ModuleC
-            onProgress={setScoreC}
-            onShake={triggerShake}
-            onForfeit={() => { setScoreC(0); finish('forfeit', remaining()); }}
-            onFinish={() => { setDone((d) => ({ ...d, C: true })); finish('complete', remaining()); }}
+            track={track} onShake={shake} onFlash={flashRed} onGaskets={setGaskets}
+            onScore={(c) => setScore((s) => ({ ...s, c }))}
+            onFinish={() => finish('complete', secondsLeft())}
+            onForfeit={() => finish('forfeit', secondsLeft())}
           />
         )}
+        {stage === 'end' && report && <EndScreen report={report} onRestart={restart} />}
       </main>
     </div>
   );

@@ -1,126 +1,125 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CHEAT_COLUMNS, STATION2_CONFIG } from '../mockStation2Data';
-import { pickQuestions, questionPoints, fmt } from '../logic';
+import { fmt, itemPoints, pickQuestions } from '../logic';
 import HintDock from '../../core/HintDock';
 import type { HintLevel } from '../../core/HintDock';
+import type { Track } from '../Station2';
 
 interface Props {
   onScore: (total: number) => void;
   onDone: () => void;
   onShake: () => void;
+  track: Track;
 }
 
 const LETTERS = ['A', 'B', 'C', 'D'];
+const PER_Q = STATION2_CONFIG.moduleMax.A / STATION2_CONFIG.questionsPerRun;
 
-export default function ModuleA({ onScore, onDone, onShake }: Props) {
+interface QState { hint: HintLevel; wrong: number[]; picked: number | null; pts: number | null }
+const blank = (): QState => ({ hint: 0, wrong: [], picked: null, pts: null });
+
+/** Module A: three questions on a paper timing sheet. Tap an answer to submit it. */
+export default function ModuleA({ onScore, onDone, onShake, track }: Props) {
   const [questions] = useState(() => pickQuestions());
   const [qi, setQi] = useState(0);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [hints, setHints] = useState<Record<string, number>>({});
-  const [wrong, setWrong] = useState<Record<string, number[]>>({});
-  const [earned, setEarned] = useState<Record<string, number>>({});
-  const [flash, setFlash] = useState<{ kind: 'ok' | 'bad'; text: string } | null>(null);
+  const [st, setSt] = useState<QState[]>(() => questions.map(blank));
+  const [msg, setMsg] = useState('');
+  const timer = useRef<number | null>(null);
+  useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
 
   const q = questions[qi];
-  const h = hints[q.id] ?? 0;
-  const wrongs = wrong[q.id] ?? [];
-  const answered = earned[q.id] !== undefined;
+  const s = st[qi];
+  const done = s.pts !== null;
   const col = CHEAT_COLUMNS.find((c) => c.id === q.column);
-  const isLast = qi === questions.length - 1;
-  const total = Object.values(earned).reduce((a, b) => a + b, 0);
+  const total = st.reduce((n, x) => n + (x.pts ?? 0), 0);
 
-  const requestHint = (next: 1 | 2) => {
-    if (answered || h >= next) return;
-    setHints({ ...hints, [q.id]: next });
-    if (next === 2) {
-      // Hint 2 reveals the answer AND submits it for the player: the question scores 0.
-      setSelected(q.correct);
-      const e = { ...earned, [q.id]: 0 };
-      setEarned(e);
-      onScore(Object.values(e).reduce((a, b) => a + b, 0));
-      setFlash({ kind: 'ok', text: 'ANSWER AUTO-SUBMITTED // 0 PTS' });
-    }
+  const patch = (p: Partial<QState>) => setSt((all) => all.map((x, i) => (i === qi ? { ...x, ...p } : x)));
+
+  const settle = (pts: number, picked: number, hint: HintLevel, text: string) => {
+    patch({ pts, picked, hint });
+    onScore(total + pts);
+    setMsg(text);
+    timer.current = window.setTimeout(() => {
+      setMsg('');
+      if (qi + 1 >= questions.length) onDone();
+      else setQi(qi + 1);
+    }, 1000);
   };
 
-  const transmit = () => {
-    if (selected === null || answered) return;
-    if (selected === q.correct) {
-      const pts = questionPoints(h >= 1, h >= 2, wrongs.length);
-      const e = { ...earned, [q.id]: pts };
-      setEarned(e);
-      onScore(Object.values(e).reduce((a, b) => a + b, 0));
-      setFlash({ kind: 'ok', text: `TRANSMISSION CONFIRMED // +${fmt(pts, 2)} PTS` });
+  const choose = (n: number) => {
+    if (done || s.wrong.includes(n)) return;
+    if (n === q.correct) {
+      const pts = itemPoints(PER_Q, s.hint, s.wrong.length);
+      settle(pts, n, s.hint, `LOCKED · +${fmt(pts, 1)}`);
     } else {
-      setWrong({ ...wrong, [q.id]: [...wrongs, selected] });
-      setSelected(null);
-      setFlash({ kind: 'bad', text: `NEGATIVE // OPTION [${LETTERS[selected]}] REJECTED // −${STATION2_CONFIG.wrongAnswerPenalty * 100}% PTS` });
+      patch({ wrong: [...s.wrong, n] });
+      setMsg(`OPTION ${LETTERS[n]} REJECTED · -${STATION2_CONFIG.wrongAnswerPenalty * 100}%`);
+      track('A', 'wrong', `Q${qi + 1}`);
       onShake();
     }
   };
 
-  const next = () => {
-    setFlash(null);
-    setSelected(null);
-    if (isLast) onDone();
-    else setQi(qi + 1);
+  const hint = (next: 1 | 2) => {
+    if (done || s.hint >= next) return;
+    track('A', 'hint', `Q${qi + 1} H${next}`);
+    if (next === 1) patch({ hint: 1 });
+    else settle(0, q.correct, 2, 'AUTO-SUBMITTED · 0 PTS');
   };
 
-  const perQ = STATION2_CONFIG.moduleMax.A / STATION2_CONFIG.questionsPerRun;
-
   return (
-    <section className="ws2-mod ws2-mod-a" aria-label="Module A Pit Telemetry Protocol">
-      <div className="ws2-mod-head">
-        <span className="ws2-tag">MODULE A</span>
-        <h2>PIT TELEMETRY PROTOCOL</h2>
-        <span className="ws2-mod-pts">{fmt(total, 2)} / {STATION2_CONFIG.moduleMax.A} PTS</span>
+    <section className="ws2-modA ws2-in" aria-label="Module A pit telemetry">
+      <div className="ws2-modhead">
+        <b>MODULE A</b><span>PIT TELEMETRY</span>
+        <em>{fmt(total, 1)} / {STATION2_CONFIG.moduleMax.A}</em>
       </div>
 
-      <div className="ws2-crt ws2-chamfer">
-        <div className="ws2-crt-bar">
-          <span>PIT-WALL CRT-07</span>
-          <span>QUERY {qi + 1}/{questions.length}</span>
-          <span>VALUE {perQ} PTS</span>
-        </div>
-        <p className="ws2-crt-q">&gt; {q.prompt}<span className="ws2-cursor">_</span></p>
+      <article className="ws2-sheet">
+        <i className="ws2-sheet__hole ws2-sheet__hole--t" aria-hidden />
+        <i className="ws2-sheet__hole ws2-sheet__hole--b" aria-hidden />
+        <header className="ws2-sheet__head">
+          <b>TIMING SHEET</b>
+          <span>QUESTION {qi + 1} / {questions.length}</span>
+          <span>{fmt(PER_Q, 1)} PTS</span>
+        </header>
 
-        <div className="ws2-opts">
-          {q.options.map((opt, i) => {
-            const rejected = wrongs.includes(i);
-            const isSel = selected === i;
-            const isRight = answered && i === q.correct;
+        <p className="ws2-sheet__q" key={q.id}>{q.prompt}</p>
+
+        <ol className="ws2-sheet__opts">
+          {q.options.map((opt, n) => {
+            const rejected = s.wrong.includes(n);
+            const right = done && s.picked === n;
             return (
-              <button key={i} type="button" disabled={rejected || answered}
-                className={`ws2-key ${isSel ? 'is-sel' : ''} ${rejected ? 'is-bad' : ''} ${isRight ? 'is-ok' : ''}`}
-                onClick={() => setSelected(i)} aria-pressed={isSel}>
-                <span className="ws2-key-cap">[{LETTERS[i]}]</span>
-                <span className="ws2-key-text">{opt}</span>
-              </button>
+              <li key={n}>
+                <button
+                  type="button" disabled={done || rejected} onClick={() => choose(n)}
+                  className={`ws2-opt ${rejected ? 'is-struck' : ''} ${right ? 'is-right' : ''}`}
+                >
+                  <span className="ws2-opt__box">{LETTERS[n]}</span>
+                  <span className="ws2-opt__text">{opt}</span>
+                  {right && <i className="ws2-stamp" aria-hidden>LOCKED</i>}
+                </button>
+              </li>
             );
           })}
-        </div>
+        </ol>
 
-        {flash && <div className={`ws2-flash ws2-flash-${flash.kind}`} role="status">{flash.text}</div>}
-      </div>
+        <footer className="ws2-sheet__foot">
+          <span className="ws2-pips-row" aria-hidden>
+            {questions.map((_, i) => <i key={i} className={st[i].pts !== null ? 'on' : i === qi ? 'now' : ''} />)}
+          </span>
+          <span className="ws2-sheet__msg" role="status">{msg || ' '}</span>
+          <span>WRONG {s.wrong.length}</span>
+        </footer>
+      </article>
 
-      <div className="ws2-actionbar">
-        {!answered ? (
-          <button type="button" className="ws2-btn ws2-btn-red" onClick={transmit} disabled={selected === null}>
-            [TRANSMIT ANSWER]
-          </button>
-        ) : (
-          <button type="button" className="ws2-btn ws2-btn-blue" onClick={next}>
-            {isLast ? '[COMPLETE MODULE A ▸ RELAY TOWER]' : '[NEXT QUERY ▸]'}
-          </button>
-        )}
-      </div>
       <HintDock
-        level={h as HintLevel}
-        itemLabel={`QUERY ${qi + 1}/${questions.length}`}
-        hint1Text={`Check cheat-sheet ${col?.id}: ${col?.label}.`}
-        hint2Text={`Option [${LETTERS[q.correct]}] was submitted for you. This query scores 0.`}
+        level={s.hint}
+        itemLabel={`QUESTION ${qi + 1}/${questions.length}`}
+        hint1Text={`Check the cheat sheet: ${col?.id} ${col?.label}.`}
+        hint2Text={`Option [${LETTERS[q.correct]}] was submitted for you. This question scores 0.`}
         cost1={STATION2_CONFIG.hintPenalty.hint1}
-        disabled={answered}
-        onHint={requestHint}
+        disabled={done}
+        onHint={hint}
       />
     </section>
   );

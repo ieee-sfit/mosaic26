@@ -1,5 +1,5 @@
-import { LOOKUP_STEPS, MATRIX, QUALITY_PROFILES, QUESTION_BANK, STATION2_CONFIG } from './mockStation2Data';
-import type { LookupStep, QuizQuestion, Stint } from './types';
+import { QUALITY_PROFILES, QUESTION_BANK, STATION2_CONFIG } from './mockStation2Data';
+import type { Circuit, QuizQuestion, Stint } from './types';
 
 export function shuffle<T>(arr: T[]): T[] {
   const a = arr.slice();
@@ -32,50 +32,63 @@ export function pickQuestions(n = STATION2_CONFIG.questionsPerRun): QuizQuestion
   });
 }
 
-export function questionPoints(
-  hint1: boolean, hint2: boolean, wrong: number,
-): number {
-  const base = STATION2_CONFIG.moduleMax.A / STATION2_CONFIG.questionsPerRun;
-  if (hint2) return 0;
-  const frac = 1 - (hint1 ? STATION2_CONFIG.hintPenalty.hint1 : 0) - wrong * STATION2_CONFIG.wrongAnswerPenalty;
+/** Points an item is worth after hints and wrong tries: Hint 2 = 0, Hint 1 = -40%, each wrong try = -20%. */
+export function itemPoints(base: number, hint: 0 | 1 | 2, wrong: number): number {
+  if (hint >= 2) return 0;
+  const frac = 1 - (hint >= 1 ? STATION2_CONFIG.hintPenalty.hint1 : 0) - wrong * STATION2_CONFIG.wrongAnswerPenalty;
   return Math.max(0, Math.round(base * frac * 100) / 100);
 }
 
-// ---- Module B lookups
-export function resolveStep(step: LookupStep, prevAnswer: string | null) {
-  const f = step.find;
-  let value: string | number | null = f.value ?? null;
-  if (f.fromPrev) {
-    if (prevAnswer == null) return null;
-    const n = Number(prevAnswer);
-    value = f.offset !== undefined && !Number.isNaN(n) ? n + f.offset : prevAnswer;
-  }
-  const row = MATRIX.find((r) => String(r[f.column]).toUpperCase() === String(value).toUpperCase());
-  return { value, row: row ?? null, answer: row ? String(row[step.read]) : null };
+// ---------------------------------------------------------------- Module B: channel plan
+export type Plan = Record<string, string>; // tower id -> channel
+
+export const anchorsOf = (c: Circuit): Plan =>
+  Object.fromEntries(c.towers.filter((t) => t.anchor).map((t) => [t.id, t.anchor as string]));
+
+export const neighbours = (c: Circuit, id: string): string[] =>
+  c.links.filter(([a, b]) => a === id || b === id).map(([a, b]) => (a === id ? b : a));
+
+/** Every complete valid plan that extends `fixed` (stops after `limit`). */
+export function solutions(c: Circuit, fixed: Plan, limit = 64): Plan[] {
+  const out: Plan[] = [];
+  const free = c.towers.filter((t) => !(t.id in fixed));
+  const walk = (i: number, plan: Plan) => {
+    if (out.length >= limit) return;
+    if (i === free.length) { out.push({ ...plan }); return; }
+    const t = free[i];
+    for (const ch of t.allowed) {
+      if (neighbours(c, t.id).some((n) => plan[n] === ch)) continue;
+      plan[t.id] = ch;
+      walk(i + 1, plan);
+      delete plan[t.id];
+    }
+  };
+  walk(0, { ...fixed });
+  return out;
 }
 
-export function expectedAnswer(step: LookupStep, prevAnswer: string | null): string | null {
-  return resolveStep(step, prevAnswer)?.answer ?? null;
+export type LockResult =
+  | { ok: true }
+  | { ok: false; reason: 'unsupported' | 'clash' | 'dead'; with?: string };
+
+/**
+ * Rule-based check, not a single answer key: a lock is accepted when the channel is on the tower's sheet row,
+ * no linked tower already holds it, and the rest of the circuit can still be completed.
+ */
+export function checkLock(c: Circuit, plan: Plan, towerId: string, ch: string): LockResult {
+  const t = c.towers.find((x) => x.id === towerId);
+  if (!t || !t.allowed.includes(ch)) return { ok: false, reason: 'unsupported' };
+  const clash = neighbours(c, towerId).find((n) => plan[n] === ch);
+  if (clash) return { ok: false, reason: 'clash', with: clash };
+  return solutions(c, { ...plan, [towerId]: ch }, 1).length ? { ok: true } : { ok: false, reason: 'dead' };
 }
 
-export function describeStep(step: LookupStep, prevAnswer: string | null): string {
-  const r = resolveStep(step, prevAnswer);
-  const f = step.find;
-  let target: string;
-  if (f.fromPrev) {
-    if (!r) target = '[PREVIOUS STEP RESULT]';
-    else target = f.offset !== undefined
-      ? `${prevAnswer} ${f.offset >= 0 ? '+' : '−'} ${Math.abs(f.offset)} = ${r.value}`
-      : String(r.value);
-  } else target = String(f.value);
-  return `FIND ROW WHERE ${f.column} = ${target}  ▸  READ ${step.read}`;
+/** A channel Hint 2 can lock for this tower (always completable). */
+export function solveTower(c: Circuit, plan: Plan, towerId: string): string | null {
+  return solutions(c, plan, 1)[0]?.[towerId] ?? null;
 }
 
-export function stepsOfProblem(p: 1 | 2) {
-  return LOOKUP_STEPS.filter((s) => s.problem === p);
-}
-
-// ---- Module C balancer
+// ---------------------------------------------------------------- Module C: balancer
 export interface Controls { split: number; qualityIdx: number; divert: boolean }
 
 export function simulate(stint: Stint, c: Controls) {
@@ -92,8 +105,8 @@ export function simulate(stint: Stint, c: Controls) {
   else pit += spike;
 
   const nodes = [
-    { id: 'mulsanne', label: 'MULSANNE STRAIGHT', load: mul, cap: stint.capacity.mulsanne, active: true },
-    { id: 'arnage', label: 'ARNAGE BACKUP', load: arn, cap: stint.capacity.arnage, active: c.divert },
+    { id: 'mulsanne', label: 'MULSANNE', load: mul, cap: stint.capacity.mulsanne, active: true },
+    { id: 'arnage', label: 'ARNAGE RELAY', load: arn, cap: stint.capacity.arnage, active: c.divert },
     { id: 'pit', label: 'PIT STRAIGHT', load: pit, cap: stint.capacity.pit, active: true },
   ].map((n) => ({ ...n, util: n.load / n.cap }));
 
@@ -105,19 +118,24 @@ export function simulate(stint: Stint, c: Controls) {
   const capacityOk = nodes.every((n) => !n.active || n.util < cfg.utilLimit);
   const qualityOk = c.qualityIdx <= stint.worstQualityIdx;
   const locked = latencyOk && capacityOk && qualityOk;
-
-  // 0 (perfect) .. 1 (meltdown): drives waveform noise and tach strain
-  const severity = locked ? 0 : Math.min(1,
-    Math.max(0, (worstUtil - cfg.utilLimit) / 0.4) * 0.6 +
-    Math.max(0, (latency - cfg.latencyLimitMs) / 1500) * 0.4 + (qualityOk ? 0 : 0.2) + 0.1);
-
-  return { nodes, latency, latencyOk, capacityOk, qualityOk, locked, severity, worstUtil };
+  return { nodes, latency, latencyOk, capacityOk, qualityOk, locked, worstUtil };
 }
 
-export function fmt(n: number, d = 1) {
-  return Number.isInteger(n) ? String(n) : n.toFixed(d);
+/** Finds a control setting that locks the stint (Hint 2 uses it; solves for 0 points). */
+export function solveStint(stint: Stint): Controls | null {
+  for (const divert of [false, true]) {
+    for (let qualityIdx = 0; qualityIdx < QUALITY_PROFILES.length; qualityIdx++) {
+      for (let split = 0; split <= 100; split++) {
+        const c = { split, qualityIdx, divert };
+        if (simulate(stint, c).locked) return c;
+      }
+    }
+  }
+  return null;
 }
-export function mmss(sec: number) {
+
+export const fmt = (n: number, d = 1) => (Number.isInteger(n) ? String(n) : n.toFixed(d));
+export const mmss = (sec: number) => {
   const s = Math.max(0, sec);
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-}
+};
