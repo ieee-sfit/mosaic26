@@ -17,7 +17,7 @@ const QUEUE_KEY = 'mosaic_run_queue'
 const REJECTED_KEY = 'mosaic_run_rejected'
 const FLUSH_MS = 15000
 /** Server answers that will never succeed on retry, so the run is parked instead of re-sent forever. */
-const DEFINITIVE = new Set(['BAD_PAYLOAD', 'BAD_STATION', 'PLAYER_NOT_REGISTERED', 'UNAUTHORIZED_KIOSK'])
+const DEFINITIVE = new Set(['BAD_PAYLOAD', 'BAD_STATION', 'PLAYER_NOT_REGISTERED', 'ATTEMPT_LIMIT', 'UNAUTHORIZED_KIOSK'])
 
 function read<T>(key: string): T[] {
   try {

@@ -25,17 +25,20 @@ export default function ClearanceModal({ station, onEngage, onAbort }) {
     if (!valid || busy) return
     setBusy(true)
     setNote(null)
-    const res = await checkPlayers(p1, p2)
+    const res = await checkPlayers(p1, p2, `station${station.id}`)
     if (res.ok) {
       const names = [res.p1?.name, res.p2?.name].filter(Boolean)
+      const attempt = Math.max(res.p1?.runs ?? 0, res.p2?.runs ?? 0) + 1
       setNote({
         tone: 'ok',
-        lines: res.offline ? ['NETWORK UNREACHABLE: IDs WILL BE VERIFIED WHEN SCORES SYNC'] : [`VERIFIED: ${names.join(' + ').toUpperCase()}`],
+        lines: res.offline
+          ? ['OFFLINE: IDs WILL BE CHECKED WHEN SCORES SYNC']
+          : [`VERIFIED: ${names.join(' + ').toUpperCase()}`, `ATTEMPT ${attempt} OF ${res.cap ?? 4}`],
       })
       setTimeout(() => onEngage(p1, p2), res.offline ? 1200 : 900)
       return
     }
-    const msg = { UNREGISTERED: 'ID NOT REGISTERED', UNPAID: 'REGISTRATION PAYMENT PENDING' }
+    const msg = { UNREGISTERED: 'ID NOT REGISTERED', UNPAID: 'PAYMENT PENDING', LIMIT: `ALL ${res.cap ?? 4} ATTEMPTS USED` }
     const lines = [
       res.p1 && res.p1.status !== 'OK' && `OPERATOR 1: ${msg[res.p1.status]}`,
       res.p2 && res.p2.status !== 'OK' && `OPERATOR 2: ${msg[res.p2.status]}`,
@@ -43,7 +46,7 @@ export default function ClearanceModal({ station, onEngage, onAbort }) {
       res.error === 'UNAUTHORIZED_KIOSK' && 'THIS TERMINAL IS NOT AUTHORIZED, CALL A VOLUNTEER',
       res.error === 'KIOSK_NOT_CONFIGURED' && 'TERMINAL NOT CONFIGURED, CALL A VOLUNTEER',
     ].filter(Boolean)
-    setNote({ tone: 'bad', lines: lines.length ? [...lines, 'SEE THE REGISTRATION DESK'] : ['VERIFICATION FAILED, CALL A VOLUNTEER'] })
+    setNote({ tone: 'bad', lines: lines.length ? [...lines, ...(res.p1?.status === 'LIMIT' || res.p2?.status === 'LIMIT' ? [] : ['SEE THE REGISTRATION DESK'])] : ['VERIFICATION FAILED, CALL A VOLUNTEER'] })
     setBusy(false)
   }
 

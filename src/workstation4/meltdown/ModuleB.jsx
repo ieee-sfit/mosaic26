@@ -7,7 +7,7 @@ import HintDock from '../../core/HintDock'
 const PER_PROBLEM = 4
 const TOTAL = PER_PROBLEM * LOOKUP_PROBLEMS.length
 
-export default function ModuleB({ onScore, onDone, fx, log }) {
+export default function ModuleB({ onScore, onDone, fx, log, track }) {
   const cfg = STATION4_CONFIG.moduleB
   const [done, setDone] = useState(0) // verified steps 0..8
   const [answers, setAnswers] = useState([[], []]) // per problem verified answers
@@ -43,6 +43,7 @@ export default function ModuleB({ onScore, onDone, fx, log }) {
   // Hint 1: highlights the cell to read (-40%). Hint 2: submits the value for the player (0 pts).
   const requestHint = (next) => {
     if (lookupDone || hint >= next) return
+    track?.('B', 'hint', `${problem.id} S${sIdx + 1} H${next}`)
     setHint(next)
     if (next === 2) accept(0, true)
   }
@@ -55,6 +56,7 @@ export default function ModuleB({ onScore, onDone, fx, log }) {
       accept(Math.max(0, base - wrong * cfg.wrongStepPenalty))
     } else {
       setWrong((w) => w + 1)
+      track?.('B', 'wrong', `${problem.id} S${sIdx + 1}`)
       fx('glitch')
       log(`${problem.id} STEP ${sIdx + 1} MISMATCH // PRESSURE SPIKE`, 'warn')
     }
@@ -96,7 +98,6 @@ export default function ModuleB({ onScore, onDone, fx, log }) {
             </tbody>
           </table>
         </div>
-        <footer className="mz-pad-foot mz-dim">ROW HIGHLIGHT = CURRENT LOOKUP TARGET</footer>
       </aside>
 
       {/* CENTER: CENTRIFUGE */}
@@ -119,7 +120,6 @@ export default function ModuleB({ onScore, onDone, fx, log }) {
         {!lookupDone ? (
           <form className="mz-pad-body" onSubmit={submit}>
             <h3 className="mz-h3">{problem.title}</h3>
-            <p className="mz-dim">{problem.briefing}</p>
             <ol className="mz-steplist">
               {problem.steps.map((s, i) => (
                 <li key={i} className={i < sIdx ? 'is-done' : i === sIdx ? 'is-now' : ''}>
@@ -142,12 +142,12 @@ export default function ModuleB({ onScore, onDone, fx, log }) {
               />
               <button type="submit" className="mz-btn mz-btn-green">[VERIFY]</button>
             </div>
-            <div className="mz-dim">MISMATCHES THIS STEP: {wrong} · −{cfg.wrongStepPenalty} PT EACH</div>
+            <div className="mz-dim">WRONG {wrong} · −{cfg.wrongStepPenalty} PT EACH</div>
           </form>
         ) : (
           <div className="mz-pad-body">
             <h3 className="mz-h3">STEP 5 // INTERLOCK</h3>
-            <p className="mz-dim">All 8 clamps verified. Seal the lid to hold the rotor at 100% and bring the field datapad online.</p>
+            <p className="mz-dim">All 8 clamps verified.</p>
             {lid === 'open' && <button type="button" className="mz-btn mz-btn-amber mz-wide" onClick={seal}>[ENGAGE HYDRAULIC INTERLOCK]</button>}
             {lid === 'closing' && <div className="mz-status mz-amber mz-blink">LID DESCENDING… CLAMPS EXTENDING…</div>}
             {lid === 'sealed' && (

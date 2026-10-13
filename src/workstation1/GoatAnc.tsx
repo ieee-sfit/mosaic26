@@ -18,12 +18,14 @@ import { TimerBadge } from './components/TimerBadge';
 interface HostProps {
   /** Fired once when the run ends (complete, timed out, or hull breach). */
   onComplete?: (result: Station1Result) => void;
+  /** Back to the launcher, so a replay is re-verified and counted against the attempt cap. */
+  onOpenStationChooser?: () => void;
 }
 
 /** Station 1 · GOAT ANC. Flow: Launcher → Module A → Module B → Module C → Summary. */
-export default function GoatAnc({ onComplete }: HostProps) {
+export default function GoatAnc({ onComplete, onOpenStationChooser }: HostProps) {
   const [run, setRun] = useState(0);
-  return <Session key={run} onComplete={onComplete} onRestart={() => setRun((n) => n + 1)} />;
+  return <Session key={run} onComplete={onComplete} onRestart={onOpenStationChooser ?? (() => setRun((n) => n + 1))} />;
 }
 
 function Session({ onComplete, onRestart }: HostProps & { onRestart: () => void }) {

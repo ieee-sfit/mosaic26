@@ -300,3 +300,99 @@
 /* shared hint dock accent + Hint 1 cell pointer */
 .mz-shell, .mz-root { --hd-accent: #22c55e; }
 .mz-matrix td.is-hint { background: rgba(34, 197, 94, .22); outline: 1px solid #22c55e; }
+
+/* ==========================================================================
+   QUARANTINE LAB: observation glass, hardware panels, glowing circuit, debrief
+   ========================================================================== */
+.mz-shell { --dg-accent: #22c55e; background: #04080b; }
+
+/* backdrop */
+.mz-lab { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.mz-lab-glass { position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 28% 22%, rgba(120, 200, 255, 0.22), transparent 70%),
+    repeating-linear-gradient(90deg, rgba(170, 215, 235, 0.045) 0 2px, transparent 2px 44px),
+    linear-gradient(180deg, #0a2233 0%, #07151f 55%, #03080b 100%); }
+.mz-lab-fog { position: absolute; width: 90vw; height: 70vh; border-radius: 50% !important; filter: blur(60px); opacity: 0.5;
+  background: radial-gradient(circle, rgba(130, 190, 215, 0.35), transparent 65%); will-change: transform; }
+.mz-lab-fog--a { left: -20vw; top: -10vh; animation: mz-fog 46s ease-in-out infinite alternate; }
+.mz-lab-fog--b { right: -25vw; top: 20vh; animation: mz-fog 58s ease-in-out infinite alternate-reverse; opacity: 0.35; }
+@keyframes mz-fog { to { transform: translate3d(12vw, 6vh, 0); } }
+.mz-lab-drips i { position: absolute; top: -20%; width: 2px; height: 30%; opacity: 0.35;
+  background: linear-gradient(180deg, transparent, rgba(200, 230, 245, 0.8), transparent); animation: mz-drip 9s linear infinite; }
+.mz-lab-drips i:nth-child(1) { left: 12%; animation-duration: 11s; } .mz-lab-drips i:nth-child(2) { left: 31%; animation-duration: 8s; animation-delay: -3s; }
+.mz-lab-drips i:nth-child(3) { left: 55%; animation-duration: 13s; animation-delay: -6s; } .mz-lab-drips i:nth-child(4) { left: 73%; animation-duration: 9.5s; animation-delay: -2s; }
+.mz-lab-drips i:nth-child(5) { left: 90%; animation-duration: 12s; animation-delay: -8s; }
+@keyframes mz-drip { to { transform: translateY(480%); } }
+.mz-lab-hatch { position: absolute; left: -8vw; bottom: -14vh; width: 60vw; height: 60vh;
+  background: radial-gradient(ellipse at 30% 70%, rgba(34, 197, 94, 0.38), rgba(16, 185, 129, 0.12) 40%, transparent 70%); animation: mz-hatch 5s ease-in-out infinite; }
+@keyframes mz-hatch { 50% { opacity: 0.6; } }
+.mz-lab-racks { position: absolute; right: 0; top: 0; bottom: 0; width: 5vw; min-width: 40px; opacity: 0.8;
+  background: repeating-linear-gradient(180deg, #0b1316 0 34px, #111b20 34px 36px); border-left: 1px solid rgba(160, 210, 230, 0.1); }
+.mz-lab-racks span { position: absolute; inset: 0;
+  background-image: radial-gradient(circle, #3ecbff 0 2px, transparent 3px), radial-gradient(circle, #22c55e 0 2px, transparent 3px);
+  background-size: 26px 36px, 26px 36px; background-position: 6px 8px, 16px 20px; animation: mz-led 2.4s steps(2, jump-none) infinite; }
+@keyframes mz-led { 50% { opacity: 0.35; } }
+.mz-lab-alarm { position: absolute; inset: 0; opacity: 0; transition: opacity 0.5s;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(239, 68, 68, 0.5) 100%); }
+.mz-shell.is-critical .mz-lab-alarm { opacity: 1; animation: mz-pulse 1.3s ease-in-out infinite; }
+.mz-header, .mz-main, .mz-log { position: relative; z-index: 10; }
+
+/* hardware panels: bezel, screws, CRT glass */
+.mz-panel { background:
+    radial-gradient(circle at 9px 9px, #9aa6a0 0 2.5px, #2a312e 3px 3.5px, transparent 4px),
+    radial-gradient(circle at calc(100% - 9px) 9px, #9aa6a0 0 2.5px, #2a312e 3px 3.5px, transparent 4px),
+    radial-gradient(circle at 9px calc(100% - 9px), #9aa6a0 0 2.5px, #2a312e 3px 3.5px, transparent 4px),
+    radial-gradient(circle at calc(100% - 9px) calc(100% - 9px), #9aa6a0 0 2.5px, #2a312e 3px 3.5px, transparent 4px),
+    linear-gradient(160deg, #1b2622 0%, #0e1412 60%, #090d0c 100%);
+  box-shadow: inset 0 1px 0 rgba(200, 230, 220, 0.14), inset 0 -2px 0 rgba(0, 0, 0, 0.6); }
+.mz-panel::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.16) 0 1px, transparent 1px 3px), radial-gradient(ellipse at center, transparent 62%, rgba(0, 0, 0, 0.4) 100%); }
+.mz-panel-head { background: linear-gradient(180deg, #070b0a, #0c1210); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(190, 220, 210, 0.1); }
+.mz-log { min-height: 44px; }
+
+/* danger placard (stencil, red on black with yellow sub-line) */
+.mz-placard { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 8px 14px; margin-bottom: 16px; background: #050505;
+  border: 1px solid #3a0d0d; }
+.mz-placard div { text-align: center; line-height: 1.1; }
+.mz-placard b { display: block; font: 700 34px 'Chakra Petch', sans-serif; letter-spacing: .22em; color: #ef4444; }
+.mz-placard span { font: 600 12px 'Chakra Petch', sans-serif; letter-spacing: .3em; color: #facc15; }
+.mz-tri { display: grid; place-items: center; width: 44px; height: 44px; font-style: normal; font-size: 24px; color: #050505; background: #ef4444;
+  clip-path: polygon(50% 4%, 100% 96%, 0 96%); padding-top: 12px; }
+
+/* circuit: glowing yellow wires, white-outline gates on black */
+.mz-board { background: radial-gradient(circle, rgba(250, 204, 21, 0.05) 1px, transparent 1px) 0 0 / 18px 18px, #020303; border-color: #2a2a1a; }
+.mz-wire { stroke-width: 3; }
+.mz-wire.w1 { stroke: #facc15; filter: drop-shadow(0 0 5px #facc15); }
+.mz-wire.w0 { stroke: #6b5d1f; filter: none; }
+.mz-wire.wn { stroke: #3a3a30; }
+.mz-node { background: #050606; border: 1.5px solid #d6dbd8; }
+.mz-node.w1 { border-color: #facc15; box-shadow: 0 0 14px rgba(250, 204, 21, 0.35); }
+.mz-node.w1 > b { color: #facc15; text-shadow: 0 0 8px #facc15; }
+.mz-node.w0 { border-color: #7c8580; }
+.mz-node.w0 > b { color: #9ca3af; text-shadow: none; }
+.mz-socket strong { color: #fff; }
+.mz-door-node.w1 { border-color: #22c55e; box-shadow: 0 0 16px rgba(34, 197, 94, 0.45); }
+.mz-door-node.w1 > b { color: #22c55e; text-shadow: 0 0 8px #22c55e; }
+
+/* debrief (same layout as station 1) */
+.mz-end2 { display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; padding: 34px 40px 40px; min-height: calc(100vh - 60px); align-items: start; }
+.mz-end2-tag { display: inline-block; padding: 4px 12px; background: var(--amber); color: #04080b; font: 700 11px 'Chakra Petch', sans-serif; letter-spacing: .3em;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
+.mz-end2-head { margin: 18px 0 6px; font: 700 clamp(40px, 7vw, 96px)/.92 'Chakra Petch', sans-serif; text-transform: uppercase; }
+.mz-end2-line { margin: 4px 0; font-size: 12px; letter-spacing: .18em; color: var(--dim); }
+.mz-end2-score { display: flex; align-items: flex-end; gap: 22px; margin: 26px 0 30px; }
+.mz-end2-score small { display: block; font-size: 10px; letter-spacing: .3em; color: var(--dim); }
+.mz-end2-score b { font: 800 clamp(54px, 8vw, 112px)/1 'JetBrains Mono', monospace; color: #fff; text-shadow: 0 0 28px rgba(34, 197, 94, .45); font-variant-numeric: tabular-nums; }
+.mz-end2-score b span { font-size: 24px; color: var(--dim); }
+.mz-end2-grade { display: grid; place-items: center; width: 112px; height: 112px; background: var(--g1); color: #04080b;
+  clip-path: polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px); }
+.mz-end2-grade small { color: #04080b; letter-spacing: .25em; }
+.mz-end2-grade b { font: 700 64px/1 'Chakra Petch', sans-serif; color: #04080b; text-shadow: none; }
+.mz-end2.is-bad .mz-end2-grade { background: var(--red); }
+.mz-end2-right { display: grid; gap: 12px; }
+.mz-end2-card { padding: 10px 14px; background: rgba(5, 9, 10, .88); border: 1px solid var(--line-hi); clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%); }
+.mz-end2-card header { display: flex; justify-content: space-between; align-items: baseline; font: 700 12px 'Chakra Petch', sans-serif; letter-spacing: .2em; color: var(--g2); }
+.mz-end2-card header b { font: 700 24px 'JetBrains Mono', monospace; color: #fff; } .mz-end2-card header em { font-size: 12px; color: var(--dim); font-style: normal; }
+.mz-end2-bar { display: flex; gap: 1px; height: 7px; margin-top: 8px; } .mz-end2-bar i { flex: 1; background: #16201b; } .mz-end2-bar i.on { background: var(--g1); }
+@media (max-width: 1100px) { .mz-end2 { grid-template-columns: 1fr; padding: 24px 20px; } }

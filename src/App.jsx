@@ -53,7 +53,7 @@ function App() {
         <Station
           key={session.startedAt}
           onComplete={(payload) => recordRun(session.stationId, session, payload)}
-          onNavigateStation={(id) => setSession({ ...createSession(id, session.p1_id, session.p2_id) })}
+          onNavigateStation={returnToLauncher} // every new attempt goes back through the ID and attempt check
           onOpenStationChooser={returnToLauncher}
         />
       </SessionContext.Provider>

@@ -129,6 +129,11 @@ export default function Station3({ onOpenStationChooser, onComplete }: Station3P
   };
 
   const restart = () => {
+    // Replays go back through the launcher so the attempt cap is checked
+    if (onOpenStationChooser) {
+      onOpenStationChooser();
+      return;
+    }
     emittedRef.current = false;
     timeRef.current = CONFIG.totalSeconds;
     scoresRef.current = { a: 0, b: 0, c: 0 };

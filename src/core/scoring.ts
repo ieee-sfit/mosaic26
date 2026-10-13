@@ -37,3 +37,13 @@ export function normalizeStation1(p: Station1Payload): { raw_score: number; time
   const bonus = speedBonus(p.secondsRemaining, p.endReason === 'COMPLETE', base)
   return { raw_score: Math.round(base + bonus), time_left: p.secondsRemaining }
 }
+
+/** Letter rating from the base score (0-100), same bands on every station. */
+export function gradeFor(base: number): 'S' | 'A' | 'B' | 'C' | 'D' {
+  const r = base / SCORING.baseMax
+  if (r >= 0.9) return 'S'
+  if (r >= 0.75) return 'A'
+  if (r >= 0.55) return 'B'
+  if (r >= 0.35) return 'C'
+  return 'D'
+}

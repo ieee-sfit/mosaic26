@@ -31,7 +31,7 @@ function solveCircuit(round, currentInputs, check) {
   return null
 }
 
-export default function ModuleC({ onScore, onDone, onForfeit, fx, log, onSeals }) {
+export default function ModuleC({ onScore, onDone, onForfeit, fx, log, onSeals, track }) {
   const cfg = STATION4_CONFIG.moduleC
   const [ri, setRi] = useState(0)
   const round = CIRCUIT_ROUNDS[ri]
@@ -57,6 +57,7 @@ export default function ModuleC({ onScore, onDone, onForfeit, fx, log, onSeals }
   const armTimer = () => { deadline.current = Date.now() + cfg.phaseSeconds * 1000; setTimer(cfg.phaseSeconds) }
 
   const breakSeal = (reason) => {
+    track?.('C', 'wrong', `R${ri + 1} ${phase === 'seal' ? 'SEAL' : 'BREACH'}${reason === 'PHASE TIMEOUT' ? ' TIMEOUT' : ''}`)
     fx('strobe'); fx('shake')
     const n = seals - 1
     setSeals(n)
@@ -145,6 +146,7 @@ export default function ModuleC({ onScore, onDone, onForfeit, fx, log, onSeals }
 
   const requestHint = (next) => {
     if (!interactive || hint >= next) return
+    track?.('C', 'hint', `R${ri + 1} ${phase === 'seal' ? 'SEAL' : 'BREACH'} H${next}`)
     setHint(next)
     if (next !== 2) return
     if (phase === 'breach') {
@@ -200,7 +202,7 @@ export default function ModuleC({ onScore, onDone, onForfeit, fx, log, onSeals }
       {/* FOREGROUND: field hacking datapad */}
       <div className="mz-datapad mz-chamfer">
         <header className="mz-panel-head">
-          <span>MODULE C // CORRIDOR AIRLOCK INTERLOCK · {round.name}</span>
+          <span>MODULE C // AIRLOCK · {round.id}</span>
           <span className="mz-seals" title="Quarantine seals">
             {Array.from({ length: cfg.seals }, (_, i) => (
               <b key={i} className={i < seals ? 'ok' : 'broken'}>{i < seals ? '☣' : '✕'}</b>
@@ -209,11 +211,10 @@ export default function ModuleC({ onScore, onDone, onForfeit, fx, log, onSeals }
         </header>
 
         <div className="mz-cbar">
-          <div className={`mz-phase ${phase === 'breach' ? 'on' : ''}`}>PHASE 1 // BREACH FORWARD → FWD = 1</div>
-          <div className={`mz-phase ${phase === 'seal' || phase === 'slam' ? 'on' : ''}`}>PHASE 2 // SEAL BEHIND → REAR = 0</div>
-          <div className={`mz-timer-chip ${timer <= 15 ? 'hot' : ''}`}>PHASE CLOCK {String(Math.max(timer, 0)).padStart(2, '0')}s</div>
+          <div className={`mz-phase ${phase === 'breach' ? 'on' : ''}`}>1 · BREACH → FWD = 1</div>
+          <div className={`mz-phase ${phase === 'seal' || phase === 'slam' ? 'on' : ''}`}>2 · SEAL → REAR = 0</div>
+          <div className={`mz-timer-chip ${timer <= 15 ? 'hot' : ''}`}>{String(Math.max(timer, 0)).padStart(2, '0')}s</div>
         </div>
-        <p className="mz-dim mz-brief">{round.briefing}</p>
 
         <div className="mz-board">
           <svg className="mz-wires" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -259,7 +260,7 @@ export default function ModuleC({ onScore, onDone, onForfeit, fx, log, onSeals }
                 onClick={() => setSelected((s) => (s === g ? null : g))}
                 className={`mz-gate ${selected === g ? 'sel' : ''}`} disabled={!interactive}>[{g}]</button>
             ))}
-            <span className="mz-dim mz-hintline">{selected ? `PLACING ${selected} — CLICK A SOCKET` : 'DRAG OR PICK A GATE · CLICK INPUTS TO TOGGLE · CLICK FILLED SOCKET TO CLEAR'}</span>
+            <span className="mz-dim mz-hintline">{selected ? `${selected}: CLICK A SOCKET` : 'PICK A GATE · TOGGLE INPUTS'}</span>
           </div>
           <button type="button" className="mz-btn mz-btn-green" disabled={!interactive} onClick={submit}>
             {phase === 'seal' ? '[SLAM REAR DOOR]' : '[BREACH FORWARD]'}

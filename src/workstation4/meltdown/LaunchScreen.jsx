@@ -46,19 +46,14 @@ export default function LaunchScreen({ onLaunch, onOpenStationChooser, preset })
           <span className="mz-red mz-blink">● BREACH ACTIVE</span>
         </header>
         <div className="mz-launch-body">
-          <div className="mz-hazard-strip" />
-          <h1 className="mz-title mz-glitch" data-text="AREA 51 MELTDOWN">AREA 51 MELTDOWN</h1>
-          <p className="mz-sub">STATION 04 // QUARANTINE BREAKOUT PROTOCOL</p>
-          <p className="mz-dim mz-lead">
-            Specimen vault D-7 has failed. You have <b className="mz-amber">12:00</b> to verify protocols,
-            stabilise the centrifuge and lock the infected behind the airlock. Two operators. One shot.
-          </p>
-
-          <div className="mz-telemetry">
-            <span>CONTAINMENT_SEAL: LEVEL-4</span>
-            <span className="mz-red">PATHOGEN_LOAD: {TELEMETRY_BASELINE.pathogenLoad}%</span>
-            <span>OPERATORS: 2</span>
+          <div className="mz-placard" aria-hidden="true">
+            <i className="mz-tri">⚠</i>
+            <div><b>DANGER</b><span>CONTAINMENT BREACH</span></div>
+            <i className="mz-tri">☣</i>
           </div>
+          <h1 className="mz-title mz-glitch" data-text="AREA 51 MELTDOWN">AREA 51 MELTDOWN</h1>
+          <p className="mz-sub">STATION 04</p>
+          <p className="mz-dim mz-lead">Vault D-7 has failed. <b className="mz-amber">12:00</b> to seal it.</p>
 
           <div className="mz-idgrid">
             {[['Operator 1 ID', p1, setP1, 'mz-op1'], ['Operator 2 ID', p2, setP2, 'mz-op2']].map(([lab, val, set, id]) => (

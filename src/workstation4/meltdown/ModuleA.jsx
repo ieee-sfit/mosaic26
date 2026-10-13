@@ -5,7 +5,7 @@ import HintDock from '../../core/HintDock'
 
 const LETTERS = ['A', 'B', 'C', 'D']
 
-export default function ModuleA({ onScore, onDone, fx, log }) {
+export default function ModuleA({ onScore, onDone, fx, log, track }) {
   const questions = useMemo(
     () => pickQuestions(QUESTION_BANK, STATION4_CONFIG.moduleA.questionsPerRun),
     [],
@@ -37,6 +37,7 @@ export default function ModuleA({ onScore, onDone, fx, log }) {
       finishQuestion(st.hint, st.wrong, n)
     } else {
       fx('glitch')
+      track?.('A', 'wrong', `Q${idx + 1}`)
       patch({ wrong: st.wrong + 1, banned: [...st.banned, n] })
       log(`Q${idx + 1} REJECTED // OPTION ${LETTERS[n]} INVALID`, 'warn')
     }
@@ -44,6 +45,7 @@ export default function ModuleA({ onScore, onDone, fx, log }) {
 
   const requestIntel = (next) => {
     if (st.done || st.hint >= next) return
+    track?.('A', 'hint', `Q${idx + 1} H${next}`)
     if (next === 1) {
       patch({ hint: 1 })
       log(`OVERRIDE INTEL L1 // -${STATION4_CONFIG.moduleA.hint1PenaltyFraction * 100}% PTS`, 'warn')
@@ -58,15 +60,13 @@ export default function ModuleA({ onScore, onDone, fx, log }) {
     <section className="mz-modA mz-fade-in">
       <div className="mz-panel mz-chamfer mz-terminal">
         <header className="mz-panel-head">
-          <span>MODULE A // BIOHAZARD PROTOCOL CHECKS</span>
+          <span>MODULE A // PROTOCOL</span>
           <span className="mz-amber">QUERY {idx + 1}/{questions.length}</span>
         </header>
 
         <div className="mz-qbody">
           <div className="mz-qmeta">
-            <span>GATE_CLASS: {q.gate}</span>
-            <span>CONTAINMENT_SEAL: LEVEL-4</span>
-            <span>WORTH: {STATION4_CONFIG.scoring.moduleA / questions.length} PTS</span>
+            <span>WORTH {STATION4_CONFIG.scoring.moduleA / questions.length} PTS</span>
           </div>
           <p className="mz-prompt" key={q.id}>
             <span className="mz-green">&gt;_</span> {q.prompt}
@@ -95,7 +95,7 @@ export default function ModuleA({ onScore, onDone, fx, log }) {
 
         <footer className="mz-actionstrip">
           <span className="mz-dim">
-            WRONG TRIES: {st.wrong} · INTEL LEVEL: {st.hint}/2
+            WRONG {st.wrong}
           </span>
         </footer>
       </div>
