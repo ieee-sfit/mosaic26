@@ -35,7 +35,7 @@ export const STATIONS = [
     code: 'ST-03',
     name: 'eCHALLAN TRACE',
     sector: 'TOKYO-MIDNIGHT // EXPRESSWAY',
-    classification: 'FAST & FURIOUS',
+    classification: 'BABY DRIVER',
     brief:
       'Operate the ANPR radar grid. Decode plates, validate confidence and issue challans before the targets vanish into traffic.',
     primary: '#facc15',

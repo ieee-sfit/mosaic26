@@ -1,0 +1,251 @@
+/* ==========================================================================
+   CTRL FREAK: CRITICAL POINT — 3D INTRO SPLASH HUD
+   ========================================================================== */
+
+.cfs-root {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #030712;
+  color: #f8fafc;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  overflow: hidden;
+  user-select: none;
+  z-index: 1000;
+}
+
+/* 3D Canvas Background */
+.cfs-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* CRT Scanlines Overlay */
+.cfs-scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.025) 0px,
+    rgba(255, 255, 255, 0.025) 1px,
+    transparent 2px,
+    transparent 4px
+  );
+  opacity: 0.65;
+}
+
+/* Vignette & Radial Depth */
+.cfs-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: radial-gradient(
+    circle at 50% 50%,
+    transparent 35%,
+    rgba(3, 7, 18, 0.7) 75%,
+    rgba(3, 7, 18, 0.98) 100%
+  );
+}
+
+/* Foreground HUD Container */
+.cfs-hud {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2rem 2.5rem;
+  pointer-events: none;
+}
+
+/* Top Header */
+.cfs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.cfs-brand {
+  font-size: 0.78rem;
+  letter-spacing: 0.25em;
+  font-weight: 700;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.cfs-brand b {
+  color: #38bdf8;
+  font-weight: 800;
+}
+
+.cfs-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.28rem 0.75rem;
+  border-radius: 9999px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: #f87171;
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  animation: cfsPulse 2s infinite ease-in-out;
+}
+
+.cfs-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 10px #ef4444;
+}
+
+.cfs-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  pointer-events: auto;
+}
+
+.cfs-btn-ghost {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: #94a3b8;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+
+.cfs-btn-ghost:hover {
+  border-color: #38bdf8;
+  color: #f8fafc;
+  background: rgba(56, 189, 248, 0.15);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.3);
+}
+
+/* Center Stage Content */
+.cfs-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 900px;
+  margin: auto auto;
+  pointer-events: auto;
+}
+
+.cfs-logo-wrap {
+  position: relative;
+  margin-bottom: 1.5rem;
+}
+
+.cfs-logo-img {
+  max-width: 540px;
+  width: 80vw;
+  height: auto;
+  filter: drop-shadow(0 0 35px rgba(239, 68, 68, 0.4));
+  transition: transform 0.3s ease;
+}
+
+.cfs-logo-img:hover {
+  transform: scale(1.02);
+}
+
+.cfs-subtitle {
+  font-size: clamp(0.75rem, 1.3vw, 0.95rem);
+  letter-spacing: 0.22em;
+  color: #94a3b8;
+  max-width: 620px;
+  margin: 0 0 2.2rem 0;
+  line-height: 1.6;
+  text-transform: uppercase;
+}
+
+/* Primary Action Button: [ CHOOSE STATION → ] */
+.cfs-cta {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem 3rem;
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+  border: 1px solid rgba(254, 202, 202, 0.5);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 0 35px rgba(239, 68, 68, 0.55), inset 0 0 18px rgba(255, 255, 255, 0.25);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.cfs-cta:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 0 50px rgba(239, 68, 68, 0.85), inset 0 0 25px rgba(255, 255, 255, 0.45);
+  border-color: #ffffff;
+}
+
+.cfs-cta:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.cfs-cta-hint {
+  margin-top: 1rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.25em;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+/* Minimal Footer */
+.cfs-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  color: #475569;
+}
+
+.cfs-footer-logos {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.cfs-comm-logo {
+  height: 26px;
+  width: auto;
+  opacity: 0.95;
+  filter: drop-shadow(0 0 10px rgba(0, 242, 254, 0.3));
+}
+
+@keyframes cfsPulse {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 0.45; }
+}
+
+@media (max-width: 860px) {
+  .cfs-hud {
+    padding: 1.25rem;
+  }
+}

@@ -6,6 +6,7 @@ import Station4 from './workstation4'
 import Launcher from './launcher/Launcher'
 import Leaderboard from './launcher/Leaderboard'
 import LaunchLoader from './launcher/LaunchLoader'
+import CtrlFreakSplash from './launcher/CtrlFreakSplash'
 import { saveRun } from './lib/saveRun'
 import { normalizeStation1 } from './core/scoring'
 import { SessionContext, createSession } from './session/sessionContext'
@@ -31,8 +32,9 @@ function recordRun(stationId, session, payload) {
 
 function App() {
   const [session, setSession] = useState(null)
-  const [view, setView] = useState('launcher') // 'launcher' | 'leaderboard'
+  const [view, setView] = useState('splash') // 'splash' | 'launcher' | 'leaderboard'
   const [launching, setLaunching] = useState(null) // { id, p1, p2 } during the pre-game countdown
+  const [initialStation, setInitialStation] = useState(null)
 
   // The session clock starts only once the countdown finishes
   const finishLaunch = () => {
@@ -43,7 +45,14 @@ function App() {
 
   const returnToLauncher = () => {
     setSession(null)
+    setInitialStation(null)
     setView('launcher')
+  }
+
+  const returnToSplash = () => {
+    setSession(null)
+    setInitialStation(null)
+    setView('splash')
   }
 
   if (session) {
@@ -71,12 +80,26 @@ function App() {
     )
   }
 
+  if (view === 'splash') {
+    return (
+      <CtrlFreakSplash
+        onEnterTerminal={(stationId) => {
+          setInitialStation(stationId)
+          setView('launcher')
+        }}
+        onOpenLeaderboard={() => setView('leaderboard')}
+      />
+    )
+  }
+
   if (view === 'leaderboard') return <Leaderboard onBack={returnToLauncher} />
 
   return (
     <Launcher
+      initialSelectedStation={initialStation}
       onEngage={(id, p1, p2) => setLaunching({ id, p1, p2 })}
       onOpenLeaderboard={() => setView('leaderboard')}
+      onBackToIntro={returnToSplash}
     />
   )
 }
