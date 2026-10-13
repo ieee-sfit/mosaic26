@@ -85,11 +85,11 @@ export const CIRCUITS: Circuit[] = [
     name: 'CIRCUIT 1',
     channels: ['CH-03', 'CH-07', 'CH-11'],
     towers: [
-      { id: 'T1', label: 'MULSANNE', x: 112, y: 236, allowed: ['CH-03', 'CH-07'] },
-      { id: 'T2', label: 'INDIANAPOLIS', x: 236, y: 104, allowed: ['CH-03', 'CH-07', 'CH-11'] },
-      { id: 'T3', label: 'ARNAGE', x: 432, y: 80, allowed: ['CH-07', 'CH-11'] },
-      { id: 'T4', label: 'PORSCHE', x: 552, y: 206, allowed: ['CH-03', 'CH-07', 'CH-11'] },
-      { id: 'T5', label: 'PIT LANE', x: 330, y: 318, allowed: ['CH-11'], anchor: 'CH-11' },
+      { id: 'T1', label: 'MULSANNE', x: 800, y: 134, allowed: ['CH-03', 'CH-07'] },
+      { id: 'T2', label: 'INDIANAPOLIS', x: 822, y: 258, allowed: ['CH-03', 'CH-07', 'CH-11'] },
+      { id: 'T3', label: 'ARNAGE', x: 620, y: 262, allowed: ['CH-07', 'CH-11'] },
+      { id: 'T4', label: 'S-CURVES', x: 450, y: 250, allowed: ['CH-03', 'CH-07', 'CH-11'] },
+      { id: 'T5', label: 'PIT WALL', x: 330, y: 296, allowed: ['CH-11'], anchor: 'CH-11' },
     ],
     links: [['T1', 'T2'], ['T2', 'T3'], ['T3', 'T4'], ['T4', 'T5'], ['T5', 'T1'], ['T2', 'T5']],
   },
@@ -98,19 +98,15 @@ export const CIRCUITS: Circuit[] = [
     name: 'CIRCUIT 2',
     channels: ['CH-03', 'CH-07', 'CH-11', 'CH-14'],
     towers: [
-      { id: 'T1', label: 'DUNLOP', x: 112, y: 236, allowed: ['CH-03', 'CH-07', 'CH-14'] },
-      { id: 'T2', label: 'HUNAUDIERES', x: 236, y: 104, allowed: ['CH-07', 'CH-11'] },
-      { id: 'T3', label: 'TERTRE ROUGE', x: 432, y: 80, allowed: ['CH-11'], anchor: 'CH-11' },
-      { id: 'T4', label: 'PITS', x: 552, y: 206, allowed: ['CH-07', 'CH-11', 'CH-14'] },
-      { id: 'T5', label: 'WHITE HOUSE', x: 330, y: 318, allowed: ['CH-03', 'CH-07', 'CH-11'] },
+      { id: 'T1', label: 'DUNLOP', x: 206, y: 250, allowed: ['CH-03', 'CH-07', 'CH-14'] },
+      { id: 'T2', label: 'HUNAUDIERES', x: 470, y: 138, allowed: ['CH-07', 'CH-11'] },
+      { id: 'T3', label: 'TERTRE ROUGE', x: 236, y: 136, allowed: ['CH-11'], anchor: 'CH-11' },
+      { id: 'T4', label: 'PITS', x: 420, y: 262, allowed: ['CH-07', 'CH-11', 'CH-14'] },
+      { id: 'T5', label: 'INDY', x: 690, y: 236, allowed: ['CH-03', 'CH-07', 'CH-11'] },
     ],
     links: [['T1', 'T2'], ['T2', 'T3'], ['T3', 'T4'], ['T4', 'T5'], ['T5', 'T1'], ['T3', 'T5']],
   },
 ];
-
-/** Track outline drawn behind the towers (640x380 plate). */
-export const TRACK_PATH =
-  'M 96 236 C 90 150 160 78 260 76 L 450 70 C 556 68 600 140 566 212 C 540 266 470 296 392 314 L 240 330 C 150 336 100 302 96 236 Z';
 
 // ---------------------------------------------------------------- MODULE C
 export const QUALITY_PROFILES: QualityProfile[] = [

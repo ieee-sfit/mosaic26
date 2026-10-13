@@ -74,8 +74,6 @@ export default function ModuleA({ onScore, onDone, onShake, track }: Props) {
       </div>
 
       <article className="ws2-sheet">
-        <i className="ws2-sheet__hole ws2-sheet__hole--t" aria-hidden />
-        <i className="ws2-sheet__hole ws2-sheet__hole--b" aria-hidden />
         <header className="ws2-sheet__head">
           <b>TIMING SHEET</b>
           <span>QUESTION {qi + 1} / {questions.length}</span>

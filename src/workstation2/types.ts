@@ -12,7 +12,7 @@ export interface QuizQuestion {
 export interface Tower {
   id: string;
   label: string; // sector name shown on the sheet
-  x: number; // map position in the 640x380 plate
+  x: number; // map position in the 1000x400 plate
   y: number;
   allowed: string[];
   /** Pre-locked at the start (not scored). */

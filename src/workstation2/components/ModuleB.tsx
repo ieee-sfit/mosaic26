@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { CIRCUITS, STATION2_CONFIG, TRACK_PATH } from '../mockStation2Data';
+import { CIRCUITS, STATION2_CONFIG } from '../mockStation2Data';
 import { anchorsOf, checkLock, fmt, itemPoints, neighbours, solveTower } from '../logic';
 import type { Plan } from '../logic';
 import type { Tower } from '../types';
 import HintDock from '../../core/HintDock';
 import type { HintLevel } from '../../core/HintDock';
 import Panel from './Panel';
+import LeMansMap from './LeMansMap';
 import type { Track } from '../Station2';
 
 interface Props {
@@ -110,12 +111,7 @@ export default function ModuleB({ onScore, onDone, onShake, track }: Props) {
       <div className="ws2-modB__grid">
         <div className="ws2-modB__main">
           <Panel title={`CIRCUIT ${ci + 1}/${CIRCUITS.length}`} tag={`${lockedCount}/${scored.length} LOCKED`} className="ws2-mapplate">
-            <svg viewBox="0 0 640 380" className={`ws2-map ${cleared ? 'is-cleared' : ''}`} role="group" aria-label="Relay tower map">
-              <path d={TRACK_PATH} className="ws2-map__kerb-r" />
-              <path d={TRACK_PATH} className="ws2-map__kerb-w" />
-              <path d={TRACK_PATH} className="ws2-map__asphalt" />
-              <path d={TRACK_PATH} className="ws2-map__centre" />
-              <text x="320" y="196" className="ws2-map__legend" textAnchor="middle">LE MANS 1966</text>
+            <LeMansMap className={`ws2-map ${cleared ? 'is-cleared' : ''}`} label="Relay tower map">
 
               {circuit.links.map(([a, b]) => {
                 const A = byId(a); const B = byId(b);
@@ -124,7 +120,7 @@ export default function ModuleB({ onScore, onDone, onShake, track }: Props) {
                 const flash = bad && bad.b && ((bad.a === a && bad.b === b) || (bad.a === b && bad.b === a));
                 return (
                   <line
-                    key={`${a}${b}${flash ? bad?.n : ''}`} x1={A.x} y1={A.y - 4} x2={B.x} y2={B.y - 4}
+                    key={`${a}${b}${flash ? bad?.n : ''}`} x1={A.x} y1={A.y - 12} x2={B.x} y2={B.y - 12}
                     className={`ws2-link ${both ? 'is-both' : ''} ${focus ? 'is-focus' : ''} ${flash ? 'is-bad' : ''}`}
                   />
                 );
@@ -145,19 +141,19 @@ export default function ModuleB({ onScore, onDone, onShake, track }: Props) {
                     onClick={() => { if (!t.anchor && !ch) setSel(t.id); }}
                     onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !t.anchor && !ch) setSel(t.id); }}
                   >
-                    <circle r="22" cy="-26" className="ws2-tower__halo" />
-                    <circle r="26" cy="-26" className="ws2-tower__pulse" />
-                    <path d="M -9 14 L 0 -20 L 9 14 Z" className="ws2-tower__mast" />
+                    <rect x="-26" y="-52" width="52" height="52" className="ws2-tower__halo" />
+                    <rect x="-30" y="-56" width="60" height="60" className="ws2-tower__pulse" />
+                    <path d="M -9 12 L 0 -22 L 9 12 Z" className="ws2-tower__mast" />
                     <path d="M -6 2 L 6 2 M -4 -8 L 4 -8" className="ws2-tower__bars" />
-                    <circle r="8" cy="-26" className="ws2-tower__lamp" />
-                    <rect x="-34" y="19" width="68" height="19" className="ws2-tower__plate" />
-                    <text y="32.5" textAnchor="middle" className="ws2-tower__txt">{t.id} · {ch ? short(ch) : '--'}</text>
-                    {t.anchor && <text y="52" textAnchor="middle" className="ws2-tower__anchor">ANCHOR</text>}
-                    <rect x="-40" y="-44" width="80" height="94" className="ws2-tower__hit" />
+                    <rect x="-8" y="-38" width="16" height="16" className="ws2-tower__lamp" />
+                    <rect x="-40" y="16" width="80" height="24" className="ws2-tower__plate" />
+                    <text y="33" textAnchor="middle" className="ws2-tower__txt">{t.id} · {ch ? short(ch) : '--'}</text>
+                    {t.anchor && <text y="58" textAnchor="middle" className="ws2-tower__anchor">ANCHOR</text>}
+                    <rect x="-44" y="-56" width="88" height="116" className="ws2-tower__hit" />
                   </g>
                 );
               })}
-            </svg>
+            </LeMansMap>
           </Panel>
 
           <div className="ws2-keys" role="group" aria-label="Channel">

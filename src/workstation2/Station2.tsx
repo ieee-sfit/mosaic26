@@ -129,19 +129,23 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
   const restart = () => { onOpenStationChooser?.(); };
 
   const playing = stage === 'play';
-  const alarm = playing && (timeLeft <= 120 || (mod === 'C' && gaskets <= 1));
+  const lowTime = playing && timeLeft <= 120;
+  const lastGasket = playing && mod === 'C' && gaskets <= 1;
+  const alarm = lowTime || lastGasket;
   const idx = MODULES.indexOf(mod);
 
   return (
     <div className={`ws2-shell ${alarm ? 'is-alarm' : ''} ${flash ? 'fx-flash' : ''}`}>
       <PitWallBackdrop />
       <div className="ws2-shell__flash" aria-hidden />
+      <div className="ws2-hazard" aria-hidden />
+      <div className="ws2-alarmframe" aria-hidden />
 
       {playing && (
         <header className="ws2-header">
           <div className="ws2-brand">
             <b>F1 0-LAG STREAM</b>
-            <span>STATION 02 · OPS {ids?.[0]} + {ids?.[1]}</span>
+            <span>ST-02 · {ids?.[0]} + {ids?.[1]}</span>
           </div>
           <nav className="ws2-modnav" aria-label="Module progress">
             {MODULES.map((m, i) => (
@@ -150,11 +154,13 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
               </span>
             ))}
           </nav>
+          <div className="ws2-alarmchip" role={alarm ? 'alert' : undefined}>
+            {alarm && <span><i aria-hidden>▲</i> {lowTime && lastGasket ? 'LOW TIME · LAST GASKET' : lowTime ? 'LOW TIME' : 'LAST GASKET'}</span>}
+          </div>
           <div className="ws2-hscore"><small>SCORE</small><b>{Math.round((score.a + score.b + score.c) * 10) / 10}</b></div>
+          <Stopwatch seconds={timeLeft} total={STATION2_CONFIG.totalSeconds} running alarm={lowTime} />
         </header>
       )}
-
-      {playing && <Stopwatch seconds={timeLeft} total={STATION2_CONFIG.totalSeconds} running alarm={alarm} />}
 
       <main className="ws2-main" ref={stage$}>
         {stage === 'launch' && <LaunchScreen ids={ids} onGo={go} onBack={onOpenStationChooser} />}

@@ -176,11 +176,11 @@ export default function ModuleC({ onScore, onGaskets, onForfeit, onFinish, onSha
       </div>
 
       <div className="ws2-cgrid">
-        <Panel title="NODES" tag={stint.goal} tone="brass" className="ws2-cluster">
+        <Panel title="NODES" tag={stint.goal} className="ws2-cluster">
           <div className="ws2-cluster__row">
             {sim.nodes.map((n) => (
               <Gauge
-                key={n.id} value={n.util} redFrom={STATION2_CONFIG.utilLimit} label={n.label}
+                key={n.id} value={n.util} limitAt={STATION2_CONFIG.utilLimit} label={n.label}
                 readout={`${Math.round(n.util * 100)}%`} active={n.active} alert={n.active && n.util >= STATION2_CONFIG.utilLimit}
                 badge={spikeNode === n.id ? `SPIKE +${stint.spikeM}M` : undefined}
               />
@@ -188,10 +188,10 @@ export default function ModuleC({ onScore, onGaskets, onForfeit, onFinish, onSha
           </div>
         </Panel>
 
-        <Panel title="LINK" tag={`LIMIT ${STATION2_CONFIG.latencyLimitMs} ms`} tone="brass" className="ws2-linkpanel">
+        <Panel title="LINK" tag={`LIMIT ${STATION2_CONFIG.latencyLimitMs} ms`} className="ws2-linkpanel">
           <Gauge
-            value={sim.latency / (STATION2_CONFIG.latencyLimitMs * 1.5)} redFrom={1 / 1.5} label="LATENCY"
-            readout={`${sim.latency} ms`} alert={!sim.latencyOk} scale={['0', '', '', '', '']}
+            value={sim.latency / (STATION2_CONFIG.latencyLimitMs * 1.5)} limitAt={1 / 1.5} limitLines={['LIMIT', String(STATION2_CONFIG.latencyLimitMs)]} label="LATENCY"
+            readout={`${sim.latency} ms`} alert={!sim.latencyOk} ends={['0', `${STATION2_CONFIG.latencyLimitMs * 1.5}`]}
           />
           <ul className="ws2-lamps">
             <li className={sim.latencyOk ? 'ok' : 'bad'}><i />LATENCY</li>
@@ -200,7 +200,7 @@ export default function ModuleC({ onScore, onGaskets, onForfeit, onFinish, onSha
           </ul>
         </Panel>
 
-      <Panel className="ws2-ctrl" tone="amber">
+      <Panel className="ws2-ctrl">
         <div className="ws2-ctrl__row">
           <div className="ws2-ctl">
             <label htmlFor="ws2-split">LOAD SPLIT</label>
