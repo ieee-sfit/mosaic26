@@ -1,10 +1,11 @@
 import { useMemo, useState, useRef } from 'react'
-import { QUESTION_BANK, CHEAT_SHEET_COLUMNS, STATION4_CONFIG } from '../mockStation4Data'
-import { pickQuestions, questionPoints } from './logic'
+import { QUESTION_BANK, STATION4_CONFIG } from '../mockStation4Data'
+import { pickOne, pickQuestions, questionPoints } from './logic'
+import HintDock from '../../core/HintDock'
 
 const LETTERS = ['A', 'B', 'C', 'D']
 
-export default function ModuleA({ onScore, onDone, fx, log }) {
+export default function ModuleA({ onScore, onDone, fx, log, track }) {
   const questions = useMemo(
     () => pickQuestions(QUESTION_BANK, STATION4_CONFIG.moduleA.questionsPerRun),
     [],
@@ -14,7 +15,6 @@ export default function ModuleA({ onScore, onDone, fx, log }) {
   const earnedRef = useRef(0)
   const q = questions[idx]
   const st = state[idx]
-  const col = CHEAT_SHEET_COLUMNS[q.cheatColumn]
 
   const patch = (p) => setState((s) => s.map((x, i) => (i === idx ? { ...x, ...p } : x)))
 
@@ -36,17 +36,22 @@ export default function ModuleA({ onScore, onDone, fx, log }) {
       finishQuestion(st.hint, st.wrong, n)
     } else {
       fx('glitch')
+      track?.('A', 'wrong', `Q${idx + 1}`)
       patch({ wrong: st.wrong + 1, banned: [...st.banned, n] })
       log(`Q${idx + 1} REJECTED // OPTION ${LETTERS[n]} INVALID`, 'warn')
     }
   }
 
-  const requestIntel = () => {
-    if (st.done) return
-    if (st.hint === 0) {
-      patch({ hint: 1 })
-      log(`OVERRIDE INTEL L1 // -${STATION4_CONFIG.moduleA.hint1PenaltyFraction * 100}% PTS`, 'warn')
-    } else if (st.hint === 1) {
+  const requestIntel = (next) => {
+    if (st.done || st.hint >= next) return
+    track?.('A', 'hint', `Q${idx + 1} H${next}`)
+    if (next === 1) {
+      // Hint 1: strike out one wrong option (no wrong-try penalty)
+      const wrongs = q.options.map((_, n) => n).filter((n) => n !== q.correct && !st.banned.includes(n))
+      const gone = pickOne(wrongs)
+      patch({ hint: 1, banned: gone === undefined ? st.banned : [...st.banned, gone] })
+      log(`OVERRIDE INTEL L1 // ONE WRONG OPTION REMOVED // -${STATION4_CONFIG.moduleA.hint1PenaltyFraction * 100}% PTS`, 'warn')
+    } else {
       fx('glitch')
       log('OVERRIDE INTEL L2 // AUTO-SOLVE // -100% PTS', 'crit')
       finishQuestion(2, st.wrong, q.correct)
@@ -57,15 +62,13 @@ export default function ModuleA({ onScore, onDone, fx, log }) {
     <section className="mz-modA mz-fade-in">
       <div className="mz-panel mz-chamfer mz-terminal">
         <header className="mz-panel-head">
-          <span>MODULE A // BIOHAZARD PROTOCOL CHECKS</span>
+          <span>MODULE A // PROTOCOL</span>
           <span className="mz-amber">QUERY {idx + 1}/{questions.length}</span>
         </header>
 
         <div className="mz-qbody">
           <div className="mz-qmeta">
-            <span>GATE_CLASS: {q.gate}</span>
-            <span>CONTAINMENT_SEAL: LEVEL-4</span>
-            <span>WORTH: {STATION4_CONFIG.scoring.moduleA / questions.length} PTS</span>
+            <span>WORTH {STATION4_CONFIG.scoring.moduleA / questions.length} PTS</span>
           </div>
           <p className="mz-prompt" key={q.id}>
             <span className="mz-green">&gt;_</span> {q.prompt}
@@ -90,29 +93,23 @@ export default function ModuleA({ onScore, onDone, fx, log }) {
             })}
           </div>
 
-          {st.hint >= 1 && (
-            <div className="mz-intel mz-chamfer-sm" role="status">
-              <b className="mz-amber">INTEL L1 //</b> Consult the physical cheat sheet →{' '}
-              <b className="mz-green">{col.label}</b>. <span className="mz-dim">{col.blurb}</span>
-            </div>
-          )}
         </div>
 
         <footer className="mz-actionstrip">
           <span className="mz-dim">
-            WRONG TRIES: {st.wrong} · INTEL LEVEL: {st.hint}/2
+            WRONG {st.wrong}
           </span>
-          <button
-            type="button"
-            className="mz-btn mz-btn-amber"
-            disabled={st.done || st.hint >= 2}
-            onClick={requestIntel}
-          >
-            [REQUEST OVERRIDE INTEL]
-            <small>{st.hint === 0 ? 'L1: COLUMN POINTER −40%' : st.hint === 1 ? 'L2: AUTO-SELECT −100%' : 'EXHAUSTED'}</small>
-          </button>
         </footer>
       </div>
+      <HintDock
+        level={st.hint}
+        itemLabel={`QUERY ${idx + 1}/${questions.length}`}
+        hint1Text="One wrong option was struck out. Pick from the rest."
+        hint2Text={`Option [${LETTERS[q.correct]}] was submitted for you. This query scores 0.`}
+        cost1={STATION4_CONFIG.moduleA.hint1PenaltyFraction}
+        disabled={st.done}
+        onHint={requestIntel}
+      />
     </section>
   )
 }

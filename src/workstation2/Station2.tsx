@@ -1,10 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { speedBonus } from '../core/scoring';
+import { gridPosition, lapSeconds, racePosition } from './race';
+import { useSession } from '../session/sessionContext';
+import { STATION2_CONFIG } from './mockStation2Data';
+import PitWallBackdrop from './components/PitWallBackdrop';
+import Stopwatch from './components/Stopwatch';
+import LaunchScreen from './components/LaunchScreen';
+import EndScreen from './components/EndScreen';
+import type { Outcome, Report } from './components/EndScreen';
 import ModuleA from './components/ModuleA';
 import ModuleB from './components/ModuleB';
+import type { RouteSummary } from './components/ModuleB';
+import BoardScreen from './components/BoardScreen';
+import type { BoardData } from './components/BoardScreen';
 import ModuleC from './components/ModuleC';
-import { HudTicker, TimerBadge } from './components/HudBits';
-import { STATION2_CONFIG } from './mockStation2Data';
-import { fmt, mmss } from './logic';
+import ModuleD from './components/ModuleD';
+import { RADIO_CONFIG } from './mockStation2Data';
 import './station2.css';
 
 export interface Station2Summary {
@@ -21,195 +32,294 @@ interface Props {
   onComplete?: (summary: Station2Summary) => void;
 }
 
-type ModuleId = 'A' | 'B' | 'C';
-type Reason = 'complete' | 'timeout' | 'forfeit';
+type ModuleId = 'A' | 'B' | 'C' | 'D';
+export type Track = (m: ModuleId, kind: 'wrong' | 'hint', label?: string) => void;
 
+const MODULES: ModuleId[] = ['A', 'B', 'C']; // the three scored modules; D is an optional bonus after them
+const ALL_MODULES: ModuleId[] = [...MODULES, 'D'];
+const NAMES: Record<ModuleId, string> = { A: 'TELEMETRY', B: 'ROUTES', C: 'RACE', D: 'FINAL PUSH' };
 const ID_RE = /^\d{6}$/;
-const digits = (v: string) => v.replace(/\D/g, '').slice(0, STATION2_CONFIG.idDigits);
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
-export default function Station2({ onNavigateStation, onOpenStationChooser, onComplete }: Props) {
-  const [phase, setPhase] = useState<'id' | 'play' | 'done'>('id');
-  const [p1, setP1] = useState('');
-  const [p2, setP2] = useState('');
-  const [idError, setIdError] = useState('');
+type Diag = Report['diag'];
+const blankDiag = (): Diag => Object.fromEntries(ALL_MODULES.map((m) => [m, { seconds: 0, wrong: 0, hints: 0, flags: [] as string[] }]));
+
+export default function Station2({ onOpenStationChooser, onComplete }: Props) {
+  const session = useSession();
+  const ids: [string, string] | null =
+    session && ID_RE.test(session.p1_id) && ID_RE.test(session.p2_id) ? [session.p1_id, session.p2_id] : null;
+
+  const [stage, setStage] = useState<'launch' | 'play' | 'board' | 'offer' | 'bonus' | 'end'>('launch');
   const [mod, setMod] = useState<ModuleId>('A');
-  const [done, setDone] = useState<Record<ModuleId, boolean>>({ A: false, B: false, C: false });
-  const [scoreA, setScoreA] = useState(0);
-  const [scoreB, setScoreB] = useState(0);
-  const [scoreC, setScoreC] = useState(0);
+  const [score, setScore] = useState({ a: 0, b: 0, c: 0, d: 0 });
+  const [gaskets, setGaskets] = useState(STATION2_CONFIG.gasketPips);
   const [timeLeft, setTimeLeft] = useState(STATION2_CONFIG.totalSeconds);
-  const [result, setResult] = useState<{ reason: Reason; timeLeft: number } | null>(null);
-  const [shake, setShake] = useState({ n: 0, on: false });
-  const startRef = useRef(0);
-  const emittedRef = useRef(false);
-  const shakeTimer = useRef<number | null>(null);
+  const [flash, setFlash] = useState(false);
+  const [report, setReport] = useState<Report | null>(null);
+  const [board, setBoard] = useState<BoardData | null>(null);
+  const [grid, setGrid] = useState<number | null>(null);
 
-  const triggerShake = useCallback(() => {
-    setShake((s) => ({ n: s.n + 1, on: true }));
-    if (shakeTimer.current) window.clearTimeout(shakeTimer.current);
-    shakeTimer.current = window.setTimeout(() => setShake((s) => ({ ...s, on: false })), 520);
+  const endAt = useRef(0);
+  const pausedAt = useRef(0);
+  const lapPts = useRef<number[]>([]);
+  const finished = useRef(false);
+  const committed = useRef(false);
+  /** Everything fixed at the moment Module C ends: the speed bonus and time_left do not change while D is played. */
+  const frozen = useRef<{ outcome: Outcome; a: number; b: number; c: number; base: number; bonus: number; left: number; grid: number | null; finish: number | null } | null>(null);
+  const [dDeadline, setDDeadline] = useState(0);
+  const live = useRef({ score, ids, grid: null as number | null });
+  const stats = useRef<Diag>(blankDiag());
+  const modStart = useRef(0);
+  const modRef = useRef<ModuleId>('A');
+  const stage$ = useRef<HTMLDivElement | null>(null);
+  useEffect(() => { live.current = { score, ids, grid }; modRef.current = mod; });
+  const skipRef = useRef<() => void>(() => undefined);
+  useEffect(() => { skipRef.current = skipD; });
+
+  const secondsLeft = () => Math.max(0, Math.ceil((endAt.current - Date.now()) / 1000));
+
+  const track = useCallback<Track>((m, kind, label) => {
+    const s = stats.current[m];
+    if (kind === 'hint') s.hints += 1; else s.wrong += 1;
+    if (label && s.flags.length < 6) s.flags.push(label);
+  }, []);
+  const closeModule = useCallback(() => {
+    stats.current[modRef.current].seconds += Math.round((Date.now() - modStart.current) / 1000);
+    modStart.current = Date.now();
+  }, []);
+  const goMod = (next: ModuleId) => { closeModule(); setMod(next); };
+
+  /**
+   * Screen shake via the Web Animations API (no remounts, so focus and drags survive). It moves the module content
+   * but never the hint dock: a transformed ancestor would pull the fixed dock off the viewport corner.
+   */
+  const shake = useCallback(() => {
+    const el = stage$.current;
+    if (!el) return;
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const px = reduced ? 1.5 : 7;
+    const frames = [0, 1, 2, 3, 4, 5].map((i) => ({ transform: `translate(${(i % 2 ? -1 : 1) * px * (1 - i / 6)}px, ${(i % 3 ? 1 : -1) * px * 0.5 * (1 - i / 6)}px)` }));
+    el.querySelectorAll(':scope > * > :not([data-hint-dock])').forEach((n) => {
+      if (typeof n.animate === 'function') n.animate(frames, { duration: 360, easing: 'linear' });
+    });
+  }, []);
+  const flashRed = useCallback(() => {
+    setFlash(true);
+    window.setTimeout(() => setFlash(false), 700);
   }, []);
 
-  const remaining = () =>
-    Math.max(0, STATION2_CONFIG.totalSeconds - Math.floor((Date.now() - startRef.current) / 1000));
+  /** A board freezes the shift clock: the time spent reading it is handed back when it closes. */
+  const openBoard = (data: BoardData) => { pausedAt.current = Date.now(); setBoard(data); };
+  const closeBoard = () => {
+    if (pausedAt.current) {
+      const gap = Date.now() - pausedAt.current;
+      endAt.current += gap;
+      modStart.current += gap;
+      pausedAt.current = 0;
+    }
+    setBoard(null);
+  };
 
-  const finish = useCallback((reason: Reason, left: number) => {
-    setResult((r) => r ?? { reason, timeLeft: left });
-    setPhase('done');
-  }, []);
+  const routesDone = (r: RouteSummary) => {
+    const g = gridPosition(r.qualifying.sec);
+    setGrid(g);
+    openBoard({ kind: 'quali', best: r.qualifying.sec, total: null, grid: g, points: r.practice.pts + r.qualifying.pts, pointsMax: STATION2_CONFIG.moduleMax.B, practice: r.practice.sec });
+  };
+  const qualiContinue = () => { closeBoard(); goMod('C'); };
+  /**
+   * The race board's CONTINUE leads to the Module D offer, but only after a completed C with shift time left. Everything
+   * else (timeout, forfeit, no time left) goes straight to the end screen exactly as before. The run is only handed to the
+   * host once, by `commit`, so a played D can still raise the score before it is saved.
+   */
+  const raceContinue = () => {
+    if (stage !== 'board') return;
+    const f = frozen.current;
+    if (f && f.outcome === 'complete' && f.left > 0) setStage('offer');
+    else { commit(0); setStage('end'); }
+  };
+  const playD = () => {
+    const f = frozen.current;
+    if (!f || stage !== 'offer') return;
+    // the shift clock picks up where Module C left it (board and offer time are not charged) and keeps running during D
+    endAt.current = Date.now() + f.left * 1000;
+    setDDeadline(Math.min(endAt.current, Date.now() + Math.min(RADIO_CONFIG.maxSeconds, f.left) * 1000));
+    setTimeLeft(f.left);
+    modRef.current = 'D';
+    modStart.current = Date.now();
+    setMod('D');
+    setStage('bonus');
+  };
+  const skipD = () => {
+    if (stage !== 'offer') return;
+    commit(0);
+    setStage('end');
+  };
+  const doneD = (d: number) => {
+    if (stage !== 'bonus') return;
+    closeModule();
+    commit(d, true);
+    setStage('end');
+  };
 
-  // Countdown (timestamp-driven so it cannot drift)
-  useEffect(() => {
-    if (phase !== 'play') return;
-    const id = window.setInterval(() => {
-      const left = Math.max(0, STATION2_CONFIG.totalSeconds - Math.floor((Date.now() - startRef.current) / 1000));
-      setTimeLeft(left);
-      if (left <= 0) {
-        window.clearInterval(id);
-        finish('timeout', 0);
-      }
-    }, 250);
-    return () => window.clearInterval(id);
-  }, [phase, finish]);
+  /**
+   * Hands the finished run to the host, once. raw = base (A+B+C) + speed bonus (frozen when C ended) + D.
+   * time_left is the value at C's end, so playing or skipping D never changes a tie-break.
+   */
+  const commit = useCallback((d: number, dPlayed = false) => {
+    const f = frozen.current;
+    if (!f || committed.current) return;
+    committed.current = true;
+    const { ids: i } = live.current;
+    const raw = round2(f.base + f.bonus + d);
+    const summary: Station2Summary = { p1_id: i?.[0] ?? '', p2_id: i?.[1] ?? '', game_id: 'station2', raw_score: raw, time_left: f.left };
+    setScore((x) => ({ ...x, d }));
+    setReport({
+      outcome: f.outcome, a: f.a, b: f.b, c: f.c, d, dPlayed, bonus: f.bonus, raw, diag: JSON.parse(JSON.stringify(stats.current)),
+      grid: f.grid, finish: f.finish,
+    });
+    try { onComplete?.(summary); } catch { /* host callback must not break the end screen */ }
+    try { window.dispatchEvent(new CustomEvent('mosaic:station-complete', { detail: summary })); } catch { /* ignore */ }
+  }, [onComplete]);
 
-  const rawScore = Math.round((scoreA + scoreB + scoreC) * 100) / 100;
-
-  // Emit the session summary exactly once on completion / timeout
-  useEffect(() => {
-    if (!result || emittedRef.current) return;
-    emittedRef.current = true;
-    const summary: Station2Summary = {
-      p1_id: p1, p2_id: p2, game_id: 'station2', raw_score: rawScore, time_left: result.timeLeft,
+  /** Module C is over (or the shift ended): freeze the base score, speed bonus and time_left, then show the board. */
+  const finish = useCallback((outcome: Outcome, left: number) => {
+    if (finished.current) return;
+    finished.current = true;
+    closeModule();
+    const { score: s } = live.current;
+    const base = s.a + s.b + s.c;
+    const bonus = speedBonus(left, outcome === 'complete', base);
+    const laps = lapPts.current.map((p) => lapSeconds(p / (STATION2_CONFIG.moduleMax.C / 3)));
+    const best = laps.length ? Math.min(...laps) : null;
+    const total = outcome === 'complete' ? laps.reduce((n, x) => n + x, 0) : null;
+    frozen.current = {
+      outcome, a: s.a, b: s.b, c: s.c, base, bonus, left, grid: live.current.grid, finish: total !== null ? racePosition(total) : null,
     };
-    onComplete?.(summary);
-    window.dispatchEvent(new CustomEvent('mosaic:station-complete', { detail: summary }));
-    console.info('[station2] session summary', summary);
-  }, [result, p1, p2, rawScore, onComplete]);
+    setTimeLeft(left);
+    setBoard(outcome === 'complete'
+      ? { kind: 'race', best, total, grid: live.current.grid, points: s.c, pointsMax: STATION2_CONFIG.moduleMax.C }
+      : { kind: 'dnf', best, total: null, grid: live.current.grid, points: s.c, pointsMax: STATION2_CONFIG.moduleMax.C, partial: base });
+    pausedAt.current = 0;
+    setStage('board');
+    // a run that cannot be followed by D is complete now; a completed C waits for the offer so D can still add to it
+    if (outcome !== 'complete' || left <= 0) commit(0);
+  }, [closeModule, commit]);
 
-  const handleStart = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ID_RE.test(p1) || !ID_RE.test(p2)) {
-      setIdError('BOTH OPERATOR IDs MUST BE EXACTLY 6 DIGITS.');
-      return;
-    }
-    if (p1 === p2) {
-      setIdError('OPERATOR 1 AND OPERATOR 2 MUST HAVE DIFFERENT IDs.');
-      return;
-    }
-    setIdError('');
-    startRef.current = Date.now();
+  // timestamp-driven 12:00 countdown (cannot drift)
+  useEffect(() => {
+    if (stage !== 'play' || board) return undefined;
+    const t = window.setInterval(() => {
+      const left = Math.max(0, Math.ceil((endAt.current - Date.now()) / 1000));
+      setTimeLeft(left);
+      if (left <= 0) finish('timeout', 0);
+    }, 250);
+    return () => window.clearInterval(t);
+  }, [stage, board, finish]);
+
+  // the shift clock keeps running during D (D ends itself at its own deadline); the offer auto-skips so an idle kiosk still saves
+  useEffect(() => {
+    if (stage !== 'bonus') return undefined;
+    const t = window.setInterval(() => setTimeLeft(Math.max(0, Math.ceil((endAt.current - Date.now()) / 1000))), 250);
+    return () => window.clearInterval(t);
+  }, [stage]);
+  useEffect(() => {
+    if (stage !== 'offer') return undefined;
+    const t = window.setTimeout(() => skipRef.current(), RADIO_CONFIG.offerSeconds * 1000);
+    return () => window.clearTimeout(t);
+  }, [stage]);
+
+  const go = useCallback(() => {
+    endAt.current = Date.now() + STATION2_CONFIG.totalSeconds * 1000;
+    stats.current = blankDiag();
+    lapPts.current = [];
+    frozen.current = null;
+    committed.current = false;
+    modStart.current = Date.now();
     setTimeLeft(STATION2_CONFIG.totalSeconds);
-    setPhase('play');
-  };
+    setStage('play');
+  }, []);
 
-  const advance = (from: ModuleId, to: ModuleId) => {
-    setDone((d) => ({ ...d, [from]: true }));
-    setMod(to);
-  };
+  // Replays always go back through the launcher so the attempt cap is checked and counted.
+  const restart = () => { onOpenStationChooser?.(); };
 
-  const sector = mod === 'A' ? 1 : mod === 'B' ? 2 : 3;
-  const shakeCls = shake.on ? (shake.n % 2 ? 'ws2-shake-a' : 'ws2-shake-b') : '';
-
-  const header = (
-    <header className="ws2-header">
-      <div className="ws2-brand">
-        <span className="ws2-brand-mark">SHELBY-AMERICAN</span>
-        <h1>F1 0-LAG STREAM <small>STATION 02 // PIT WALL TELEMETRY</small></h1>
-      </div>
-      <HudTicker sector={sector} />
-      {onOpenStationChooser && (
-        <button type="button" className="ws2-btn ws2-btn-ghost" onClick={onOpenStationChooser}>[STATIONS]</button>
-      )}
-    </header>
-  );
-
-  if (phase === 'id') {
-    return (
-      <div className="ws2-shell">
-        {header}
-        <main className="ws2-id-wrap">
-          <form className="ws2-id-card ws2-chamfer" onSubmit={handleStart} noValidate>
-            <span className="ws2-tag">CIRCUIT_DE_LA_SARTHE // 24H LE MANS 1966</span>
-            <h2>PIT WALL OPERATOR LOGIN</h2>
-            <p className="ws2-dim">
-              Ford GT40 vs Ferrari. Keep the 0-lag stream alive for 12 minutes. 100 base points + up to {STATION2_CONFIG.speedBonusMax} speed bonus.
-              No audio — watch the gauges.
-            </p>
-            <label htmlFor="ws2-p1">OPERATOR 1 ID</label>
-            <input id="ws2-p1" className="ws2-input" inputMode="numeric" autoComplete="off" maxLength={6} placeholder="000000"
-              value={p1} onChange={(e) => setP1(digits(e.target.value))} />
-            <label htmlFor="ws2-p2">OPERATOR 2 ID</label>
-            <input id="ws2-p2" className="ws2-input" inputMode="numeric" autoComplete="off" maxLength={6} placeholder="000000"
-              value={p2} onChange={(e) => setP2(digits(e.target.value))} />
-            {idError && <div className="ws2-flash ws2-flash-bad" role="alert">{idError}</div>}
-            <button type="submit" className="ws2-btn ws2-btn-red ws2-btn-wide" disabled={!ID_RE.test(p1) || !ID_RE.test(p2)}>
-              [START ENGINES // BEGIN 12:00]
-            </button>
-            <ul className="ws2-id-rules">
-              <li>MODULE A — PIT TELEMETRY PROTOCOL — 15 PTS</li>
-              <li>MODULE B — RELAY BEACON TOWER — 40 PTS</li>
-              <li>MODULE C — 3-NODE BALANCER — 45 PTS</li>
-            </ul>
-          </form>
-        </main>
-      </div>
-    );
-  }
-
-  if (phase === 'done' && result) {
-    const bonus = result.reason === 'complete'
-      ? Math.floor((STATION2_CONFIG.speedBonusMax * result.timeLeft) / STATION2_CONFIG.totalSeconds) : 0;
-    const title = result.reason === 'complete' ? 'CHEQUERED FLAG' : result.reason === 'timeout' ? 'TIME EXPIRED' : 'ENGINE SEIZED';
-    return (
-      <div className="ws2-shell">
-        {header}
-        <main className="ws2-id-wrap">
-          <div className="ws2-id-card ws2-chamfer ws2-result">
-            <span className="ws2-tag">{result.reason.toUpperCase()}</span>
-            <h2>{title}</h2>
-            <table className="ws2-score-table">
-              <tbody>
-                <tr><td>MODULE A — PIT TELEMETRY</td><td>{fmt(scoreA, 2)} / {STATION2_CONFIG.moduleMax.A}</td></tr>
-                <tr><td>MODULE B — RELAY BEACONS</td><td>{fmt(scoreB, 2)} / {STATION2_CONFIG.moduleMax.B}</td></tr>
-                <tr><td>MODULE C — BALANCER</td><td>{fmt(scoreC, 2)} / {STATION2_CONFIG.moduleMax.C}</td></tr>
-                <tr className="ws2-total"><td>RAW SCORE</td><td>{fmt(rawScore, 2)} / 100</td></tr>
-                <tr><td>SPEED BONUS (TIME LEFT {mmss(result.timeLeft)})</td><td>+{bonus} / {STATION2_CONFIG.speedBonusMax}</td></tr>
-              </tbody>
-            </table>
-            <pre className="ws2-json">{JSON.stringify({ p1_id: p1, p2_id: p2, game_id: 'station2', raw_score: rawScore, time_left: result.timeLeft }, null, 2)}</pre>
-            <button type="button" className="ws2-btn ws2-btn-blue ws2-btn-wide"
-              onClick={() => (onNavigateStation ? onNavigateStation(2) : window.location.reload())}>
-              [NEW SESSION]
-            </button>
-          </div>
-        </main>
-      </div>
-    );
-  }
+  const playing = stage === 'play';
+  const inRun = playing || stage === 'offer' || stage === 'bonus';
+  const lowTime = (playing || stage === 'bonus') && timeLeft <= 120;
+  const lastGasket = playing && mod === 'C' && gaskets <= 1;
+  const alarm = lowTime || lastGasket;
+  const withD = stage === 'offer' || stage === 'bonus';
+  const cur = stage === 'offer' ? null : mod;
+  const idx = withD ? MODULES.length : MODULES.indexOf(mod);
 
   return (
-    <div className={`ws2-shell ${shakeCls}`}>
-      {header}
-      <TimerBadge timeLeft={timeLeft} total={STATION2_CONFIG.totalSeconds} />
-      <nav className="ws2-modbar" aria-label="Modules">
-        {(['A', 'B', 'C'] as ModuleId[]).map((m) => (
-          <span key={m} className={`${mod === m ? 'is-active' : ''} ${done[m] ? 'is-done' : ''}`}>
-            {done[m] ? '✓' : m} {m === 'A' ? 'PIT TELEMETRY' : m === 'B' ? 'RELAY TOWERS' : 'BALANCER'}
-          </span>
-        ))}
-        <span className="ws2-modbar-ids">OP1 {p1} · OP2 {p2}</span>
-      </nav>
-      <main className="ws2-main">
-        {mod === 'A' && <ModuleA onScore={setScoreA} onShake={triggerShake} onDone={() => advance('A', 'B')} />}
-        {mod === 'B' && <ModuleB onScore={setScoreB} onShake={triggerShake} onDone={() => advance('B', 'C')} />}
-        {mod === 'C' && (
+    <div className={`ws2-shell ${alarm ? 'is-alarm' : ''} ${flash ? 'fx-flash' : ''}`}>
+      <PitWallBackdrop />
+      <div className="ws2-shell__flash" aria-hidden />
+      <div className="ws2-hazard" aria-hidden />
+      <div className="ws2-alarmframe" aria-hidden />
+
+      {inRun && (
+        <header className="ws2-header">
+          <div className="ws2-brand">
+            <b>F1 0-LAG STREAM</b>
+            <span>ST-02 · {ids?.[0]} + {ids?.[1]}</span>
+          </div>
+          <nav className="ws2-modnav" aria-label="Module progress">
+            {(withD ? ALL_MODULES : MODULES).map((m, i) => (
+              <span key={m} className={`${m === cur ? 'on' : ''} ${idx > i ? 'done' : ''}`}>
+                <i>{idx > i ? '■' : m === mod ? '▶' : '□'}</i> {m} {NAMES[m]}
+              </span>
+            ))}
+          </nav>
+          <div className="ws2-alarmchip" role={alarm ? 'alert' : undefined}>
+            {alarm && <span><i aria-hidden>▲</i> {lowTime && lastGasket ? 'LOW TIME · LAST GASKET' : lowTime ? 'LOW TIME' : 'LAST GASKET'}</span>}
+          </div>
+          <div className="ws2-hscore"><small>SCORE</small><b>{Math.round((score.a + score.b + score.c + score.d) * 10) / 10}</b></div>
+          <Stopwatch seconds={timeLeft} total={STATION2_CONFIG.totalSeconds} running alarm={lowTime} />
+        </header>
+      )}
+
+      <main className="ws2-main" ref={stage$}>
+        {stage === 'launch' && <LaunchScreen ids={ids} onGo={go} onBack={onOpenStationChooser} />}
+        {playing && board && board.kind === 'quali' && <BoardScreen data={board} onContinue={qualiContinue} />}
+        {playing && !board && mod === 'A' && (
+          <ModuleA track={track} onShake={shake} onScore={(a) => setScore((s) => ({ ...s, a }))} onDone={() => goMod('B')} />
+        )}
+        {playing && !board && mod === 'B' && (
+          <ModuleB track={track} onShake={shake} onScore={(b) => setScore((s) => ({ ...s, b }))} onDone={routesDone} />
+        )}
+        {playing && !board && mod === 'C' && (
           <ModuleC
-            onProgress={setScoreC}
-            onShake={triggerShake}
-            onForfeit={() => { setScoreC(0); finish('forfeit', remaining()); }}
-            onFinish={() => { setDone((d) => ({ ...d, C: true })); finish('complete', remaining()); }}
+            grid={grid}
+            onLap={(p) => { lapPts.current.push(p); }}
+            track={track} onShake={shake} onFlash={flashRed} onGaskets={setGaskets}
+            onScore={(c) => setScore((s) => ({ ...s, c }))}
+            onFinish={() => finish('complete', secondsLeft())}
+            onForfeit={() => finish('forfeit', secondsLeft())}
           />
         )}
+        {stage === 'board' && board && <BoardScreen data={board} onContinue={raceContinue} />}
+        {stage === 'offer' && (
+          <div className="ws2-offer ws2-in" role="dialog" aria-label="Final push bonus offer">
+            <small>BONUS ROUND</small>
+            <h2>FINAL PUSH · BONUS</h2>
+            <p>UP TO <b>+{STATION2_CONFIG.moduleMax.D}</b> · {Math.min(RADIO_CONFIG.maxSeconds, timeLeft)} S</p>
+            <div className="ws2-offer__actions">
+              <button type="button" className="ws2-btn ws2-btn--go" onClick={playD} autoFocus>PLAY</button>
+              <button type="button" className="ws2-btn ws2-btn--ghost" onClick={skipD}>SKIP</button>
+            </div>
+            <span className="ws2-D__auto" aria-hidden><i style={{ ['--offer-s' as string]: `${RADIO_CONFIG.offerSeconds}s` }} /></span>
+          </div>
+        )}
+        {stage === 'bonus' && (
+          <ModuleD
+            deadline={dDeadline}
+            track={track} onShake={shake}
+            onScore={(d) => setScore((s) => ({ ...s, d }))}
+            onDone={doneD}
+          />
+        )}
+        {stage === 'end' && report && <EndScreen report={report} onRestart={restart} />}
       </main>
     </div>
   );

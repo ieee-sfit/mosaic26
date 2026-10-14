@@ -3,6 +3,8 @@ import { HudPanel, TeleChip } from './HudPanel';
 
 interface Props {
   onLaunch: (operators: [string, string]) => void;
+  /** IDs already verified by the arcade launcher; shown locked instead of asking again. */
+  preset?: [string, string] | null;
 }
 
 const ID_RE = /^\d{6}$/;
@@ -15,9 +17,9 @@ function validate(a: string, b: string): { a?: string; b?: string } {
   return out;
 }
 
-export function Launcher({ onLaunch }: Props) {
-  const [op1, setOp1] = useState('');
-  const [op2, setOp2] = useState('');
+export function Launcher({ onLaunch, preset }: Props) {
+  const [op1, setOp1] = useState(preset?.[0] ?? '');
+  const [op2, setOp2] = useState(preset?.[1] ?? '');
   const [touched, setTouched] = useState(false);
   const errors = validate(op1, op2);
   const ready = !errors.a && !errors.b;
@@ -75,7 +77,7 @@ export function Launcher({ onLaunch }: Props) {
           &gt; BOTH OPERATORS MUST AUTHENTICATE BEFORE THE CLOCK ARMS
         </p>
         <div className="mt-5 flex gap-px font-tele text-[10px] uppercase tracking-widest">
-          {['A · FLIGHT TELEMETRY', 'B · TOKAMAK DIAGNOSTIC', 'C · WAVE INTERCEPTION'].map((m) => (
+          {['A · FLIGHT TELEMETRY', 'B · DIAGNOSE THE LEFTOVER', 'C · WAVE INTERCEPTION', '+ BONUS · SECRET HANDSHAKE'].map((m) => (
             <span key={m} className="border border-goat-cyan/25 bg-goat-navy/80 px-3 py-1.5 text-goat-cyan-dim">
               {m}
             </span>
@@ -103,6 +105,7 @@ export function Launcher({ onLaunch }: Props) {
                   inputMode="numeric"
                   autoComplete="off"
                   maxLength={6}
+                  readOnly={!!preset}
                   onChange={(e) => set(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   className={`chamfer-tr w-full border-0 bg-goat-void px-3 py-3 font-tele text-2xl font-bold tracking-[0.5em] text-goat-cyan outline-none placeholder:text-sm placeholder:font-normal placeholder:tracking-widest placeholder:text-goat-mute/60 focus:bg-goat-deck focus:shadow-[inset_0_-2px_0_#00f2fe] ${
                     touched && err ? 'shadow-[inset_0_-2px_0_#ef4444]' : ''

@@ -1,5 +1,5 @@
-import { LOOKUP_STEPS, MATRIX, QUALITY_PROFILES, QUESTION_BANK, STATION2_CONFIG } from './mockStation2Data';
-import type { LookupStep, QuizQuestion, Stint } from './types';
+import { QUALITY_PROFILES, QUESTION_BANK, STATION2_CONFIG } from './mockStation2Data';
+import type { Beam, QuizQuestion, Section, Stint } from './types';
 
 export function shuffle<T>(arr: T[]): T[] {
   const a = arr.slice();
@@ -32,51 +32,85 @@ export function pickQuestions(n = STATION2_CONFIG.questionsPerRun): QuizQuestion
   });
 }
 
-export function questionPoints(
-  hint1: boolean, hint2: boolean, wrong: number,
-): number {
-  const base = STATION2_CONFIG.moduleMax.A / STATION2_CONFIG.questionsPerRun;
-  if (hint2) return 0;
-  const frac = 1 - (hint1 ? STATION2_CONFIG.hintPenalty.hint1 : 0) - wrong * STATION2_CONFIG.wrongAnswerPenalty;
+/** Points an item is worth after hints and wrong tries: Hint 2 = 0, Hint 1 = -40%, each wrong try = -20%. */
+export function itemPoints(base: number, hint: 0 | 1 | 2, wrong: number): number {
+  if (hint >= 2) return 0;
+  const frac = 1 - (hint >= 1 ? STATION2_CONFIG.hintPenalty.hint1 : 0) - wrong * STATION2_CONFIG.wrongAnswerPenalty;
   return Math.max(0, Math.round(base * frac * 100) / 100);
 }
 
-// ---- Module B lookups
-export function resolveStep(step: LookupStep, prevAnswer: string | null) {
-  const f = step.find;
-  let value: string | number | null = f.value ?? null;
-  if (f.fromPrev) {
-    if (prevAnswer == null) return null;
-    const n = Number(prevAnswer);
-    value = f.offset !== undefined && !Number.isNaN(n) ? n + f.offset : prevAnswer;
+// ---------------------------------------------------------------- Module B: route builder
+export interface Metrics { ms: number; loss: number; mbps: number }
+export interface Verdict { lat: boolean; loss: boolean; bw: boolean; ok: boolean }
+
+const beamKey = (a: string, b: string) => (a < b ? `${a}${b}` : `${b}${a}`);
+const beamOf = (s: Section, a: string, b: string): Beam | undefined => s.beams.find((x) => beamKey(x.a, x.b) === beamKey(a, b));
+
+/** Sites that have a beam to `id`. */
+export const neighbours = (s: Section, id: string): string[] =>
+  s.beams.filter((b) => b.a === id || b.b === id).map((b) => (b.a === id ? b.b : b.a));
+
+/**
+ * Totals for a route (an ordered list of sites, T first):
+ * latency adds, loss compounds (1 - product of what survives each beam), bandwidth is the narrowest beam.
+ * A route with no beam yet has zero latency and loss and unlimited bandwidth (shown as the tower's best).
+ */
+export function metricsOf(s: Section, route: string[]): Metrics {
+  let ms = 0;
+  let keep = 1;
+  let mbps = Infinity;
+  for (let i = 0; i + 1 < route.length; i++) {
+    const b = beamOf(s, route[i], route[i + 1]);
+    if (!b) continue;
+    ms += b.ms;
+    keep *= 1 - b.loss / 100;
+    mbps = Math.min(mbps, b.mbps);
   }
-  const row = MATRIX.find((r) => String(r[f.column]).toUpperCase() === String(value).toUpperCase());
-  return { value, row: row ?? null, answer: row ? String(row[step.read]) : null };
+  return { ms, loss: Math.round((1 - keep) * 10000) / 100, mbps };
 }
 
-export function expectedAnswer(step: LookupStep, prevAnswer: string | null): string | null {
-  return resolveStep(step, prevAnswer)?.answer ?? null;
+/** Each NEED line separately, then all together. Bandwidth only counts when the lap scores it. */
+export function verdictOf(s: Section, m: Metrics): Verdict {
+  const lat = m.ms <= s.need.ms;
+  const loss = m.loss <= s.need.loss;
+  const bw = s.need.mbps === null || m.mbps >= s.need.mbps;
+  return { lat, loss, bw, ok: lat && loss && bw };
 }
 
-export function describeStep(step: LookupStep, prevAnswer: string | null): string {
-  const r = resolveStep(step, prevAnswer);
-  const f = step.find;
-  let target: string;
-  if (f.fromPrev) {
-    if (!r) target = '[PREVIOUS STEP RESULT]';
-    else target = f.offset !== undefined
-      ? `${prevAnswer} ${f.offset >= 0 ? '+' : '−'} ${Math.abs(f.offset)} = ${r.value}`
-      : String(r.value);
-  } else target = String(f.value);
-  return `FIND ROW WHERE ${f.column} = ${target}  ▸  READ ${step.read}`;
+/** Every simple route from T to P. */
+export function allRoutes(s: Section): string[][] {
+  const out: string[][] = [];
+  const walk = (route: string[]) => {
+    const last = route[route.length - 1];
+    if (last === 'P') { out.push(route.slice()); return; }
+    for (const n of neighbours(s, last)) {
+      if (route.includes(n)) continue;
+      route.push(n);
+      walk(route);
+      route.pop();
+    }
+  };
+  walk(['T']);
+  return out;
 }
 
-export function stepsOfProblem(p: 1 | 2) {
-  return LOOKUP_STEPS.filter((s) => s.problem === p);
+/** Routes that meet every NEED line (the rule-based answer set). */
+export const validRoutes = (s: Section): string[][] => allRoutes(s).filter((r) => verdictOf(s, metricsOf(s, r)).ok);
+
+/** A route Hint 2 can send (fewest hops among the valid ones). Null only if a section was authored without an answer. */
+export function solveSection(s: Section): string[] | null {
+  return validRoutes(s).sort((a, b) => a.length - b.length)[0] ?? null;
 }
 
-// ---- Module C balancer
+export const fmtMs = (n: number) => `${Math.round(n)} ms`;
+export const fmtLoss = (n: number) => `${n.toFixed(2).replace(/0$/, '')}%`;
+export const fmtMbps = (n: number) => (Number.isFinite(n) ? `${Math.round(n)}` : '--');
+
+// ---------------------------------------------------------------- Module C: balancer
 export interface Controls { split: number; qualityIdx: number; divert: boolean }
+
+/** Whole percent, rounded down so a displayed 80% is never shown as passing the 80% limit. */
+export const pctOf = (u: number) => Math.floor(u * 100 + 1e-9);
 
 export function simulate(stint: Stint, c: Controls) {
   const prof = QUALITY_PROFILES[c.qualityIdx];
@@ -92,8 +126,8 @@ export function simulate(stint: Stint, c: Controls) {
   else pit += spike;
 
   const nodes = [
-    { id: 'mulsanne', label: 'MULSANNE STRAIGHT', load: mul, cap: stint.capacity.mulsanne, active: true },
-    { id: 'arnage', label: 'ARNAGE BACKUP', load: arn, cap: stint.capacity.arnage, active: c.divert },
+    { id: 'mulsanne', label: 'MULSANNE', load: mul, cap: stint.capacity.mulsanne, active: true },
+    { id: 'arnage', label: 'BACKUP RELAY', load: arn, cap: stint.capacity.arnage, active: c.divert },
     { id: 'pit', label: 'PIT STRAIGHT', load: pit, cap: stint.capacity.pit, active: true },
   ].map((n) => ({ ...n, util: n.load / n.cap }));
 
@@ -101,23 +135,28 @@ export function simulate(stint: Stint, c: Controls) {
   const queue = cfg.queueBaseMs / Math.max(0.01, 1 - Math.min(worstUtil, 0.99));
   const latency = Math.round(stint.baseLatencyMs + prof.latencyMs + queue + (c.divert ? cfg.relayHopMs : 0));
 
-  const latencyOk = latency < cfg.latencyLimitMs;
+  const latencyOk = latency < stint.latencyLimitMs;
   const capacityOk = nodes.every((n) => !n.active || n.util < cfg.utilLimit);
   const qualityOk = c.qualityIdx <= stint.worstQualityIdx;
   const locked = latencyOk && capacityOk && qualityOk;
-
-  // 0 (perfect) .. 1 (meltdown): drives waveform noise and tach strain
-  const severity = locked ? 0 : Math.min(1,
-    Math.max(0, (worstUtil - cfg.utilLimit) / 0.4) * 0.6 +
-    Math.max(0, (latency - cfg.latencyLimitMs) / 1500) * 0.4 + (qualityOk ? 0 : 0.2) + 0.1);
-
-  return { nodes, latency, latencyOk, capacityOk, qualityOk, locked, severity, worstUtil };
+  return { nodes, latency, latencyOk, capacityOk, qualityOk, locked, worstUtil, worstPct: pctOf(worstUtil) };
 }
 
-export function fmt(n: number, d = 1) {
-  return Number.isInteger(n) ? String(n) : n.toFixed(d);
+/** Finds a control setting that locks the stint (Hint 2 uses it; solves for 0 points). */
+export function solveStint(stint: Stint): Controls | null {
+  for (const divert of [false, true]) {
+    for (let qualityIdx = 0; qualityIdx < QUALITY_PROFILES.length; qualityIdx++) {
+      for (let split = 0; split <= 100; split++) {
+        const c = { split, qualityIdx, divert };
+        if (simulate(stint, c).locked) return c;
+      }
+    }
+  }
+  return null;
 }
-export function mmss(sec: number) {
+
+export const fmt = (n: number, d = 1) => (Number.isInteger(n) ? String(n) : n.toFixed(d));
+export const mmss = (sec: number) => {
   const s = Math.max(0, sec);
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-}
+};

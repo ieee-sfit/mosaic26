@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  CHEAT_SHEET_COLUMNS,
   CONFIG,
   QUESTION_BANK,
   type ForensicQuestion,
@@ -8,6 +7,7 @@ import {
 } from '../mockStation3Data';
 import { shuffle, type Fx } from '../utils';
 import { ActionBar, Readout } from './Hud';
+import HintDock from '../../core/HintDock';
 
 interface Card {
   q: ForensicQuestion;
@@ -39,12 +39,12 @@ export default function ModuleA({
   const [idx, setIdx] = useState(0);
   const [wrong, setWrong] = useState<number[]>([]);
   const [hint, setHint] = useState<0 | 1 | 2>(0);
+  const [removed, setRemoved] = useState<number | null>(null); // option struck out by Hint 1
   const [picked, setPicked] = useState<number | null>(null); // resolved option index
   const [earned, setEarned] = useState(0);
   const resolved = picked !== null;
   const card = cards[idx];
   const { pointsPerQuestion: perQ, wrongPenalty } = CONFIG.moduleA;
-  const cheatCol = CHEAT_SHEET_COLUMNS.find((c) => c.id === card.q.cheatColumn);
 
   const doneRef = useRef(onDone);
   useEffect(() => {
@@ -61,7 +61,7 @@ export default function ModuleA({
   };
 
   const choose = (i: number) => {
-    if (resolved || wrong.includes(i)) return;
+    if (resolved || wrong.includes(i) || removed === i) return;
     if (card.options[i].correct) {
       resolve(i, hint, wrong.length);
     } else {
@@ -70,14 +70,16 @@ export default function ModuleA({
     }
   };
 
-  const requestHint = () => {
-    if (resolved || hint === 2) return;
-    if (hint === 0) {
-      setHint(1);
-    } else {
-      setHint(2);
-      resolve(card.options.findIndex((o) => o.correct), 2, wrong.length);
+  const requestHint = (next: 1 | 2) => {
+    if (resolved || hint >= next) return;
+    setHint(next);
+    // Hint 1 strikes out one wrong option that has not been tried yet
+    if (next === 1) {
+      const left = card.options.map((o, i) => (!o.correct && !wrong.includes(i) ? i : -1)).filter((i) => i >= 0);
+      if (left.length) setRemoved(left[Math.floor(Math.random() * left.length)]);
     }
+    // Hint 2 selects the right answer and submits it for the player (0 pts)
+    if (next === 2) resolve(card.options.findIndex((o) => o.correct), 2, wrong.length);
   };
 
   // advance to next card / finish module shortly after a question resolves
@@ -90,14 +92,12 @@ export default function ModuleA({
         setIdx(idx + 1);
         setWrong([]);
         setHint(0);
+        setRemoved(null);
         setPicked(null);
       }
     }, ADVANCE_MS);
     return () => clearTimeout(t);
   }, [resolved, idx, cards.length]);
-
-  const hintLabel =
-    hint === 0 ? 'HINT 1: CHEAT-SHEET COLUMN · −40% PTS' : hint === 1 ? 'HINT 2: AUTO-SELECT ANSWER · −100% PTS' : 'INTEL EXHAUSTED';
 
   return (
     <>
@@ -123,13 +123,15 @@ export default function ModuleA({
                     : 'is-dim'
                 : wrong.includes(i)
                   ? 'is-wrong'
-                  : '';
+                  : removed === i
+                    ? 'is-removed'
+                    : '';
               return (
                 <button
                   key={o.text}
                   type="button"
                   className={`ws3-opt ${state}`}
-                  disabled={resolved || wrong.includes(i)}
+                  disabled={resolved || wrong.includes(i) || removed === i}
                   onClick={() => choose(i)}
                 >
                   <span className="ws3-opt-key">[{KEYS[i]}]</span>
@@ -140,12 +142,6 @@ export default function ModuleA({
           </div>
 
           <div className="ws3-qfeed" aria-live="polite">
-            {hint >= 1 && cheatCol && (
-              <div className="ws3-intel">
-                ▸ DISPATCH INTEL: REFER TO CHEAT-SHEET <b>COLUMN {String(cheatCol.id).padStart(2, '0')}</b> — {cheatCol.label}
-              </div>
-            )}
-            {hint === 2 && <div className="ws3-intel ws3-intel--red">▸ DISPATCH AUTO-SELECTED THE ANSWER · 0 PTS</div>}
             {resolved && hint < 2 && <div className="ws3-intel ws3-intel--ok">▸ CONFIRMED · +{earned} PTS</div>}
             {!resolved && wrong.length > 0 && <div className="ws3-intel ws3-intel--red">▸ MISREAD · −{wrongPenalty} PT PER WRONG PICK</div>}
           </div>
@@ -175,17 +171,17 @@ export default function ModuleA({
         <div className="ws3-bar-info">
           <span>MOD_A</span>
           <span>QUESTION {idx + 1}/{cards.length}</span>
-          <span>{hintLabel}</span>
         </div>
-        <button
-          type="button"
-          className="ws3-btn ws3-btn--hint"
-          onClick={requestHint}
-          disabled={resolved || hint === 2}
-        >
-          [REQUEST DISPATCH INTEL / HINT]
-        </button>
       </ActionBar>
+      <HintDock
+        level={hint}
+        itemLabel={`QUESTION ${idx + 1}/${cards.length}`}
+        hint1Text="One wrong option was struck out. This question now pays 60%."
+        hint2Text="The correct option was selected and submitted for you. This question scores 0."
+        cost1={CONFIG.hintPenalty[1]}
+        disabled={resolved}
+        onHint={requestHint}
+      />
     </>
   );
 }

@@ -20,7 +20,7 @@ export const STATIONS = [
     imagePos: '50% 65%',
     code: 'ST-02',
     name: 'F1 0-LAG STREAM',
-    sector: "LE MANS '66 // PIT WALL",
+    sector: 'LE MANS // PIT WALL',
     classification: 'FORD V FERRARI',
     brief:
       'Run the pit-wall broadcast. Route CDN, balance bitrate and hold zero-lag telemetry while the field screams down Mulsanne.',

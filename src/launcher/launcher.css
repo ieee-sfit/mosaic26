@@ -153,3 +153,8 @@
     linear-gradient(to top, #05070a 4%, transparent 60%),
     linear-gradient(135deg, color-mix(in srgb, var(--c1) 22%, transparent), transparent); }
 .arc-slice__dust, .arc-slice__scan { z-index: 1; }
+
+.arc-note { font: 700 12px 'JetBrains Mono', monospace; letter-spacing: .12em; padding: 10px 12px; border-left: 3px solid; }
+.arc-note--bad { color: #fca5a5; border-color: #ef4444; background: rgba(239,68,68,.08); }
+.arc-note--ok { color: var(--c1); border-color: var(--c1); background: color-mix(in srgb, var(--c1) 8%, transparent); }
+.arc-field input:read-only, input[readonly] { cursor: default; }

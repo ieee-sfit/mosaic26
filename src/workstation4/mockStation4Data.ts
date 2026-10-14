@@ -2,13 +2,13 @@
  * STATION 4 // AREA 51 MELTDOWN — ISOLATED CONTENT FILE
  * ---------------------------------------------------------------------------
  * Everything the event staff may want to swap lives here: the question bank,
- * the cheat-sheet column index, the 8-column biohazard matrix, the lookup
- * problems and the airlock circuit rounds. Components under ./meltdown only
- * read from this module and contain no content of their own.
+ * the breadboard bays, the airlock circuit rounds and the Module D repair boards.
+ * Components under ./meltdown only read from this module and contain no content of their own.
  *
  * Authoring rules
- *  - Module B answers are NOT stored: they are derived by looking the row /
- *    column up in BIOHAZARD_MATRIX, so the table and the answers can't drift.
+ *  - Module B target tables are NOT stored: they are derived from the bay's gate (see breadboard.js).
+ *  - Module D boards are stored as a faulty `start` state plus the `target` gate; the repair set is derived from the
+ *    difference, and escape.js `verifyVariant` proves each variant is fair (run it after editing a board).
  *  - Module C sockets reference sources by id. A source is either an input id
  *    or the id of an EARLIER socket (so circuits are always acyclic).
  *  - Every circuit round must be solvable in phase 1 (forward = 1); phase 2 is always solvable by toggling an input or swapping a gate.
@@ -26,9 +26,10 @@ export const STATION4_CONFIG = {
   operatorIdPattern: /^\d{6}$/,
   scoring: {
     moduleA: 15, // 3 questions x 5
-    moduleB: 40, // 8 verified steps x 5
+    moduleB: 40, // 3 breadboard bays: 13 + 13 + 14
     moduleC: 45, // 3 rounds x (8 breach + 7 seal)
-    speedBonusMax: 20, // scaled by time_left when every module is cleared
+    moduleD: 20, // optional bonus: FINAL ESCAPE, 4 + 6 + 7 + 3. Not part of the base or the letter grade
+    speedBonusMax: 20, // scaled by time_left when every module is cleared, frozen when Module C ends
   },
   moduleA: {
     questionsPerRun: 3,
@@ -37,8 +38,20 @@ export const STATION4_CONFIG = {
     hint2PenaltyFraction: 1.0, // "-100% pts" (auto-select)
   },
   moduleB: {
-    pointsPerStep: 5,
-    wrongStepPenalty: 1, // pts lost per wrong submission on a step (floor 0)
+    bayPoints: [13, 13, 14], // AND bay, OR bay, NOT bay
+    strikePenaltyFraction: 0.2, // per failed VERIFY and per smoke event, of that bay's points
+    hint1PenaltyFraction: 0.4,
+  },
+  moduleD: {
+    maxSeconds: 180, // cap on the whole round (also capped by the shift time left)
+    offerSeconds: 20, // auto-skip of the PLAY / SKIP offer, so an abandoned kiosk still saves its run
+    boardPoints: [4, 6, 7],
+    armingPoints: 3,
+    probes: 4, // per board
+    spareExtra: 1, // spares per board = faults + this
+    wastePenaltyFraction: 0.2, // per wasted spare, of that board's points
+    hint1PenaltyFraction: 0.4,
+    detonatePenalty: 1, // points lost per rejected DETONATE
   },
   moduleC: {
     seals: 3,
@@ -46,16 +59,6 @@ export const STATION4_CONFIG = {
     breachPoints: 8,
     sealPoints: 7,
   },
-}
-
-// ---------------------------------------------------------------------------
-// PHYSICAL CHEAT SHEET INDEX (what Hint 1 points to)
-// ---------------------------------------------------------------------------
-export const CHEAT_SHEET_COLUMNS: Record<string, { label: string; blurb: string }> = {
-  'COL-1': { label: 'COLUMN 1 // NOT (INVERTER)', blurb: 'Output is the opposite of the input.' },
-  'COL-2': { label: 'COLUMN 2 // AND', blurb: 'Output is 1 only when EVERY input is 1.' },
-  'COL-3': { label: 'COLUMN 3 // OR', blurb: 'Output is 1 when AT LEAST ONE input is 1.' },
-  'COL-4': { label: 'COLUMN 4 // TRUTH TABLE QUICK-REF', blurb: 'Read the row that matches your input pair.' },
 }
 
 // ---------------------------------------------------------------------------
@@ -67,114 +70,78 @@ export interface ProtocolQuestion {
   prompt: string
   options: [string, string, string, string]
   correct: 0 | 1 | 2 | 3
-  cheatColumn: keyof typeof CHEAT_SHEET_COLUMNS
 }
 
 export const QUESTION_BANK: ProtocolQuestion[] = [
-  { id: 'q01', gate: 'AND', cheatColumn: 'COL-2',
+  { id: 'q01', gate: 'AND',
     prompt: 'Containment door sensors read A = 1 and B = 0. What does Y = A AND B output?',
     options: ['Y = 1', 'Y = 0', 'Y = floating', 'Y = A + B'], correct: 1 },
-  { id: 'q02', gate: 'AND', cheatColumn: 'COL-2',
+  { id: 'q02', gate: 'AND',
     prompt: 'A two-input AND gate drives the vent seal. For which input pair does it output 1?',
     options: ['0 , 0', '0 , 1', '1 , 0', '1 , 1'], correct: 3 },
-  { id: 'q03', gate: 'AND', cheatColumn: 'COL-2',
+  { id: 'q03', gate: 'AND',
     prompt: 'Three-input AND gate: inputs are 1, 1, 0. What is the output?',
     options: ['1', '0', 'Undefined', '2'], correct: 1 },
-  { id: 'q04', gate: 'AND', cheatColumn: 'COL-4',
+  { id: 'q04', gate: 'AND',
     prompt: 'How many of the 4 rows in a 2-input AND truth table output 1?',
     options: ['0', '1', '2', '4'], correct: 1 },
-  { id: 'q05', gate: 'OR', cheatColumn: 'COL-3',
+  { id: 'q05', gate: 'OR',
     prompt: 'Alarm line: Y = A OR B with A = 0 and B = 1. What is Y?',
     options: ['0', '1', 'Floating', 'Inverted A'], correct: 1 },
-  { id: 'q06', gate: 'OR', cheatColumn: 'COL-3',
+  { id: 'q06', gate: 'OR',
     prompt: 'For which input pair does a 2-input OR gate output 0?',
     options: ['0 , 0', '0 , 1', '1 , 0', '1 , 1'], correct: 0 },
-  { id: 'q07', gate: 'OR', cheatColumn: 'COL-4',
+  { id: 'q07', gate: 'OR',
     prompt: 'How many of the 4 rows in a 2-input OR truth table output 1?',
     options: ['1', '2', '3', '4'], correct: 2 },
-  { id: 'q08', gate: 'OR', cheatColumn: 'COL-3',
+  { id: 'q08', gate: 'OR',
     prompt: 'A three-input OR gate sees 0, 0, 1. The output is:',
     options: ['0', '1', 'Undefined', 'Same as the first input'], correct: 1 },
-  { id: 'q09', gate: 'NOT', cheatColumn: 'COL-1',
+  { id: 'q09', gate: 'NOT',
     prompt: 'The quarantine flag A is 1. What does Y = NOT A output?',
     options: ['1', '0', 'Floating', '2'], correct: 1 },
-  { id: 'q10', gate: 'NOT', cheatColumn: 'COL-1',
+  { id: 'q10', gate: 'NOT',
     prompt: 'Two NOT gates are chained: A -> NOT -> NOT -> Y. If A = 0, Y equals:',
     options: ['0', '1', 'Floating', 'Cannot be determined'], correct: 0 },
-  { id: 'q11', gate: 'NOT', cheatColumn: 'COL-1',
+  { id: 'q11', gate: 'NOT',
     prompt: 'A NOT gate has how many inputs?',
     options: ['1', '2', '3', 'Any number'], correct: 0 },
-  { id: 'q12', gate: 'MIXED', cheatColumn: 'COL-2',
+  { id: 'q12', gate: 'MIXED',
     prompt: 'Y = NOT (A AND B) with A = 1, B = 1. What is Y?',
     options: ['1', '0', 'Floating', 'Same as A'], correct: 1 },
-  { id: 'q13', gate: 'MIXED', cheatColumn: 'COL-3',
+  { id: 'q13', gate: 'MIXED',
     prompt: 'Y = NOT (A OR B) with A = 0, B = 0. What is Y?',
     options: ['0', '1', 'Floating', 'Same as B'], correct: 1 },
-  { id: 'q14', gate: 'MIXED', cheatColumn: 'COL-4',
+  { id: 'q14', gate: 'MIXED',
     prompt: 'Y = A AND (NOT B) with A = 1, B = 0. What is Y?',
     options: ['0', '1', 'Floating', 'Same as B'], correct: 1 },
-  { id: 'q15', gate: 'MIXED', cheatColumn: 'COL-4',
+  { id: 'q15', gate: 'MIXED',
     prompt: 'Which single input pair makes (A OR B) AND (NOT A) output 1?',
     options: ['A=0, B=1', 'A=1, B=0', 'A=1, B=1', 'A=0, B=0'], correct: 0 },
 ]
 
 // ---------------------------------------------------------------------------
-// MODULE B — 8-COLUMN BIOHAZARD MATRIX + TWO 4-STEP LOOKUP PROBLEMS
+// MODULE B — BREADBOARD LAB (3 bays, one gate each)
 // ---------------------------------------------------------------------------
-export const BIOHAZARD_MATRIX = {
-  columns: ['ROW', 'STRAIN', 'VISC', 'TEMP', 'RPM_CLASS', 'CLAMP', 'PRESS', 'NEXT'],
-  rows: [
-    ['R-01', 'WZ-ALPHA', '140', '36', 'RC-2', 'CL-A1', '4.2', 'R-05'],
-    ['R-02', 'WZ-BRAVO', '210', '41', 'RC-4', 'CL-B2', '5.8', 'R-08'],
-    ['R-03', 'NEC-17', '95', '33', 'RC-1', 'CL-C3', '3.1', 'R-06'],
-    ['R-04', 'NEC-22', '180', '38', 'RC-3', 'CL-D4', '4.9', 'R-07'],
-    ['R-05', 'HYD-09', '260', '44', 'RC-5', 'CL-E5', '6.4', 'R-02'],
-    ['R-06', 'HYD-12', '120', '35', 'RC-2', 'CL-F6', '3.7', 'R-09'],
-    ['R-07', 'GAM-31', '300', '47', 'RC-6', 'CL-G7', '7.2', 'R-03'],
-    ['R-08', 'GAM-44', '75', '31', 'RC-1', 'CL-H8', '2.6', 'R-10'],
-    ['R-09', 'OMG-02', '225', '42', 'RC-4', 'CL-J9', '5.5', 'R-01'],
-    ['R-10', 'OMG-08', '160', '37', 'RC-3', 'CL-K0', '4.4', 'R-04'],
-  ],
-}
+/** 'pins' = the player wires VCC / GND / A / B / OUT by hand. 'auto' = seating a chip connects every pin by itself. */
+export const WIRING_MODE: 'pins' | 'auto' = 'pins'
 
-/** A step reads `column` of a row. The row is a literal id or the answer of an earlier step. */
-export type RowRef = string | { fromStep: number }
-
-export interface LookupStep {
-  row: RowRef
-  column: string
-}
-
-export interface LookupProblem {
+export interface BayConfig {
   id: string
-  title: string
-  briefing: string
-  steps: [LookupStep, LookupStep, LookupStep, LookupStep]
+  /** The gate the lock needs. The bay never shows this name: the TARGET table decides which chip fits. */
+  gate: 'AND' | 'OR' | 'NOT'
+  /** Colour of the bay border. */
+  color: string
+  /** 'all' = pin labels on chip and sockets, 'chip' = on the chip only, 'none' = hidden (Hint 1 reveals them). */
+  labels: 'all' | 'chip' | 'none'
+  /** Chips seated in this bay may arrive wrong way round (picked per run). */
+  mayArriveFlipped: boolean
 }
 
-export const LOOKUP_PROBLEMS: [LookupProblem, LookupProblem] = [
-  {
-    id: 'P1',
-    title: 'PROBLEM 1 // ROTOR SPIN-UP SEQUENCE',
-    briefing: 'Chain the NEXT pointers through the matrix to find the clamp that holds vial bank ALPHA.',
-    steps: [
-      { row: 'R-04', column: 'NEXT' },
-      { row: { fromStep: 1 }, column: 'NEXT' },
-      { row: { fromStep: 2 }, column: 'RPM_CLASS' },
-      { row: { fromStep: 2 }, column: 'CLAMP' },
-    ],
-  },
-  {
-    id: 'P2',
-    title: 'PROBLEM 2 // PRESSURE EQUALISATION',
-    briefing: 'Bleed pressure from the secondary rotor ring. Mixed literal and chained row references.',
-    steps: [
-      { row: 'R-09', column: 'NEXT' },
-      { row: { fromStep: 1 }, column: 'PRESS' },
-      { row: 'R-06', column: 'VISC' },
-      { row: { fromStep: 1 }, column: 'NEXT' },
-    ],
-  },
+export const BAYS: BayConfig[] = [
+  { id: 'bay1', gate: 'AND', color: '#22d3ee', labels: 'all', mayArriveFlipped: false },
+  { id: 'bay2', gate: 'OR', color: '#f59e0b', labels: 'chip', mayArriveFlipped: true },
+  { id: 'bay3', gate: 'NOT', color: '#e879f9', labels: 'none', mayArriveFlipped: true },
 ]
 
 // ---------------------------------------------------------------------------
@@ -258,6 +225,53 @@ export const CIRCUIT_ROUNDS: CircuitRound[] = [
     forwardOut: 'S3',
     rearOut: 'S2',
   },
+]
+
+// ---------------------------------------------------------------------------
+// MODULE D — FINAL ESCAPE · SELF-DESTRUCT (bonus, 3 broken boards)
+// ---------------------------------------------------------------------------
+export type InputFault = 'ok' | 's0' | 's1' | 'fl' // working | stuck at 0 | stuck at 1 | floating (reads 0)
+export type LedFault = 'ok' | 'dead' | 'rev' // working | dead | fitted the wrong way round (never lights)
+export type EscapeGate = 'AND' | 'OR' | 'NOT'
+
+export interface EscapeState {
+  inA: InputFault
+  inB: InputFault
+  gate: EscapeGate
+  /** A NOT stage fitted after the gate. */
+  not: boolean
+  led: LedFault
+}
+
+export interface EscapeVariant {
+  id: string
+  /** What the lock needs: the gate, optionally followed by a NOT (OR-then-NOT reads 1,0,0,0). */
+  target: { gate: 'AND' | 'OR'; not: boolean }
+  /** The board as the player finds it. Everything that differs from the target is a fault. */
+  start: EscapeState
+}
+
+/**
+ * Three boards, at least two authored variants each (picked by seed so a repeat attempt is not memorised).
+ *  Board 1: one fault.   Board 2: two faults whose symptoms look like one.   Board 3: a missing NOT plus a stuck input.
+ * Every variant is proved fair by escape.js `verifyVariant` (unique minimal repair, solvable by logic inside the budgets).
+ */
+export const ESCAPE_BOARDS: EscapeVariant[][] = [
+  [
+    { id: '1A', target: { gate: 'OR', not: false }, start: { inA: 'ok', inB: 'ok', gate: 'AND', not: false, led: 'ok' } },
+    { id: '1B', target: { gate: 'AND', not: false }, start: { inA: 'ok', inB: 'ok', gate: 'OR', not: false, led: 'ok' } },
+    { id: '1C', target: { gate: 'AND', not: false }, start: { inA: 'ok', inB: 'ok', gate: 'AND', not: true, led: 'ok' } },
+  ],
+  [
+    { id: '2A', target: { gate: 'AND', not: false }, start: { inA: 'ok', inB: 's0', gate: 'AND', not: false, led: 'dead' } },
+    { id: '2B', target: { gate: 'AND', not: false }, start: { inA: 's1', inB: 'ok', gate: 'OR', not: false, led: 'ok' } },
+    { id: '2C', target: { gate: 'OR', not: false }, start: { inA: 'ok', inB: 'fl', gate: 'OR', not: false, led: 'rev' } },
+  ],
+  [
+    { id: '3A', target: { gate: 'OR', not: true }, start: { inA: 's1', inB: 'ok', gate: 'OR', not: false, led: 'ok' } },
+    { id: '3B', target: { gate: 'OR', not: true }, start: { inA: 'ok', inB: 's0', gate: 'OR', not: false, led: 'ok' } },
+    { id: '3C', target: { gate: 'OR', not: true }, start: { inA: 'fl', inB: 'ok', gate: 'OR', not: false, led: 'ok' } },
+  ],
 ]
 
 // ---------------------------------------------------------------------------

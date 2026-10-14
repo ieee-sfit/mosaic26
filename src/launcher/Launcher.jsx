@@ -3,6 +3,7 @@ import { STATIONS } from './stations'
 import Emblem from './Emblem'
 import ClearanceModal from './ClearanceModal'
 import './launcher.css'
+import './branding.css'
 
 export default function Launcher({ onEngage, onOpenLeaderboard }) {
   const [hovered, setHovered] = useState(null)
@@ -13,6 +14,7 @@ export default function Launcher({ onEngage, onOpenLeaderboard }) {
     <main className="arc-launcher">
       <header className="arc-header">
         <span className="arc-brand">MOSAIC<b>//26</b> ARENA TERMINAL</span>
+        <img className="arc-eventlogo" src="/ctrlfreak_logo.png" alt="CtrlFreak: Critical Point" />
         <button type="button" className="arc-hud" onClick={onOpenLeaderboard}>
           [PUBLIC TELEMETRY / LEADERBOARD]
         </button>
@@ -54,6 +56,10 @@ export default function Launcher({ onEngage, onOpenLeaderboard }) {
             </section>
           )
         })}
+      </div>
+
+      <div className="arc-committee" aria-hidden="true">
+        <img src="/committee_logo.png" alt="" />
       </div>
 
       {selectedStation && (

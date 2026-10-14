@@ -1,7 +1,11 @@
-import { StrictMode, Component } from 'react'
+import { StrictMode, Component, Suspense, lazy } from 'react'
 import { createRoot } from 'react-dom/client'
 
-import App from './App.jsx'
+// Resolved at build time: the public board build never contains the launcher, the games or their answers.
+// eslint-disable-next-line react-refresh/only-export-components
+const Root = import.meta.env.VITE_TARGET === 'board'
+  ? lazy(() => import('./launcher/Leaderboard'))
+  : lazy(() => import('./App.jsx'))
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -26,7 +30,9 @@ class ErrorBoundary extends Component {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      <Suspense fallback={null}>
+        <Root />
+      </Suspense>
     </ErrorBoundary>
   </StrictMode>,
 )

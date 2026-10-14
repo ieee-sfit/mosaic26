@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import {
   CONFIG,
   FILTER_DEFS,
-  ROUNDS,
   computeConfidence,
   formatPlate,
   registryRow,
+  type CaseFile,
   tierFor,
   type FilterKey,
   type FilterLevels,
@@ -14,6 +14,8 @@ import type { Fx } from '../utils';
 import { ActionBar, Readout } from './Hud';
 import ConfidenceGauge from './ConfidenceGauge';
 import Viewfinder, { ocrRead, type PursuitStatus } from './Viewfinder';
+import HintDock from '../../core/HintDock';
+import type { HintLevel } from '../../core/HintDock';
 
 const OFF: FilterLevels = { ir: 0, pol: 0, fog: 0, bin: 0 };
 const LEVEL_NAMES = ['OFF', 'LVL 1', 'LVL 2'];
@@ -30,16 +32,19 @@ interface ChallanEntry {
 }
 
 export default function ModuleC({
+  cas,
   onScore,
   onDone,
   onForfeit,
   fx,
 }: {
+  cas: CaseFile;
   onScore: (delta: number) => void;
   onDone: () => void;
   onForfeit: () => void;
   fx: Fx;
 }) {
+  const ROUNDS = cas.rounds;
   const [roundIdx, setRoundIdx] = useState(0);
   const [levels, setLevels] = useState<FilterLevels>(OFF);
   const [status, setStatus] = useState<PursuitStatus>('live');
@@ -49,6 +54,7 @@ export default function ModuleC({
   const [log, setLog] = useState<ChallanEntry[]>([]);
   const [lastPts, setLastPts] = useState(0);
   const [reason, setReason] = useState('');
+  const [hint, setHint] = useState<HintLevel>(0);
 
   const round = ROUNDS[roundIdx];
   const confidence = computeConfidence(round, levels);
@@ -108,6 +114,7 @@ export default function ModuleC({
         doneRef.current.onDone();
       } else {
         setRoundIdx(roundIdx + 1);
+        setHint(0);
         setRoundFails(0);
         setLevels(OFF);
         resetClock();
@@ -123,22 +130,40 @@ export default function ModuleC({
     setLevels((l) => ({ ...l, [key]: (l[key] + 1) % 3 }));
   };
 
+  const issue = (pts: number) => {
+    const row = registryRow(cas, round.plate);
+    const tier = tierFor(row.radar - row.limit);
+    onScore(pts);
+    setLastPts(pts);
+    setLog((l) => [
+      ...l,
+      { no: `E-${String(l.length + 1).padStart(4, '0')}`, plate: round.plate, code: tier.code, points: tier.points, fine: tier.fine, pts },
+    ]);
+    setStatus('caught');
+    fx.flash();
+  };
+
   const lock = () => {
     if (!live) return;
     if (!ready) {
       escape(`SUBMITTED AT ${confidence.toFixed(1)}% — BELOW ${passConfidence}%`);
       return;
     }
-    const row = registryRow(round.plate);
-    const tier = tierFor(row.radar - row.limit);
-    onScore(roundValue);
-    setLastPts(roundValue);
-    setLog((l) => [
-      ...l,
-      { no: `E-${String(l.length + 1).padStart(4, '0')}`, plate: round.plate, code: tier.code, points: tier.points, fine: tier.fine, pts: roundValue },
-    ]);
-    setStatus('caught');
-    fx.flash();
+    issue(hint === 1 ? Math.round(roundValue * (1 - CONFIG.hintPenalty[1])) : roundValue);
+  };
+
+  // Hint 1 points at the filter furthest from its sweet spot; Hint 2 sets the filters and issues the challan for 0 pts
+  const worst = FILTER_DEFS.reduce((a, d) => {
+    const off = d.weight * Math.abs(levels[d.key] - round.target[d.key]);
+    return off > a.off ? { def: d, off } : a;
+  }, { def: FILTER_DEFS[0], off: 0 });
+  const requestHint = (next: 1 | 2) => {
+    if (!live || hint >= next) return;
+    setHint(next);
+    if (next === 2) {
+      setLevels(round.target);
+      issue(0);
+    }
   };
 
   const clockTone = roundTime <= 10 ? 'bad' : roundTime <= 25 ? 'warn' : undefined;
@@ -163,7 +188,7 @@ export default function ModuleC({
                 <button
                   key={def.key}
                   type="button"
-                  className={`ws3-filter ${lvl > 0 ? 'is-on' : ''}`}
+                  className={`ws3-filter ${lvl > 0 ? 'is-on' : ''} ${hint === 1 && worst.off > 0 && worst.def.key === def.key ? 'is-hint' : ''}`}
                   onClick={() => step(def.key)}
                   disabled={!live}
                   aria-label={`${def.label} ${LEVEL_NAMES[lvl]}`}
@@ -236,6 +261,19 @@ export default function ModuleC({
         </div>
         <span className="ws3-bar-note">CLICK A FILTER BLOCK TO STEP OFF → LVL 1 → LVL 2</span>
       </ActionBar>
+      <HintDock
+        level={hint}
+        itemLabel={`SUSPECT ${roundIdx + 1}/${ROUNDS.length}`}
+        hint1Text={
+          worst.off > 0
+            ? `${worst.def.label} is the furthest from its sweet spot. Compare its signal (${worst.def.signalLabel}) with the scene and re-set it. It is highlighted.`
+            : 'Every filter matches the scene. Lock the telemetry.'
+        }
+        hint2Text="The filters were set and the challan issued for you. This suspect scores 0."
+        cost1={CONFIG.hintPenalty[1]}
+        disabled={!live}
+        onHint={requestHint}
+      />
     </>
   );
 }

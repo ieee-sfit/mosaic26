@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { CHEAT_SHEET_COLUMNS, SCORING } from '../mockStation1Data';
+import { SCORING } from '../mockStation1Data';
 import { useShake } from '../hooks/useScreenShake';
 import { scoreQuestion } from '../utils/scoring';
 import type { McqQuestion, QuestionResult } from '../types';
-import { HintButton } from './HintButton';
+import HintDock from '../../core/HintDock';
 import { HudPanel, TeleChip } from './HudPanel';
 import { ModuleHeader } from './ModuleHeader';
 import { StarshipWireframe } from './StarshipWireframe';
@@ -20,9 +20,10 @@ const LETTERS = ['A', 'B', 'C', 'D'] as const;
 interface QState {
   hints: 0 | 1 | 2;
   wrong: number[]; // locked-out option indexes
+  removed: number | null; // wrong option struck out by Hint 1
   picked: number | null; // correct (or auto-selected) option
 }
-const fresh = (): QState => ({ hints: 0, wrong: [], picked: null });
+const fresh = (): QState => ({ hints: 0, wrong: [], removed: null, picked: null });
 
 export function ModuleA({ questions, operators, onRecord, onComplete }: Props) {
   const cfg = SCORING.moduleA;
@@ -35,7 +36,6 @@ export function ModuleA({ questions, operators, onRecord, onComplete }: Props) {
   const solved = q.picked !== null;
   const last = idx === questions.length - 1;
   const potential = scoreQuestion(cfg, q.hints, q.wrong.length);
-  const column = CHEAT_SHEET_COLUMNS.find((c) => c.index === question.cheatSheetColumn);
 
   const record = (picked: number, hints: 0 | 1 | 2, wrongCount: number) => {
     onRecord({
@@ -50,7 +50,7 @@ export function ModuleA({ questions, operators, onRecord, onComplete }: Props) {
   };
 
   const choose = (i: number) => {
-    if (solved || q.wrong.includes(i)) return;
+    if (solved || q.wrong.includes(i) || q.removed === i) return;
     if (i === question.correctIndex) {
       record(i, q.hints, q.wrong.length);
       setFlashKey((f) => ({ kind: 'ok', n: (f?.n ?? 0) + 1 }));
@@ -61,14 +61,18 @@ export function ModuleA({ questions, operators, onRecord, onComplete }: Props) {
     }
   };
 
-  const requestIntel = () => {
-    if (solved || q.hints >= 2) return;
-    if (q.hints === 0) {
-      setQ((s) => ({ ...s, hints: 1 }));
-    } else {
-      setQ((s) => ({ ...s, hints: 2 }));
-      record(question.correctIndex, 2, q.wrong.length);
+  const requestIntel = (next: 1 | 2) => {
+    if (solved || q.hints >= next) return;
+    // Hint 1 strikes out one wrong option that has not been tried yet
+    if (next === 1) {
+      const left = question.options.map((_, i) => i).filter((i) => i !== question.correctIndex && !q.wrong.includes(i));
+      const pick = left.length ? left[Math.floor(Math.random() * left.length)] : null;
+      setQ((s) => ({ ...s, hints: 1, removed: pick }));
+      return;
     }
+    setQ((s) => ({ ...s, hints: 2 }));
+    // Hint 2 selects the correct answer and submits it for the player (0 pts)
+    record(question.correctIndex, 2, q.wrong.length);
   };
 
   const advance = () => {
@@ -105,38 +109,32 @@ export function ModuleA({ questions, operators, onRecord, onComplete }: Props) {
           <div role="group" aria-label="Answer options" className="grid gap-2.5">
             {question.options.map((opt, i) => {
               const isWrong = q.wrong.includes(i);
+              const isRemoved = q.removed === i && !isWrong;
               const isRight = q.picked === i;
               const dim = solved && !isRight;
               const tone = isRight
                 ? 'bg-goat-lock text-goat-void'
                 : isWrong
                   ? 'bg-goat-crimson/15 text-goat-crimson/70 line-through'
-                  : 'bg-goat-deck text-goat-cyan hover:bg-goat-cyan hover:text-goat-void';
+                  : isRemoved
+                    ? 'bg-goat-mute/10 text-goat-mute/60 line-through'
+                    : 'bg-goat-deck text-goat-cyan hover:bg-goat-cyan hover:text-goat-void';
               return (
                 <button
                   key={i}
                   type="button"
-                  disabled={solved || isWrong}
+                  disabled={solved || isWrong || isRemoved}
                   onClick={() => choose(i)}
                   className={`tac-btn flex items-center gap-3 px-5 py-3.5 text-left text-sm font-bold ${tone} ${dim ? 'opacity-40' : ''}`}
                 >
                   <span className="font-tele text-base">[{LETTERS[i]}]</span>
                   <span className="font-hud text-[15px] normal-case tracking-normal">{opt}</span>
                   {isWrong && <span className="ml-auto font-tele text-[10px] tracking-widest">REJECTED</span>}
+                  {isRemoved && <span className="ml-auto font-tele text-[10px] tracking-widest">REMOVED</span>}
                   {isRight && <span className="ml-auto font-tele text-[10px] tracking-widest">{q.hints === 2 ? 'AUTO-LOCKED' : 'CONFIRMED'}</span>}
                 </button>
               );
             })}
-          </div>
-
-          <div>
-            <HintButton stage={q.hints} onClick={requestIntel} disabled={solved} />
-            {q.hints >= 1 && (
-              <div key={`${question.id}-inline`} className="goat-slide-in mt-2 border-l-2 border-goat-gold bg-goat-gold/10 px-2.5 py-1.5 font-tele text-[11px] uppercase tracking-wider text-goat-gold" role="status">
-                ▲ INTEL: CHEAT SHEET COLUMN <b className="text-white">{question.cheatSheetColumn}</b> · {column?.label ?? 'UNKNOWN'}
-                {q.hints === 2 && <span className="block text-goat-crimson">ANSWER AUTO-SELECTED · 0 PTS</span>}
-              </div>
-            )}
           </div>
 
           <div className="mt-auto flex flex-wrap gap-x-4 gap-y-1 border-t border-white/5 pt-2">
@@ -150,30 +148,8 @@ export function ModuleA({ questions, operators, onRecord, onComplete }: Props) {
       {/* lower action strip */}
       <footer className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-goat-gold/60 bg-goat-void/95">
         <div className="hazard-stripe h-1 w-full opacity-70" aria-hidden />
-        <div className="flex flex-wrap items-center gap-3 px-3 py-2.5">
-          <HintButton stage={q.hints} onClick={requestIntel} disabled={solved} size="strip" />
-
-          {/* docked cheat-sheet pointer (Hint 1) */}
-          <div className="min-h-[44px] flex-1">
-            {q.hints >= 1 && (
-              <div key={`${question.id}-intel`} className="goat-slide-in flex items-center gap-3 border-l-2 border-goat-gold bg-goat-gold/10 px-3 py-1.5" role="status">
-                <div className="flex h-6 gap-px" aria-hidden>
-                  {CHEAT_SHEET_COLUMNS.map((c) => (
-                    <span
-                      key={c.index}
-                      className={`flex w-4 items-end justify-center pb-px font-tele text-[8px] ${c.index === question.cheatSheetColumn ? 'bg-goat-gold font-bold text-goat-void' : 'bg-goat-mute/25 text-goat-mute'}`}
-                    >
-                      {c.index}
-                    </span>
-                  ))}
-                </div>
-                <span className="goat-blink text-goat-gold" aria-hidden>▲</span>
-                <span className="font-tele text-[11px] uppercase tracking-wider text-goat-gold">
-                  CHEAT SHEET ▸ COLUMN {question.cheatSheetColumn} · <b className="text-white">{column?.label ?? 'UNKNOWN'}</b>
-                </span>
-              </div>
-            )}
-          </div>
+        <div className="flex flex-wrap items-center gap-3 px-3 py-2.5 lg:pr-[380px]">
+          <div className="flex-1" />
 
           <span className="hidden font-tele text-[11px] uppercase tracking-widest text-goat-mute sm:inline">
             QUERY {idx + 1}/{questions.length}
@@ -188,6 +164,15 @@ export function ModuleA({ questions, operators, onRecord, onComplete }: Props) {
           </button>
         </div>
       </footer>
+      <HintDock
+        level={q.hints}
+        itemLabel={`QUERY ${idx + 1}/${questions.length}`}
+        hint1Text="One wrong option was struck out. This query now pays 60%."
+        hint2Text="The correct option was selected and submitted for you. This query scores 0."
+        cost1={cfg.hint1Penalty}
+        disabled={solved}
+        onHint={requestIntel}
+      />
     </div>
   );
 }
