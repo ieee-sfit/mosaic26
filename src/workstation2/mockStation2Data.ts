@@ -2,11 +2,12 @@
  * STATION 2 — DATA (isolated, swap this file to change content).
  * Questions, cheat-sheet columns, route sections and race stints live here, not in components.
  */
+import type { CodeEntry, GenOptions, StageSpec } from '../core/radiolink/types';
 import type { Beam, CheatColumn, LapId, Need, QualityProfile, QuizQuestion, Section, Stint } from './types';
 
 export const STATION2_CONFIG = {
   totalSeconds: 720,
-  moduleMax: { A: 15, B: 40, C: 45 },
+  moduleMax: { A: 15, B: 40, C: 45, D: 20 }, // D is the optional bonus round, outside the 100-point base
   speedBonusMax: 20,
   questionsPerRun: 3,
   hintPenalty: { hint1: 0.4, hint2: 1.0 }, // fraction of that item's points
@@ -19,11 +20,12 @@ export const STATION2_CONFIG = {
 };
 
 /** Expected clean-run time per module (seconds), used only to flag slow modules on the debrief. */
-export const PAR = { A: 100, B: 240, C: 300 } as const;
+export const PAR = { A: 100, B: 180, C: 300, D: 110 } as const;
 export const TIPS = {
   A: 'Read the whole question, then check the cheat sheet before guessing.',
   B: 'Check every NEED line before you send. Latency adds, loss compounds, bandwidth is the narrowest link.',
   C: 'Fix the node over 80% first, then latency, then quality. Use the relay only if a node cannot cope.',
+  D: 'Count the run between the two opposite bits. A length that matches no codebook entry is corrupted: RESEND.',
 } as const;
 
 export const CHEAT_COLUMNS: CheatColumn[] = [
@@ -73,127 +75,89 @@ export const QUESTION_BANK: QuizQuestion[] = [
 
 // ---------------------------------------------------------------- MODULE B
 /**
- * Route builder. Each section is a route from the trackside tower (T) to the pit wall (P) over relay sites.
+ * Route builder. Each run is a route from the trackside tower (T) to the pit wall (P) over six relay sites (A-F).
  *   latency adds along the route, loss compounds (1 - product of what survives), bandwidth is the narrowest beam.
  * Any route that meets every NEED line scores full marks (rule-based; see routes in logic.ts).
- * PRACTICE scores latency and loss with generous limits. QUALIFYING adds bandwidth with tighter limits.
- * Two laps x 4 sections x 5 points = 40. Every section has at least one valid route and several tempting wrong ones.
+ * The relays sit in three tiers, so every route has at least four beams (T to P never has a shortcut).
+ * PRACTICE scores latency and loss. QUALIFYING adds bandwidth with tighter limits.
+ * Two labs x 2 runs x 10 points = 40. Every run has a valid route, near-miss routes that fail exactly one NEED line,
+ * and no single-metric shortcut (the fastest, the cleanest and the widest route each fail).
  */
-export const LAP_NEED: Record<LapId, Need> = {
-  practice: { ms: 82, loss: 3.0, mbps: null },
-  qualifying: { ms: 64, loss: 1.6, mbps: 400 },
-};
 export const LAP_LABEL: Record<LapId, string> = { practice: 'PRACTICE', qualifying: 'QUALIFYING' };
-export const SECTIONS_PER_LAP = 4;
-export const POINTS_PER_SECTION = 5;
+export const SECTIONS_PER_LAP = 2;
+export const POINTS_PER_SECTION = 10;
 
-/** Landmark names and lap shares (km) of the four sections; they sum to the 13.629 km lap. */
-const SITE: Record<'1' | '2' | '3' | '4', { name: string; km: number; nodes: Record<string, readonly [number, number]> }> = {
-  '1': { name: 'ESSES', km: 3.12, nodes: { T: [104, 198], A: [190, 152], B: [358, 234], C: [513, 138], D: [625, 281], P: [330, 318] } },
-  '2': { name: 'MULSANNE', km: 4.46, nodes: { T: [520, 84], A: [330, 150], B: [710, 150], C: [236, 222], D: [520, 232], E: [810, 232], P: [330, 318] } },
-  '3': { name: 'INDY', km: 3.3, nodes: { T: [876, 222], A: [700, 130], B: [700, 285], C: [540, 200], D: [420, 238], P: [330, 318] } },
-  '4': { name: 'S-CURVES', km: 2.749, nodes: { T: [700, 300], A: [600, 200], B: [820, 205], C: [430, 140], D: [500, 275], P: [330, 318] } },
-};
+type Pos = readonly [number, number];
+type Row = readonly [string, string, number, number, number];
 
-const sec = (id: string, lap: LapId, rows: (readonly [string, string, number, number, number])[]): Section => {
-  const index = Number(id[1]);
-  const site = SITE[String(index) as '1' | '2' | '3' | '4'];
-  const nodes = Object.fromEntries(Object.entries(site.nodes).map(([k, [x, y]]) => [k, { x, y }]));
+/** Each run covers half of the 13.629 km lap, so the two runs of a lab add up to one full lap time. */
+const RUN_KM = 13.629 / SECTIONS_PER_LAP;
+
+const run = (id: string, lap: LapId, name: string, need: Need, nodes: Record<string, Pos>, rows: Row[]): Section => {
   const beams: Beam[] = rows.map(([a, b, ms, loss, mbps]) => ({ a, b, ms, loss, mbps }));
-  return { id, lap, index, name: site.name, km: site.km, nodes, beams, need: LAP_NEED[lap] };
+  return {
+    id, lap, index: Number(id[1]), name, km: RUN_KM, need, beams,
+    nodes: Object.fromEntries(Object.entries(nodes).map(([k, [x, y]]) => [k, { x, y }])),
+  };
 };
 
 export const SECTIONS: Section[] = [
-  sec('P1', 'practice', [
-    ['A', 'T', 14, 0.4, 800],
-    ['B', 'T', 16, 2.5, 150],
-    ['A', 'B', 21, 0.3, 150],
-    ['A', 'C', 26, 0.8, 500],
-    ['B', 'C', 26, 0.8, 500],
-    ['B', 'D', 24, 0.6, 150],
-    ['C', 'D', 14, 0.2, 250],
-    ['C', 'P', 18, 2.5, 200],
-    ['D', 'P', 19, 0.2, 500],
-  ]),
-  sec('P2', 'practice', [
-    ['A', 'T', 13, 0.2, 500],
-    ['B', 'T', 17, 0.6, 500],
-    ['D', 'T', 21, 2.5, 1000],
-    ['A', 'C', 24, 0.2, 500],
-    ['A', 'D', 16, 1.5, 400],
-    ['B', 'D', 26, 0.2, 800],
-    ['B', 'E', 13, 1.5, 200],
-    ['D', 'E', 19, 0.1, 300],
-    ['C', 'P', 17, 0.1, 200],
-    ['D', 'P', 23, 0.6, 1000],
-  ]),
-  sec('P3', 'practice', [
-    ['A', 'T', 17, 1, 1000],
-    ['B', 'T', 22, 0.8, 200],
-    ['A', 'B', 13, 0.1, 800],
-    ['A', 'C', 23, 0.2, 200],
-    ['B', 'C', 24, 0.6, 1000],
-    ['C', 'D', 19, 0.1, 600],
-    ['D', 'P', 14, 1, 150],
-    ['C', 'P', 36, 2, 500],
-    ['B', 'D', 32, 2, 250],
-  ]),
-  sec('P4', 'practice', [
-    ['A', 'T', 21, 1.5, 600],
-    ['B', 'T', 21, 1.2, 800],
-    ['D', 'T', 17, 2.5, 400],
-    ['A', 'B', 18, 1.2, 500],
-    ['A', 'C', 18, 0.1, 800],
-    ['A', 'D', 22, 0.6, 400],
-    ['C', 'D', 19, 1, 150],
-    ['C', 'P', 26, 0.3, 1000],
-    ['D', 'P', 15, 0.6, 600],
-  ]),
-  sec('Q1', 'qualifying', [
-    ['A', 'T', 25, 0.4, 800],
-    ['B', 'T', 16, 0.1, 400],
-    ['A', 'B', 21, 0.6, 1000],
-    ['A', 'C', 24, 0.4, 800],
-    ['B', 'C', 18, 0.6, 500],
-    ['B', 'D', 22, 1.5, 500],
-    ['C', 'D', 12, 0.2, 400],
-    ['C', 'P', 26, 0.2, 150],
-    ['D', 'P', 14, 0.4, 400],
-  ]),
-  sec('Q2', 'qualifying', [
-    ['A', 'T', 21, 0.2, 400],
-    ['B', 'T', 23, 0.1, 400],
-    ['D', 'T', 26, 1.2, 400],
-    ['A', 'C', 16, 0.3, 250],
-    ['A', 'D', 16, 0.2, 1000],
-    ['B', 'D', 26, 0.4, 600],
-    ['B', 'E', 11, 1.2, 800],
-    ['D', 'E', 20, 0.3, 500],
-    ['C', 'P', 12, 0.2, 200],
-    ['D', 'P', 20, 1, 500],
-  ]),
-  sec('Q3', 'qualifying', [
-    ['A', 'T', 15, 0.3, 400],
-    ['B', 'T', 11, 0.3, 800],
-    ['A', 'B', 14, 1, 150],
-    ['A', 'C', 19, 0.4, 1000],
-    ['B', 'C', 16, 0.3, 400],
-    ['C', 'D', 16, 0.2, 500],
-    ['D', 'P', 18, 0.4, 1000],
-    ['C', 'P', 32, 1.2, 1000],
-    ['B', 'D', 29, 0.8, 200],
-  ]),
-  sec('Q4', 'qualifying', [
-    ['A', 'T', 11, 0.2, 1000],
-    ['B', 'T', 11, 0.6, 500],
-    ['D', 'T', 21, 2.5, 150],
-    ['A', 'B', 15, 0.4, 1000],
-    ['A', 'C', 21, 0.3, 800],
-    ['A', 'D', 13, 0.8, 250],
-    ['C', 'D', 13, 2, 500],
-    ['C', 'P', 20, 0.1, 1000],
-    ['D', 'P', 15, 0.6, 500],
-  ]),
+  run('P1', 'practice', 'INDY', { ms: 82, loss: 1.6, mbps: null },
+    { T: [876, 222], A: [785, 95], B: [768, 304], C: [602, 102], D: [636, 210], E: [433, 128], F: [503, 312], P: [330, 318] }, [
+      ['T', 'A', 15, 0.1, 200],
+      ['T', 'B', 27, 0.1, 250],
+      ['A', 'C', 21, 0.1, 200],
+      ['A', 'D', 16, 0.3, 600],
+      ['B', 'D', 13, 0.3, 200],
+      ['C', 'E', 26, 1, 600],
+      ['C', 'F', 28, 0.3, 1000],
+      ['D', 'E', 25, 0.2, 150],
+      ['D', 'F', 22, 1.5, 150],
+      ['E', 'P', 20, 0.4, 1000],
+      ['F', 'P', 19, 0.1, 800],
+    ]),
+  run('P2', 'practice', 'MULSANNE', { ms: 72, loss: 1.4, mbps: null },
+    { T: [900, 100], A: [707, 137], B: [800, 260], C: [553, 121], D: [580, 322], E: [402, 112], F: [457, 209], P: [330, 318] }, [
+      ['T', 'A', 30, 0.2, 800],
+      ['T', 'B', 18, 0.1, 400],
+      ['A', 'C', 9, 1, 300],
+      ['B', 'C', 14, 0.8, 200],
+      ['B', 'D', 25, 0.1, 400],
+      ['C', 'E', 17, 0.4, 150],
+      ['C', 'F', 14, 1.5, 250],
+      ['D', 'F', 11, 1, 1000],
+      ['E', 'P', 19, 0.1, 250],
+      ['F', 'P', 18, 0.2, 400],
+      ['C', 'D', 13, 0.6, 500],
+    ]),
+  run('Q1', 'qualifying', 'ARNAGE', { ms: 70, loss: 1.7, mbps: 300 },
+    { T: [868, 300], A: [790, 198], B: [694, 316], C: [545, 330], D: [621, 95], E: [475, 204], F: [445, 95], P: [330, 318] }, [
+      ['T', 'A', 17, 0.2, 400],
+      ['T', 'B', 9, 0.1, 300],
+      ['A', 'C', 18, 0.1, 300],
+      ['A', 'D', 22, 0.3, 1000],
+      ['B', 'C', 27, 0.2, 300],
+      ['B', 'D', 12, 0.4, 600],
+      ['C', 'E', 25, 0.2, 800],
+      ['D', 'E', 13, 0.4, 600],
+      ['D', 'F', 22, 0.1, 1000],
+      ['E', 'P', 9, 1.2, 300],
+      ['F', 'P', 10, 0.6, 200],
+    ]),
+  run('Q2', 'qualifying', 'S-CURVES', { ms: 62, loss: 1.3, mbps: 300 },
+    { T: [790, 300], A: [713, 100], B: [720, 205], C: [559, 103], D: [550, 330], E: [401, 95], F: [452, 207], P: [330, 318] }, [
+      ['T', 'A', 21, 0.4, 800],
+      ['T', 'B', 26, 0.1, 1000],
+      ['A', 'C', 9, 0.1, 200],
+      ['A', 'D', 16, 0.3, 400],
+      ['B', 'D', 12, 0.1, 300],
+      ['C', 'E', 29, 0.3, 250],
+      ['C', 'F', 25, 0.3, 200],
+      ['D', 'F', 14, 0.1, 600],
+      ['E', 'P', 27, 0.2, 600],
+      ['F', 'P', 9, 1, 300],
+      ['E', 'F', 30, 0.3, 500],
+    ]),
 ];
 
 // ---------------------------------------------------------------- MODULE C
@@ -225,3 +189,33 @@ export const STINTS: Stint[] = [
 ];
 
 export const BALANCER_DEFAULTS = { split: 50, qualityIdx: 0, divert: false };
+
+// ---------------------------------------------------------------- MODULE D (FINAL PUSH · RADIO LINK)
+/**
+ * Codebook order matters: stage 1 uses the first 2 entries, stage 2 the first 4, stage 3 all 6.
+ * A command is a run of identical bits bounded by the opposite bit on each side; run length picks the command, bit value the pair member.
+ */
+export const RADIO_CODEBOOK: CodeEntry[] = [
+  { id: 'drs-on', label: 'DRS ON', bit: 1, run: 5 },
+  { id: 'drs-off', label: 'DRS OFF', bit: 0, run: 5 },
+  { id: 'ot-in', label: 'OVERTAKE INSIDE', bit: 1, run: 3 },
+  { id: 'ot-out', label: 'OVERTAKE OUTSIDE', bit: 0, run: 3 },
+  { id: 'brake', label: 'BRAKE NOW', bit: 1, run: 4 },
+  { id: 'lift', label: 'LIFT OFF', bit: 0, run: 4 },
+];
+
+/** All Module D numbers live here so they can be tuned after a playtest. */
+export const RADIO_CONFIG = {
+  /** Cap on the whole round, in seconds (also capped by the shift time left). The line stops for every answer, so this is generous. */
+  maxSeconds: 360,
+  /** Auto-skip of the PLAY / SKIP offer, so an abandoned kiosk still saves its run. */
+  offerSeconds: 20,
+  hint1SpeedFactor: 0.5, // Hint 1: the stage's stream runs at this share of its speed
+  hint1Cost: 0.4, // fraction of that stage's points
+  gen: { leadInBits: 8, minGapBits: 5, gapJitter: 2 } satisfies GenOptions,
+  stages: [
+    { commands: 6, corrupted: 0, active: 2, bps: 1.5, windowBits: 8, freeze: true, maxFlips: 1, points: 5, resend: false },
+    { commands: 8, corrupted: 3, active: 4, bps: 1.75, windowBits: 8, freeze: true, maxFlips: 1, points: 7, resend: true },
+    { commands: 10, corrupted: 4, active: 6, bps: 2, windowBits: 8, freeze: true, maxFlips: 2, points: 8, resend: true },
+  ] satisfies StageSpec[],
+};

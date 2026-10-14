@@ -5,7 +5,7 @@ import { fmtLap, secondsFor, speedFor } from '../race';
 import HintDock from '../../core/HintDock';
 import type { HintLevel } from '../../core/HintDock';
 import LeMansMap from './LeMansMap';
-import { PILL_H, PILL_W, pillPositions } from '../pills';
+import { pillPositions, pillSize } from '../pills';
 import Panel from './Panel';
 import type { LapId, Section } from '../types';
 import type { Track } from '../Station2';
@@ -37,7 +37,7 @@ function lapSummary(lap: LapId, pts: Record<string, number>) {
   return { pts: total, sec };
 }
 
-/** Module B: build the route from the trackside tower to the pit wall that meets every NEED line. */
+/** Module B: build the route from the trackside tower to the pit wall that meets every NEED line. 4 runs x 10 points. */
 export default function ModuleB({ onScore, onDone, onShake, track }: Props) {
   const [si, setSi] = useState(0);
   const [route, setRoute] = useState<string[]>(['T']);
@@ -55,7 +55,7 @@ export default function ModuleB({ onScore, onDone, onShake, track }: Props) {
 
   const sec: Section = SECTIONS[si];
   const lap = sec.lap;
-  const secs = lapOf(lap);
+  const pill = pillSize(sec);
   const t = tries[sec.id] ?? { wrong: 0, hint: 0 as HintLevel };
   const last = route[route.length - 1];
   const complete = last === 'P';
@@ -100,7 +100,7 @@ export default function ModuleB({ onScore, onDone, onShake, track }: Props) {
     setPts(nextPts);
     cb.current.onScore(Object.values(nextPts).reduce((n, x) => n + x, 0));
     setBusy(true);
-    setMsg({ kind: 'ok', text: `S${sec.index} +${fmt(earned, 1)} · ${Math.round(speedFor(earned / PTS))} km/h` });
+    setMsg({ kind: 'ok', text: `+${fmt(earned, 1)} · ${Math.round(speedFor(earned / PTS))} km/h` });
     later(() => advance(nextPts), 1100);
   };
 
@@ -148,8 +148,6 @@ export default function ModuleB({ onScore, onDone, onShake, track }: Props) {
     ...(sec.need.mbps !== null ? [{ id: 'bw', label: 'BANDWIDTH', now: started ? `${fmtMbps(m.mbps)} M` : '--', need: `≥ ${sec.need.mbps} M`, ok: v.bw }] : []),
   ];
   const okCount = rows.filter((r) => r.ok).length;
-  const lapDone = secs.every((s) => s.id in pts);
-  const sum = lapSummary(lap, pts);
 
   return (
     <section className="ws2-modB ws2-in" aria-label="Module B route builder">
@@ -162,18 +160,17 @@ export default function ModuleB({ onScore, onDone, onShake, track }: Props) {
         {LAPS.map((l) => (
           <div key={l} role="listitem" className={`ws2-laptab ${l === lap ? 'is-now' : ''} ${lapOf(l).every((s) => s.id in pts) ? 'is-done' : ''}`}>
             <b>{LAP_LABEL[l]}</b>
-            <span className="ws2-laptab__pips" aria-label={`${lapOf(l).filter((s) => s.id in pts).length} of ${SECTIONS_PER_LAP} sections done`}>
+            <span className="ws2-laptab__pips" aria-label={`${lapOf(l).filter((s) => s.id in pts).length} of ${SECTIONS_PER_LAP} runs done`}>
               {lapOf(l).map((s) => <i key={s.id} className={s.id in pts ? 'on' : s.id === sec.id ? 'now' : ''} />)}
             </span>
           </div>
         ))}
-        <span className="ws2-laptabs__tip">SECTION {sec.index}/{SECTIONS_PER_LAP} · {sec.name}</span>
       </div>
 
       <div className="ws2-bgrid">
         <div className="ws2-bmain">
-          <Panel title="TOWER → PIT WALL" tag={`${LAP_LABEL[lap]} · S${sec.index}`} className="ws2-bmap">
-            <LeMansMap className={`ws2-map ${banner ? 'is-dim' : ''}`} label={`Route map, section ${sec.index}`} names>
+          <Panel title="TOWER → PIT WALL" tag={`${LAP_LABEL[lap]} · RUN ${sec.index}`} className="ws2-bmap">
+            <LeMansMap className={`ws2-map ${banner ? 'is-dim' : ''}`} label={`Route map, ${LAP_LABEL[lap]} run ${sec.index}`} names={false} faintLabels={false}>
               <g className="ws2-rb">
                 {sec.beams.map((b) => {
                   const A = sec.nodes[b.a]; const B = sec.nodes[b.b];
@@ -186,11 +183,18 @@ export default function ModuleB({ onScore, onDone, onShake, track }: Props) {
                 {sec.beams.map((b) => {
                   const at = PILLS[sec.id][`${b.a}${b.b}`];
                   const live = onRoute(b.a, b.b);
+                  const oneLine = sec.need.mbps === null;
                   return (
                     <g key={`p${b.a}${b.b}`} transform={`translate(${at.x} ${at.y})`} className={`ws2-pill ${live ? 'is-route' : ''}`} aria-hidden>
-                      <rect x={-PILL_W / 2} y={-PILL_H / 2} width={PILL_W} height={PILL_H} />
-                      <text y="-3" textAnchor="middle">{b.ms}ms {b.loss}%</text>
-                      <text y="14" textAnchor="middle" className={sec.need.mbps === null ? 'is-dim' : ''}>{b.mbps}M</text>
+                      <rect x={-pill.w / 2} y={-pill.h / 2} width={pill.w} height={pill.h} />
+                      {oneLine ? (
+                        <text y="5" textAnchor="middle">{b.ms}ms · {b.loss}%</text>
+                      ) : (
+                        <>
+                          <text y="-3" textAnchor="middle">{b.ms}ms · {b.loss}%</text>
+                          <text y="14" textAnchor="middle">{b.mbps}M</text>
+                        </>
+                      )}
                     </g>
                   );
                 })}
@@ -248,29 +252,12 @@ export default function ModuleB({ onScore, onDone, onShake, track }: Props) {
               <span>{complete && v.ok ? 'SEND' : complete ? 'FIX' : 'BUILD'}</span>
             </div>
           </Panel>
-
-          <Panel title={`${LAP_LABEL[lap]} LAP`} tag={lapDone ? fmtLap(sum.sec) : '--:--.---'} tone="steel" className="ws2-bsecs">
-            <ol>
-              {secs.map((s) => {
-                const p = pts[s.id];
-                const done = p !== undefined;
-                return (
-                  <li key={s.id} className={done ? 'is-done' : s.id === sec.id ? 'is-now' : ''}>
-                    <b>S{s.index}</b>
-                    <span className="ws2-bsecs__name">{s.name}</span>
-                    <span>{done ? `${fmt(p, 1)}/${PTS}` : '--'}</span>
-                    <span>{done ? `${Math.round(speedFor(p / PTS))} km/h` : '--'}</span>
-                  </li>
-                );
-              })}
-            </ol>
-          </Panel>
         </aside>
       </div>
 
       <HintDock
         level={t.hint}
-        itemLabel={`${LAP_LABEL[lap]} S${sec.index}`}
+        itemLabel={`${LAP_LABEL[lap]} run ${sec.index}`}
         hint1Text={hint1}
         hint2Text="A valid route was sent for you. This section scores 0."
         cost1={STATION2_CONFIG.hintPenalty.hint1}

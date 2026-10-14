@@ -1,6 +1,6 @@
 import { useMemo, useState, useRef } from 'react'
-import { QUESTION_BANK, CHEAT_SHEET_COLUMNS, STATION4_CONFIG } from '../mockStation4Data'
-import { pickQuestions, questionPoints } from './logic'
+import { QUESTION_BANK, STATION4_CONFIG } from '../mockStation4Data'
+import { pickOne, pickQuestions, questionPoints } from './logic'
 import HintDock from '../../core/HintDock'
 
 const LETTERS = ['A', 'B', 'C', 'D']
@@ -15,7 +15,6 @@ export default function ModuleA({ onScore, onDone, fx, log, track }) {
   const earnedRef = useRef(0)
   const q = questions[idx]
   const st = state[idx]
-  const col = CHEAT_SHEET_COLUMNS[q.cheatColumn]
 
   const patch = (p) => setState((s) => s.map((x, i) => (i === idx ? { ...x, ...p } : x)))
 
@@ -47,8 +46,11 @@ export default function ModuleA({ onScore, onDone, fx, log, track }) {
     if (st.done || st.hint >= next) return
     track?.('A', 'hint', `Q${idx + 1} H${next}`)
     if (next === 1) {
-      patch({ hint: 1 })
-      log(`OVERRIDE INTEL L1 // -${STATION4_CONFIG.moduleA.hint1PenaltyFraction * 100}% PTS`, 'warn')
+      // Hint 1: strike out one wrong option (no wrong-try penalty)
+      const wrongs = q.options.map((_, n) => n).filter((n) => n !== q.correct && !st.banned.includes(n))
+      const gone = pickOne(wrongs)
+      patch({ hint: 1, banned: gone === undefined ? st.banned : [...st.banned, gone] })
+      log(`OVERRIDE INTEL L1 // ONE WRONG OPTION REMOVED // -${STATION4_CONFIG.moduleA.hint1PenaltyFraction * 100}% PTS`, 'warn')
     } else {
       fx('glitch')
       log('OVERRIDE INTEL L2 // AUTO-SOLVE // -100% PTS', 'crit')
@@ -102,7 +104,7 @@ export default function ModuleA({ onScore, onDone, fx, log, track }) {
       <HintDock
         level={st.hint}
         itemLabel={`QUERY ${idx + 1}/${questions.length}`}
-        hint1Text={`Consult the cheat sheet: ${col.label}. ${col.blurb ?? ''}`}
+        hint1Text="One wrong option was struck out. Pick from the rest."
         hint2Text={`Option [${LETTERS[q.correct]}] was submitted for you. This query scores 0.`}
         cost1={STATION4_CONFIG.moduleA.hint1PenaltyFraction}
         disabled={st.done}

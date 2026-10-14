@@ -77,7 +77,7 @@ export function Launcher({ onLaunch, preset }: Props) {
           &gt; BOTH OPERATORS MUST AUTHENTICATE BEFORE THE CLOCK ARMS
         </p>
         <div className="mt-5 flex gap-px font-tele text-[10px] uppercase tracking-widest">
-          {['A · FLIGHT TELEMETRY', 'B · TOKAMAK DIAGNOSTIC', 'C · WAVE INTERCEPTION'].map((m) => (
+          {['A · FLIGHT TELEMETRY', 'B · DIAGNOSE THE LEFTOVER', 'C · WAVE INTERCEPTION', '+ BONUS · SECRET HANDSHAKE'].map((m) => (
             <span key={m} className="border border-goat-cyan/25 bg-goat-navy/80 px-3 py-1.5 text-goat-cyan-dim">
               {m}
             </span>

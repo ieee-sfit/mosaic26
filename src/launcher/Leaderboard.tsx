@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { SCORING } from '../core/scoring'
 import './leaderboard.css'
 
 interface Scores { rank: number; stations: number; s1: number; s2: number; s3: number; s4: number; final: number; time_total: number }
@@ -58,7 +59,7 @@ function Pips({ row }: { row: Scores }) {
         const v = row[s.key]
         return (
           <span key={s.key} className={`lb-pip ${s.cls} ${v ? 'on' : ''}`}>
-            <i style={{ ['--fill' as string]: `${Math.min(100, (v / 120) * 100)}%` }} />
+            <i style={{ ['--fill' as string]: `${Math.min(100, (v / SCORING.rawMax) * 100)}%` }} />
             <b>{v || '–'}</b>
             <em>{s.short}</em>
           </span>

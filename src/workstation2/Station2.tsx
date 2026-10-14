@@ -14,6 +14,8 @@ import type { RouteSummary } from './components/ModuleB';
 import BoardScreen from './components/BoardScreen';
 import type { BoardData } from './components/BoardScreen';
 import ModuleC from './components/ModuleC';
+import ModuleD from './components/ModuleD';
+import { RADIO_CONFIG } from './mockStation2Data';
 import './station2.css';
 
 export interface Station2Summary {
@@ -30,25 +32,26 @@ interface Props {
   onComplete?: (summary: Station2Summary) => void;
 }
 
-type ModuleId = 'A' | 'B' | 'C';
+type ModuleId = 'A' | 'B' | 'C' | 'D';
 export type Track = (m: ModuleId, kind: 'wrong' | 'hint', label?: string) => void;
 
-const MODULES: ModuleId[] = ['A', 'B', 'C'];
-const NAMES: Record<ModuleId, string> = { A: 'TELEMETRY', B: 'ROUTES', C: 'RACE' };
+const MODULES: ModuleId[] = ['A', 'B', 'C']; // the three scored modules; D is an optional bonus after them
+const ALL_MODULES: ModuleId[] = [...MODULES, 'D'];
+const NAMES: Record<ModuleId, string> = { A: 'TELEMETRY', B: 'ROUTES', C: 'RACE', D: 'FINAL PUSH' };
 const ID_RE = /^\d{6}$/;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 type Diag = Report['diag'];
-const blankDiag = (): Diag => Object.fromEntries(MODULES.map((m) => [m, { seconds: 0, wrong: 0, hints: 0, flags: [] as string[] }]));
+const blankDiag = (): Diag => Object.fromEntries(ALL_MODULES.map((m) => [m, { seconds: 0, wrong: 0, hints: 0, flags: [] as string[] }]));
 
 export default function Station2({ onOpenStationChooser, onComplete }: Props) {
   const session = useSession();
   const ids: [string, string] | null =
     session && ID_RE.test(session.p1_id) && ID_RE.test(session.p2_id) ? [session.p1_id, session.p2_id] : null;
 
-  const [stage, setStage] = useState<'launch' | 'play' | 'board' | 'end'>('launch');
+  const [stage, setStage] = useState<'launch' | 'play' | 'board' | 'offer' | 'bonus' | 'end'>('launch');
   const [mod, setMod] = useState<ModuleId>('A');
-  const [score, setScore] = useState({ a: 0, b: 0, c: 0 });
+  const [score, setScore] = useState({ a: 0, b: 0, c: 0, d: 0 });
   const [gaskets, setGaskets] = useState(STATION2_CONFIG.gasketPips);
   const [timeLeft, setTimeLeft] = useState(STATION2_CONFIG.totalSeconds);
   const [flash, setFlash] = useState(false);
@@ -60,12 +63,18 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
   const pausedAt = useRef(0);
   const lapPts = useRef<number[]>([]);
   const finished = useRef(false);
+  const committed = useRef(false);
+  /** Everything fixed at the moment Module C ends: the speed bonus and time_left do not change while D is played. */
+  const frozen = useRef<{ outcome: Outcome; a: number; b: number; c: number; base: number; bonus: number; left: number; grid: number | null; finish: number | null } | null>(null);
+  const [dDeadline, setDDeadline] = useState(0);
   const live = useRef({ score, ids, grid: null as number | null });
   const stats = useRef<Diag>(blankDiag());
   const modStart = useRef(0);
   const modRef = useRef<ModuleId>('A');
   const stage$ = useRef<HTMLDivElement | null>(null);
   useEffect(() => { live.current = { score, ids, grid }; modRef.current = mod; });
+  const skipRef = useRef<() => void>(() => undefined);
+  useEffect(() => { skipRef.current = skipD; });
 
   const secondsLeft = () => Math.max(0, Math.ceil((endAt.current - Date.now()) / 1000));
 
@@ -117,32 +126,84 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
     openBoard({ kind: 'quali', best: r.qualifying.sec, total: null, grid: g, points: r.practice.pts + r.qualifying.pts, pointsMax: STATION2_CONFIG.moduleMax.B, practice: r.practice.sec });
   };
   const qualiContinue = () => { closeBoard(); goMod('C'); };
-  const raceContinue = () => setStage((st) => (st === 'board' ? 'end' : st));
+  /**
+   * The race board's CONTINUE leads to the Module D offer, but only after a completed C with shift time left. Everything
+   * else (timeout, forfeit, no time left) goes straight to the end screen exactly as before. The run is only handed to the
+   * host once, by `commit`, so a played D can still raise the score before it is saved.
+   */
+  const raceContinue = () => {
+    if (stage !== 'board') return;
+    const f = frozen.current;
+    if (f && f.outcome === 'complete' && f.left > 0) setStage('offer');
+    else { commit(0); setStage('end'); }
+  };
+  const playD = () => {
+    const f = frozen.current;
+    if (!f || stage !== 'offer') return;
+    // the shift clock picks up where Module C left it (board and offer time are not charged) and keeps running during D
+    endAt.current = Date.now() + f.left * 1000;
+    setDDeadline(Math.min(endAt.current, Date.now() + Math.min(RADIO_CONFIG.maxSeconds, f.left) * 1000));
+    setTimeLeft(f.left);
+    modRef.current = 'D';
+    modStart.current = Date.now();
+    setMod('D');
+    setStage('bonus');
+  };
+  const skipD = () => {
+    if (stage !== 'offer') return;
+    commit(0);
+    setStage('end');
+  };
+  const doneD = (d: number) => {
+    if (stage !== 'bonus') return;
+    closeModule();
+    commit(d, true);
+    setStage('end');
+  };
 
+  /**
+   * Hands the finished run to the host, once. raw = base (A+B+C) + speed bonus (frozen when C ended) + D.
+   * time_left is the value at C's end, so playing or skipping D never changes a tie-break.
+   */
+  const commit = useCallback((d: number, dPlayed = false) => {
+    const f = frozen.current;
+    if (!f || committed.current) return;
+    committed.current = true;
+    const { ids: i } = live.current;
+    const raw = round2(f.base + f.bonus + d);
+    const summary: Station2Summary = { p1_id: i?.[0] ?? '', p2_id: i?.[1] ?? '', game_id: 'station2', raw_score: raw, time_left: f.left };
+    setScore((x) => ({ ...x, d }));
+    setReport({
+      outcome: f.outcome, a: f.a, b: f.b, c: f.c, d, dPlayed, bonus: f.bonus, raw, diag: JSON.parse(JSON.stringify(stats.current)),
+      grid: f.grid, finish: f.finish,
+    });
+    try { onComplete?.(summary); } catch { /* host callback must not break the end screen */ }
+    try { window.dispatchEvent(new CustomEvent('mosaic:station-complete', { detail: summary })); } catch { /* ignore */ }
+  }, [onComplete]);
+
+  /** Module C is over (or the shift ended): freeze the base score, speed bonus and time_left, then show the board. */
   const finish = useCallback((outcome: Outcome, left: number) => {
     if (finished.current) return;
     finished.current = true;
     closeModule();
-    const { score: s, ids: i } = live.current;
+    const { score: s } = live.current;
     const base = s.a + s.b + s.c;
     const bonus = speedBonus(left, outcome === 'complete', base);
-    const raw = round2(base + bonus);
-    const summary: Station2Summary = { p1_id: i?.[0] ?? '', p2_id: i?.[1] ?? '', game_id: 'station2', raw_score: raw, time_left: left };
     const laps = lapPts.current.map((p) => lapSeconds(p / (STATION2_CONFIG.moduleMax.C / 3)));
     const best = laps.length ? Math.min(...laps) : null;
     const total = outcome === 'complete' ? laps.reduce((n, x) => n + x, 0) : null;
-    setReport({
-      outcome, a: s.a, b: s.b, c: s.c, bonus, raw, diag: JSON.parse(JSON.stringify(stats.current)),
-      grid: live.current.grid, finish: total !== null ? racePosition(total) : null,
-    });
+    frozen.current = {
+      outcome, a: s.a, b: s.b, c: s.c, base, bonus, left, grid: live.current.grid, finish: total !== null ? racePosition(total) : null,
+    };
+    setTimeLeft(left);
     setBoard(outcome === 'complete'
       ? { kind: 'race', best, total, grid: live.current.grid, points: s.c, pointsMax: STATION2_CONFIG.moduleMax.C }
       : { kind: 'dnf', best, total: null, grid: live.current.grid, points: s.c, pointsMax: STATION2_CONFIG.moduleMax.C, partial: base });
     pausedAt.current = 0;
     setStage('board');
-    try { onComplete?.(summary); } catch { /* host callback must not break the end screen */ }
-    try { window.dispatchEvent(new CustomEvent('mosaic:station-complete', { detail: summary })); } catch { /* ignore */ }
-  }, [onComplete, closeModule]);
+    // a run that cannot be followed by D is complete now; a completed C waits for the offer so D can still add to it
+    if (outcome !== 'complete' || left <= 0) commit(0);
+  }, [closeModule, commit]);
 
   // timestamp-driven 12:00 countdown (cannot drift)
   useEffect(() => {
@@ -155,10 +216,24 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
     return () => window.clearInterval(t);
   }, [stage, board, finish]);
 
+  // the shift clock keeps running during D (D ends itself at its own deadline); the offer auto-skips so an idle kiosk still saves
+  useEffect(() => {
+    if (stage !== 'bonus') return undefined;
+    const t = window.setInterval(() => setTimeLeft(Math.max(0, Math.ceil((endAt.current - Date.now()) / 1000))), 250);
+    return () => window.clearInterval(t);
+  }, [stage]);
+  useEffect(() => {
+    if (stage !== 'offer') return undefined;
+    const t = window.setTimeout(() => skipRef.current(), RADIO_CONFIG.offerSeconds * 1000);
+    return () => window.clearTimeout(t);
+  }, [stage]);
+
   const go = useCallback(() => {
     endAt.current = Date.now() + STATION2_CONFIG.totalSeconds * 1000;
     stats.current = blankDiag();
     lapPts.current = [];
+    frozen.current = null;
+    committed.current = false;
     modStart.current = Date.now();
     setTimeLeft(STATION2_CONFIG.totalSeconds);
     setStage('play');
@@ -168,10 +243,13 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
   const restart = () => { onOpenStationChooser?.(); };
 
   const playing = stage === 'play';
-  const lowTime = playing && timeLeft <= 120;
+  const inRun = playing || stage === 'offer' || stage === 'bonus';
+  const lowTime = (playing || stage === 'bonus') && timeLeft <= 120;
   const lastGasket = playing && mod === 'C' && gaskets <= 1;
   const alarm = lowTime || lastGasket;
-  const idx = MODULES.indexOf(mod);
+  const withD = stage === 'offer' || stage === 'bonus';
+  const cur = stage === 'offer' ? null : mod;
+  const idx = withD ? MODULES.length : MODULES.indexOf(mod);
 
   return (
     <div className={`ws2-shell ${alarm ? 'is-alarm' : ''} ${flash ? 'fx-flash' : ''}`}>
@@ -180,15 +258,15 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
       <div className="ws2-hazard" aria-hidden />
       <div className="ws2-alarmframe" aria-hidden />
 
-      {playing && (
+      {inRun && (
         <header className="ws2-header">
           <div className="ws2-brand">
             <b>F1 0-LAG STREAM</b>
             <span>ST-02 · {ids?.[0]} + {ids?.[1]}</span>
           </div>
           <nav className="ws2-modnav" aria-label="Module progress">
-            {MODULES.map((m, i) => (
-              <span key={m} className={`${m === mod ? 'on' : ''} ${idx > i ? 'done' : ''}`}>
+            {(withD ? ALL_MODULES : MODULES).map((m, i) => (
+              <span key={m} className={`${m === cur ? 'on' : ''} ${idx > i ? 'done' : ''}`}>
                 <i>{idx > i ? '■' : m === mod ? '▶' : '□'}</i> {m} {NAMES[m]}
               </span>
             ))}
@@ -196,7 +274,7 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
           <div className="ws2-alarmchip" role={alarm ? 'alert' : undefined}>
             {alarm && <span><i aria-hidden>▲</i> {lowTime && lastGasket ? 'LOW TIME · LAST GASKET' : lowTime ? 'LOW TIME' : 'LAST GASKET'}</span>}
           </div>
-          <div className="ws2-hscore"><small>SCORE</small><b>{Math.round((score.a + score.b + score.c) * 10) / 10}</b></div>
+          <div className="ws2-hscore"><small>SCORE</small><b>{Math.round((score.a + score.b + score.c + score.d) * 10) / 10}</b></div>
           <Stopwatch seconds={timeLeft} total={STATION2_CONFIG.totalSeconds} running alarm={lowTime} />
         </header>
       )}
@@ -221,6 +299,26 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
           />
         )}
         {stage === 'board' && board && <BoardScreen data={board} onContinue={raceContinue} />}
+        {stage === 'offer' && (
+          <div className="ws2-offer ws2-in" role="dialog" aria-label="Final push bonus offer">
+            <small>BONUS ROUND</small>
+            <h2>FINAL PUSH · BONUS</h2>
+            <p>UP TO <b>+{STATION2_CONFIG.moduleMax.D}</b> · {Math.min(RADIO_CONFIG.maxSeconds, timeLeft)} S</p>
+            <div className="ws2-offer__actions">
+              <button type="button" className="ws2-btn ws2-btn--go" onClick={playD} autoFocus>PLAY</button>
+              <button type="button" className="ws2-btn ws2-btn--ghost" onClick={skipD}>SKIP</button>
+            </div>
+            <span className="ws2-D__auto" aria-hidden><i style={{ ['--offer-s' as string]: `${RADIO_CONFIG.offerSeconds}s` }} /></span>
+          </div>
+        )}
+        {stage === 'bonus' && (
+          <ModuleD
+            deadline={dDeadline}
+            track={track} onShake={shake}
+            onScore={(d) => setScore((s) => ({ ...s, d }))}
+            onDone={doneD}
+          />
+        )}
         {stage === 'end' && report && <EndScreen report={report} onRestart={restart} />}
       </main>
     </div>

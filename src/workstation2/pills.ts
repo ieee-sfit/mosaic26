@@ -4,8 +4,8 @@
  */
 import type { Section } from './types';
 
-export const PILL_W = 90;
-export const PILL_H = 40;
+/** Practice scores two numbers and shows one line; qualifying also scores bandwidth and shows two. */
+export const pillSize = (s: Section) => (s.need.mbps === null ? { w: 92, h: 26 } : { w: 90, h: 40 });
 const NODE_HALF_W = { T: 29, P: 29, relay: 19 };
 const NODE_HALF_H = 17;
 const GAP = 5;
@@ -17,6 +17,7 @@ const TS = [0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74, 0.2, 0.8, 0.15, 0.85];
 const OFFS = [0, 24, -24, 40, -40, 58, -58];
 
 export function pillPositions(s: Section): Record<string, { x: number; y: number }> {
+  const { w: PILL_W, h: PILL_H } = pillSize(s);
   const nodes: Box[] = Object.entries(s.nodes).map(([id, p]) => ({ x: p.x, y: p.y, w: 2 * (id === 'T' || id === 'P' ? NODE_HALF_W.T : NODE_HALF_W.relay) + 10, h: 2 * NODE_HALF_H + 10 }));
   const placed: Box[] = [];
   const out: Record<string, { x: number; y: number }> = {};
