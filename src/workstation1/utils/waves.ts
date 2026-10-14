@@ -52,13 +52,47 @@ export interface Alignment {
   locked: boolean;
 }
 
-/** ±tolerance of full range on every parameter (phase: of 360°). */
+/** Module C lock windows, per control: amplitude / frequency as a fraction of their range (slider units), phase in degrees. */
 export function alignmentFor(cal: WaveCalibration, p: WaveProfile, c: Controls): Alignment {
   const t = targetsFor(cal, p);
-  const amp = Math.abs(c.amp - t.amp) <= cal.tolerance;
-  const freq = Math.abs(c.freq - t.freq) <= cal.tolerance;
-  const phase = angleDiff(c.phase, t.phase) <= cal.tolerance * 360;
+  const amp = Math.abs(c.amp - t.amp) <= cal.window.amp;
+  const freq = Math.abs(c.freq - t.freq) <= cal.window.freq;
+  const phase = angleDiff(c.phase, t.phase) <= cal.window.phase;
   return { amp, freq, phase, locked: amp && freq && phase };
+}
+
+/** A control that enters its window snaps exactly onto the target, so the residual goes perfectly flat. */
+export function snapToWindows(cal: WaveCalibration, p: WaveProfile, c: Controls): Controls {
+  const t = targetsFor(cal, p);
+  const a = alignmentFor(cal, p, c);
+  return { amp: a.amp ? t.amp : c.amp, freq: a.freq ? t.freq : c.freq, phase: a.phase ? t.phase : c.phase };
+}
+
+/** The distance that fills a meter from empty to full, per control (amp / freq: slider units, phase: degrees). */
+export const METER_SPAN = { amp: 0.6, freq: 0.6, phase: 180 } as const;
+
+export interface Closeness {
+  /** 0 (far) .. 1 (on target). */
+  value: number;
+  /** Where the lock window starts on the same 0..1 scale: inside the window means value >= zone. */
+  zone: number;
+  inside: boolean;
+}
+
+/** One closeness reading per control; each depends on its own control only. */
+export function closenessFor(cal: WaveCalibration, p: WaveProfile, c: Controls): Record<keyof Controls, Closeness> {
+  const t = targetsFor(cal, p);
+  const a = alignmentFor(cal, p, c);
+  const one = (err: number, win: number, span: number, inside: boolean): Closeness => ({
+    value: 1 - clamp(err / span, 0, 1),
+    zone: 1 - win / span,
+    inside,
+  });
+  return {
+    amp: one(Math.abs(c.amp - t.amp), cal.window.amp, METER_SPAN.amp, a.amp),
+    freq: one(Math.abs(c.freq - t.freq), cal.window.freq, METER_SPAN.freq, a.freq),
+    phase: one(angleDiff(c.phase, t.phase), cal.window.phase, METER_SPAN.phase, a.phase),
+  };
 }
 
 export const noiseAt = (p: WaveProfile, x: number, scroll = 0) =>
@@ -68,6 +102,16 @@ export const antiAt = (cal: WaveCalibration, c: Controls, x: number, scroll = 0)
   ampFromSlider(cal, c.amp) *
   Math.sin(TAU * freqFromSlider(cal, c.freq) * x + (c.phase * Math.PI) / 180 + scroll);
 
+/**
+ * Module C scope waves. The x axis is centred (x - 0.5), so a frequency change squeezes the wave about the middle of the scope,
+ * a phase change slides it sideways and an amplitude change only changes its height. Module B keeps noiseAt / antiAt above.
+ */
+export const noiseAtC = (p: WaveProfile, x: number) =>
+  p.noise.amplitude * Math.sin(TAU * p.noise.frequency * (x - 0.5) + (p.noise.phase * Math.PI) / 180);
+
+export const antiAtC = (cal: WaveCalibration, c: Controls, x: number) =>
+  ampFromSlider(cal, c.amp) * Math.sin(TAU * freqFromSlider(cal, c.freq) * (x - 0.5) + (c.phase * Math.PI) / 180);
+
 /** Un-cancelled → baselineDb; perfect cancellation → floorDb. Time-independent (x-window RMS). */
 export function disturbanceDb(cal: WaveCalibration, p: WaveProfile, c: Controls, locked: boolean): number {
   if (locked) return cal.floorDb;
@@ -75,8 +119,8 @@ export function disturbanceDb(cal: WaveCalibration, p: WaveProfile, c: Controls,
   let noiseSq = 0;
   for (let i = 0; i < SCOPE_SAMPLES; i++) {
     const x = i / (SCOPE_SAMPLES - 1);
-    const n = noiseAt(p, x);
-    const r = n + antiAt(cal, c, x);
+    const n = noiseAtC(p, x);
+    const r = n + antiAtC(cal, c, x);
     noiseSq += n * n;
     resSq += r * r;
   }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SCORING } from '../mockStation1Data';
 import { useShake } from '../hooks/useScreenShake';
 import { scoreQuestion } from '../utils/scoring';
@@ -16,6 +16,8 @@ interface Props {
 }
 
 const LETTERS = ['A', 'B', 'C', 'D'] as const;
+/** How long the right answer stays green before the next question appears. */
+const ADVANCE_MS = 1200;
 
 interface QState {
   hints: 0 | 1 | 2;
@@ -75,15 +77,23 @@ export function ModuleA({ questions, operators, onRecord, onComplete }: Props) {
     record(question.correctIndex, 2, q.wrong.length);
   };
 
-  const advance = () => {
+  // any resolved answer (correct pick or Hint 2): show it green, then move on by itself
+  const advanceRef = useRef(() => {});
+  useEffect(() => {
+    advanceRef.current = () => {
+      if (last) {
+        onComplete();
+      } else {
+        setIdx((i) => i + 1);
+        setQ(fresh());
+      }
+    };
+  });
+  useEffect(() => {
     if (!solved) return;
-    if (last) {
-      onComplete();
-    } else {
-      setIdx(idx + 1);
-      setQ(fresh());
-    }
-  };
+    const id = window.setTimeout(() => advanceRef.current(), ADVANCE_MS);
+    return () => window.clearTimeout(id);
+  }, [solved, idx]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -145,23 +155,16 @@ export function ModuleA({ questions, operators, onRecord, onComplete }: Props) {
         </HudPanel>
       </div>
 
-      {/* lower action strip */}
+      {/* lower status strip: no button, the next question comes by itself */}
       <footer className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-goat-gold/60 bg-goat-void/95">
         <div className="hazard-stripe h-1 w-full opacity-70" aria-hidden />
-        <div className="flex flex-wrap items-center gap-3 px-3 py-2.5 lg:pr-[380px]">
-          <div className="flex-1" />
-
-          <span className="hidden font-tele text-[11px] uppercase tracking-widest text-goat-mute sm:inline">
+        <div className="flex flex-wrap items-center gap-3 px-3 py-3 lg:pr-[380px]">
+          <span className="font-tele text-[11px] uppercase tracking-widest text-goat-mute">
             QUERY {idx + 1}/{questions.length}
           </span>
-          <button
-            type="button"
-            onClick={advance}
-            disabled={!solved}
-            className={`tac-btn mr-1 px-6 py-3 text-xs font-bold ${solved ? 'bg-goat-cyan text-goat-void' : 'bg-goat-mute/20 text-goat-mute'}`}
-          >
-            {last ? '[ PROCEED ▸ MODULE B ]' : '[ NEXT QUERY ▸ ]'}
-          </button>
+          <span className={`font-tele text-[11px] uppercase tracking-widest ${solved ? 'text-goat-lock' : 'text-goat-mute'}`} role="status">
+            {solved ? (last ? '◉ LOCKED · ON TO THE BRIEFING…' : '◉ LOCKED · NEXT QUERY…') : 'PICK THE RIGHT ANSWER'}
+          </span>
         </div>
       </footer>
       <HintDock

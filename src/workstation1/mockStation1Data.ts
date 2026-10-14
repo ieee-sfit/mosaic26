@@ -21,12 +21,12 @@ export const SCORING: ScoringConfig = {
     stepPoints: [7, 7, 6], // 20 per waveform, 2 waveforms = 40
     hint1Penalty: 0.4,
     wrongAttemptPenalty: 0.2, // a wrong diagnosis costs 20% of that step
-    tolerance: 0.08, // a control counts as fixed within 8% of its range (C uses 6%)
+    tolerance: 0.08, // a control counts as fixed within 8% of its range (Module C has its own, wider windows)
   },
-  moduleC: { pointsPerRound: 15, hint1Penalty: 0.4, missPenalty: 0.35, hullPips: 3 }, // 3 x 15 = 45
+  moduleC: { pointsPerRound: 15, hint1Penalty: 0.4, missPenalty: 0.2 }, // 3 x 15 = 45; a shot without a lock costs 20% of the target
   moduleD: {
     maxPoints: 20, // bonus on top of the base; never part of the base or the letter grade
-    maxSeconds: 180, // D is capped at min(180 s, shift time left)
+    offerMinSeconds: 90, // no cap of its own: D runs on the shared clock, so it is only offered with at least 90 s left
     offerSeconds: 20, // an unanswered BONUS card auto-skips so an idle kiosk still saves
     hint1Penalty: 0.4,
     successAt: 10, // LINK RESTORED needs at least half of the bonus
@@ -283,7 +283,9 @@ export const WAVE_CALIBRATION: WaveCalibration = {
   ampMax: 1.0,
   freqMin: 1.5,
   freqMax: 6.5,
-  tolerance: 0.06,
+  // Module C lock windows: phase ±50°, amplitude ±12.5% of its range (±0.10), frequency ±10% of its range (±0.5 cycles).
+  // Module B does not use these: it keeps its own 8% tolerance (SCORING.moduleB.tolerance).
+  window: { amp: 0.125, freq: 0.1, phase: 50 },
   baselineDb: 92,
   floorDb: 28,
 };
@@ -294,7 +296,6 @@ export const WAVE_PROFILES: [WaveProfile, WaveProfile, WaveProfile] = [
     callsign: 'SAKAARAN-SCOUT-01',
     noise: { amplitude: 0.68, frequency: 3.4, phase: 40 },
     start: { amp: 0.2, freq: 0.8, phase: 0 },
-    timeLimitSec: 50,
     ship: { x: 30, y: 38, scale: 1 },
   },
   {
@@ -302,7 +303,6 @@ export const WAVE_PROFILES: [WaveProfile, WaveProfile, WaveProfile] = [
     callsign: 'SAKAARAN-SCOUT-02',
     noise: { amplitude: 0.44, frequency: 5.0, phase: 130 },
     start: { amp: 0.8, freq: 0.2, phase: 90 },
-    timeLimitSec: 45,
     ship: { x: 68, y: 30, scale: 0.85 },
   },
   {
@@ -310,7 +310,6 @@ export const WAVE_PROFILES: [WaveProfile, WaveProfile, WaveProfile] = [
     callsign: 'SAKAARAN-SCOUT-03',
     noise: { amplitude: 0.92, frequency: 2.3, phase: 285 },
     start: { amp: 0.3, freq: 0.75, phase: 200 },
-    timeLimitSec: 40,
     ship: { x: 50, y: 45, scale: 1.15 },
   },
 ];
@@ -347,7 +346,7 @@ export const DIAG_WAVEFORMS: [DiagWaveDef, DiagWaveDef] = [
 export const HANDSHAKE_ROUNDS: [HandshakeRoundDef, HandshakeRoundDef, HandshakeRoundDef] = [
   {
     points: 5,
-    hopMs: 2000,
+    hopMs: 6000, // speed 100
     scoredHops: 6,
     variants: [
       { id: '1a', rule: { kind: 'step', d: 5 } },
@@ -356,7 +355,7 @@ export const HANDSHAKE_ROUNDS: [HandshakeRoundDef, HandshakeRoundDef, HandshakeR
   },
   {
     points: 7,
-    hopMs: 1500,
+    hopMs: 5450, // speed 110
     scoredHops: 8,
     variants: [
       { id: '2a', rule: { kind: 'alt', d1: 7, d2: -2 } },
@@ -365,7 +364,7 @@ export const HANDSHAKE_ROUNDS: [HandshakeRoundDef, HandshakeRoundDef, HandshakeR
   },
   {
     points: 8,
-    hopMs: 1100,
+    hopMs: 5000, // speed 120
     scoredHops: 10,
     variants: [
       { id: '3a', rule: { kind: 'grow', d0: 1, g: 3 } },

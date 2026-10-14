@@ -8,8 +8,8 @@ import { HudPanel, TeleChip } from './HudPanel';
 interface Props {
   seed: number;
   operators: [string, string];
-  /** Epoch ms when the round must end: min(180 s, shift time left). */
-  deadline: number;
+  /** Shift time left. Module D has no cap of its own: it ends when the shared clock reaches 0 (points already earned stay). */
+  secondsLeft: number;
   /** Called once with every round's result, the bonus total and the ending. */
   onDone: (results: HandshakeResult[], total: number, ending: 'success' | 'fail') => void;
 }
@@ -29,23 +29,31 @@ interface Game {
   hint: 0 | 1 | 2;
   results: HandshakeResult[];
   flash: { kind: 'lock' | 'miss' | 'auto'; n: number } | null;
+  /** When the latest scored hop landed, and whether it was a miss (drives the TOO LATE warning). */
+  hopAt: number;
+  lastMiss: boolean;
+  late: number;
+  lateShow: boolean;
   ending: 'success' | 'fail' | null;
 }
 
 const INTRO_MS = 1300;
 const BETWEEN_MS = 1700;
 const END_MS = 2000;
+/** A click on the beacon's channel this soon after a missed hop is a click for a hop that already happened. */
+const LATE_MS = 1500;
 const cfg = SCORING.moduleD;
 const NODE = (n: number) => {
   const a = ((n - 1) * 30 - 90) * (Math.PI / 180);
   return { x: 200 + 140 * Math.cos(a), y: 200 + 140 * Math.sin(a) };
 };
+const secs = (ms: number) => (ms / 1000).toFixed(2).replace(/\.?0+$/, '');
 const mmss = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 /** Made-up radio labels so every channel has a frequency. */
 const freqLabel = (n: number) => `${(402 + n * 2.5).toFixed(1)}`;
 
 /** Module D · SECRET HANDSHAKE: the mothership's beacon hops between 12 channels by a secret rule. Answer on the right channel each hop. */
-export function ModuleD({ seed, operators, deadline, onDone }: Props) {
+export function ModuleD({ seed, operators, secondsLeft, onDone }: Props) {
   const patterns = useMemo(() => ROUNDS.map((def, i) => generatePattern(def, i, seed)), [seed]);
   const g = useRef<Game>({
     round: 0,
@@ -59,11 +67,14 @@ export function ModuleD({ seed, operators, deadline, onDone }: Props) {
     hint: 0,
     results: [],
     flash: null,
+    hopAt: 0,
+    lastMiss: false,
+    late: 0,
+    lateShow: false,
     ending: null,
   });
   const [, bump] = useReducer((n: number) => n + 1, 0);
   const [tick, setTick] = useState(0);
-  const [secLeft, setSecLeft] = useState(() => Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
   const doneRef = useRef(false);
   const onDoneRef = useRef(onDone);
   useEffect(() => {
@@ -121,6 +132,8 @@ export function ModuleD({ seed, operators, deadline, onDone }: Props) {
       if (!hit) s.misses += 1;
       else if (!auto) s.locks += 1;
       s.flash = { kind: hit ? (auto ? 'auto' : 'lock') : 'miss', n: (s.flash?.n ?? 0) + 1 };
+      s.hopAt = Date.now();
+      s.lastMiss = !hit;
       s.phase = 'play';
       if (nt === DEMO_HOPS + def.scoredHops) {
         closeRound();
@@ -167,24 +180,30 @@ export function ModuleD({ seed, operators, deadline, onDone }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick]);
 
-  // the bonus has its own clock: timestamp-driven, points already earned stay
+  // the shared shift clock is the only clock: when it reaches 0 the run ends here and points already earned stay
+  const outOfTime = secondsLeft <= 0;
   useEffect(() => {
-    const id = window.setInterval(() => {
-      const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-      setSecLeft(left);
-      if (left <= 0 && g.current.phase !== 'end') {
-        if (g.current.phase === 'demo' || g.current.phase === 'play' || g.current.phase === 'intro') closeRound();
-        finishAll();
-      }
-    }, 250);
-    return () => window.clearInterval(id);
+    if (!outOfTime || g.current.phase === 'end') return;
+    // a round cut short by the clock still scores what was locked; a round already closed is not counted twice
+    if (g.current.phase === 'demo' || g.current.phase === 'play' || g.current.phase === 'intro') closeRound();
+    finishAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deadline]);
+  }, [outOfTime]);
 
   /* ---- player input: click / tap a channel, or move with the keyboard ---- */
   const select = (ch: number) => {
-    if (g.current.phase === 'end') return;
-    g.current.sel = wrap(ch);
+    const s = g.current;
+    if (s.phase === 'end') return;
+    // chasing the beacon after a missed hop: that hop is over
+    if (s.phase === 'play' && s.lastMiss && wrap(ch) === s.history[s.history.length - 1] && Date.now() - s.hopAt < LATE_MS) {
+      s.late += 1;
+      s.lateShow = true;
+      window.setTimeout(() => {
+        g.current.lateShow = false;
+        bump();
+      }, 1100);
+    }
+    s.sel = wrap(ch);
     bump();
   };
   useEffect(() => {
@@ -221,7 +240,7 @@ export function ModuleD({ seed, operators, deadline, onDone }: Props) {
           : s.phase === 'between' ? `ROUND ${s.round + 1} DONE · ${s.locks}/${def.scoredHops} LOCKED`
             : '';
   const hopKey = `${s.round}-${s.t}-${s.phase}`;
-  const lowTime = secLeft <= 30;
+  const lowTime = secondsLeft <= 30;
   const hintActive = s.phase === 'demo' || s.phase === 'play';
 
   return (
@@ -240,8 +259,8 @@ export function ModuleD({ seed, operators, deadline, onDone }: Props) {
           </div>
         </div>
         <div className="text-right font-tele">
-          <div className="text-[9px] uppercase tracking-[0.2em] text-goat-mute">BONUS CLOCK</div>
-          <div className={`text-3xl font-extrabold tabular-nums ${lowTime ? 'goat-blink text-goat-crimson' : 'text-goat-gold'}`} role="timer" aria-label={`Bonus time left ${mmss(secLeft)}`}>{mmss(secLeft)}</div>
+          <div className="text-[9px] uppercase tracking-[0.2em] text-goat-mute">SHIFT CLOCK</div>
+          <div className={`text-3xl font-extrabold tabular-nums ${lowTime ? 'goat-blink text-goat-crimson' : 'text-goat-gold'}`} role="timer" aria-label={`Shift time left ${mmss(secondsLeft)}`}>{mmss(secondsLeft)}</div>
         </div>
       </div>
 
@@ -279,11 +298,19 @@ export function ModuleD({ seed, operators, deadline, onDone }: Props) {
                 </g>
               );
             })}
+            {(s.phase === 'demo' || s.phase === 'play') && (
+              <circle key={hopKey} cx="200" cy="200" r="92" className="hs-countdown" style={{ animationDuration: `${def.hopMs}ms` }} />
+            )}
             <text x="200" y="176" textAnchor="middle" className="hs-c1">BEACON</text>
             <text x="200" y="212" textAnchor="middle" className="hs-c2">CH {beacon}</text>
             <text x="200" y="236" textAnchor="middle" className="hs-c3">YOU: CH {s.sel}</text>
           </svg>
 
+          {s.lateShow && (
+            <div key={s.late} className="hs-late" role="status">
+              TOO LATE<small>THE BEACON ALREADY JUMPED</small>
+            </div>
+          )}
           <div className="hs-bar" aria-hidden>
             {(s.phase === 'demo' || s.phase === 'play') && <i key={hopKey} style={{ animationDuration: `${def.hopMs}ms` }} />}
           </div>
@@ -315,7 +342,7 @@ export function ModuleD({ seed, operators, deadline, onDone }: Props) {
               ))}</p>
             </div>
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-              <TeleChip label="ROUND" value={`${def.points} PTS · ${(def.hopMs / 1000).toFixed(1)}s HOPS`} tone="gold" />
+              <TeleChip label="ROUND" value={`${def.points} PTS · ${secs(def.hopMs)}s HOPS`} tone="gold" />
               <TeleChip label="HINT" value={s.hint === 0 ? 'NONE' : s.hint === 1 ? '-40%' : 'AUTO · 0 PTS'} tone={s.hint ? 'crimson' : 'mute'} />
             </div>
           </HudPanel>
@@ -325,7 +352,7 @@ export function ModuleD({ seed, operators, deadline, onDone }: Props) {
               <span className="text-lg text-goat-mute"> / {cfg.maxPoints}</span>
             </div>
             <p className="mt-2 font-tele text-[11px] uppercase tracking-wider text-goat-mute">
-              Watch 4 hops. Find the rule. Then pick the channel BEFORE each hop.
+              Watch 4 hops. Find the rule. Then pick the channel BEFORE each hop. The ring and bar drain until the hop.
             </p>
           </HudPanel>
         </div>

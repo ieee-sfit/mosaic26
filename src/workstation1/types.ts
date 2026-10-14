@@ -3,8 +3,10 @@
    so real data can be dropped in without touching any logic or components. */
 
 /* ── Flow ─────────────────────────────────────────────────────────── */
-export type Phase = 'launcher' | 'moduleA' | 'moduleB' | 'mapC' | 'moduleC' | 'offer' | 'moduleD' | 'summary';
-export type EndReason = 'COMPLETE' | 'TIME_EXPIRED' | 'HULL_BREACH';
+export type Phase =
+  | 'launcher' | 'opening' | 'tutA' | 'moduleA' | 'story1' | 'tutB' | 'moduleB' | 'story2' | 'tutC' | 'moduleC'
+  | 'offer' | 'story3' | 'tutD' | 'moduleD' | 'ending' | 'summary';
+export type EndReason = 'COMPLETE' | 'TIME_EXPIRED';
 
 /* ── Module A ─────────────────────────────────────────────────────── */
 export type ShipZone =
@@ -64,7 +66,6 @@ export interface WaveProfile {
   noise: { amplitude: number; frequency: number; phase: number };
   /** Starting control positions (slider fractions 0–1, dial degrees). */
   start: { amp: number; freq: number; phase: number };
-  timeLimitSec: number;
   /** Scout position inside the windshield, percent. */
   ship: { x: number; y: number; scale: number };
 }
@@ -74,7 +75,8 @@ export interface WaveCalibration {
   ampMax: number;
   freqMin: number; // cycles per scope window
   freqMax: number;
-  tolerance: number; // fraction of full range (0.06 = ±6%)
+  /** Module C lock windows, per control: amp / freq as a fraction of the control's range (slider units), phase in degrees. */
+  window: { amp: number; freq: number; phase: number };
   baselineDb: number; // un-cancelled noise level
   floorDb: number; // ambient floor when perfectly cancelled
 }
@@ -107,12 +109,11 @@ export interface ScoringConfig {
   moduleC: {
     pointsPerRound: number;
     hint1Penalty: number; // Hint 2 always forfeits the round
-    missPenalty: number;
-    hullPips: number;
+    missPenalty: number; // fraction of the target's points lost per shot fired without a lock
   };
   moduleD: {
     maxPoints: number;
-    maxSeconds: number;
+    offerMinSeconds: number; // D is only offered when at least this much shift time is left after Module C
     offerSeconds: number;
     hint1Penalty: number;
     successAt: number; // points needed for LINK RESTORED
@@ -124,7 +125,6 @@ export interface Station1Result {
   operators: [string, string];
   endReason: EndReason;
   secondsRemaining: number;
-  hullPips: number;
   moduleA: QuestionResult[];
   moduleB: StepResult[];
   moduleC: RoundResult[];
@@ -171,7 +171,7 @@ export interface HandshakeVariant {
 
 export interface HandshakeRoundDef {
   points: number;
-  hopMs: number;
+  hopMs: number; // time between hops
   scoredHops: number;
   variants: HandshakeVariant[];
 }

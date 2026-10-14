@@ -32,7 +32,7 @@ export interface Station1Payload {
   maxTotal: number
   /** Time left when Module C ended (frozen: playing Module D never changes it). */
   secondsRemaining: number
-  endReason: 'COMPLETE' | 'TIME_EXPIRED' | 'HULL_BREACH'
+  endReason: 'COMPLETE' | 'TIME_EXPIRED'
   /** Bonus Module D points (0-20). Absent or 0 when D was skipped or never offered. */
   scoreD?: number
 }
