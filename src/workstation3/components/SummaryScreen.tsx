@@ -7,6 +7,9 @@ export interface Breakdown {
   a: number;
   b: number;
   c: number;
+  d: number;
+  dPlayed: boolean;
+  dSuccess: boolean;
   base: number;
   bonus: number;
   timeLeft: number;
@@ -33,7 +36,7 @@ export default function SummaryScreen({
   const o = OUTCOME_TEXT[result.outcome];
   const rows = [
     { k: 'MOD_A · ANPR FORENSICS', v: result.a, max: 15 },
-    { k: 'MOD_B · RADAR & STROBE', v: result.b, max: 40 },
+    { k: 'MOD_B · PLATE REBUILD', v: result.b, max: 40 },
     { k: 'MOD_C · LENS SHUFFLER', v: result.c, max: 45 },
   ];
   return (
@@ -59,9 +62,15 @@ export default function SummaryScreen({
               <th>SPEED BONUS · {fmtClock(result.timeLeft)} LEFT</th>
               <td>+{result.bonus} / {CONFIG.speedBonusMax}</td>
             </tr>
+            {result.dPlayed && (
+              <tr className={result.dSuccess ? 'is-bonus-ok' : 'is-bonus-bad'}>
+                <th>{result.dSuccess ? 'BLOCKADE HELD · OFFENDER STOPPED' : 'TIME UP · OFFENDER SLIPPED AWAY'}</th>
+                <td>BLOCKADE +{result.d} / {CONFIG.moduleD.max}</td>
+              </tr>
+            )}
             <tr className="is-total">
               <th>TOTAL</th>
-              <td>{result.base + result.bonus}</td>
+              <td>{result.base + result.bonus + result.d}</td>
             </tr>
             <tr>
               <th>OPERATORS</th>

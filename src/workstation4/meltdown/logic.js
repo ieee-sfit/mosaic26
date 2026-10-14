@@ -1,4 +1,4 @@
-import { BIOHAZARD_MATRIX, STATION4_CONFIG } from '../mockStation4Data'
+import { STATION4_CONFIG } from '../mockStation4Data'
 
 // ---------- Module A ----------
 export function pickQuestions(bank, count) {
@@ -10,6 +10,9 @@ export function pickQuestions(bank, count) {
   return pool.slice(0, count)
 }
 
+/** A random element (kept out of the components so they stay pure). */
+export const pickOne = (list) => list[Math.floor(Math.random() * list.length)]
+
 /** Points a question is worth after hints / wrong tries. */
 export function questionPoints({ hint, wrong }) {
   const cfg = STATION4_CONFIG.moduleA
@@ -19,22 +22,6 @@ export function questionPoints({ hint, wrong }) {
   if (hint >= 2) frac = cfg.hint2PenaltyFraction
   return Math.max(0, Math.round(base * (1 - Math.min(1, frac)) * 100) / 100)
 }
-
-// ---------- Module B ----------
-export function lookup(rowId, column) {
-  const { columns, rows } = BIOHAZARD_MATRIX
-  const row = rows.find((r) => r[0] === rowId)
-  const col = columns.indexOf(column)
-  return row && col >= 0 ? row[col] : null
-}
-
-/** Resolve a step's row id + expected answer given earlier answers (array of strings). */
-export function resolveStep(step, answers) {
-  const rowId = typeof step.row === 'string' ? step.row : answers[step.row.fromStep - 1]
-  return { rowId, answer: lookup(rowId, step.column) }
-}
-
-export const normalise = (s) => String(s ?? '').trim().toUpperCase().replace(/\s+/g, '')
 
 // ---------- Module C ----------
 export function applyGate(type, a, b) {
@@ -87,4 +74,13 @@ export function speedBonus(timeLeft, allCleared, base = 100) {
   const { speedBonusMax } = STATION4_CONFIG.scoring
   // scaled by the base score earned so auto-solving with Hint 2 cannot farm the bonus
   return Math.floor(speedBonusMax * Math.max(0, Math.min(1, timeLeft / STATION4_CONFIG.totalSeconds)) * Math.max(0, Math.min(1, base / 100)))
+}
+
+// ---------- Module B scoring ----------
+/** Points a breadboard bay is worth: each strike (failed VERIFY / smoke event) costs 20%, Hint 1 costs 40%, Hint 2 leaves 0. */
+export function bayPoints(base, { strikes, hint }) {
+  const cfg = STATION4_CONFIG.moduleB
+  if (hint >= 2) return 0
+  const frac = strikes * cfg.strikePenaltyFraction + (hint >= 1 ? cfg.hint1PenaltyFraction : 0)
+  return Math.max(0, Math.round(base * (1 - Math.min(1, frac)) * 100) / 100)
 }

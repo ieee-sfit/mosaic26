@@ -3,7 +3,7 @@
    so real data can be dropped in without touching any logic or components. */
 
 /* ── Flow ─────────────────────────────────────────────────────────── */
-export type Phase = 'launcher' | 'moduleA' | 'moduleB' | 'moduleC' | 'summary';
+export type Phase = 'launcher' | 'moduleA' | 'moduleB' | 'mapC' | 'moduleC' | 'offer' | 'moduleD' | 'summary';
 export type EndReason = 'COMPLETE' | 'TIME_EXPIRED' | 'HULL_BREACH';
 
 /* ── Module A ─────────────────────────────────────────────────────── */
@@ -32,14 +32,7 @@ export interface McqQuestion {
   prompt: string;
   options: [string, string, string, string];
   correctIndex: 0 | 1 | 2 | 3;
-  /** 1-based column on the physical cheat sheet that holds the answer (Hint 1). */
-  cheatSheetColumn: number;
   anomaly: SensorAnomaly;
-}
-
-export interface CheatSheetColumnDef {
-  index: number; // 1-based
-  label: string;
 }
 
 export interface QuestionResult {
@@ -52,37 +45,11 @@ export interface QuestionResult {
 }
 
 /* ── Module B ─────────────────────────────────────────────────────── */
-export interface SheetColumn {
-  index: number; // 1-based, matches the printed column number
-  key: string;
-  label: string;
-}
-
-export interface TelemetrySheet {
-  columns: SheetColumn[]; // length 8
-  rows: string[][]; // each row has one cell per column
-}
-
-export interface LookupStepDef {
-  /** 1-based column to search for the current key. */
-  matchColumn: number;
-  /** 1-based column to read the answer from. */
-  readColumn: number;
-}
-
-export interface LookupProblemDef {
-  id: string;
-  title: string;
-  designation: string; // e.g. PF-COIL-ALPHA
-  brief: string;
-  /** Value printed on the card; step 1 searches for it. */
-  seed: string;
-  steps: LookupStepDef[]; // length 4
-}
-
 export interface StepResult {
-  problemId: string;
-  stepIndex: number; // 0-based
+  waveId: string; // 'B1' | 'B2'
+  stepIndex: number; // 0-based, 0..2
+  /** The control that was the dominant error in this step. */
+  control: 'amp' | 'phase' | 'freq';
   wrongAttempts: number;
   hintsUsed: 0 | 1 | 2;
   points: number;
@@ -131,15 +98,24 @@ export interface ScoringConfig {
     wrongAttemptPenalty: number; // fraction of base removed per wrong pick
   };
   moduleB: {
-    pointsPerStep: number;
+    waves: number;
+    stepPoints: readonly number[]; // points of the three steps of one waveform
     hint1Penalty: number; // Hint 2 always forfeits the step
-    wrongAttemptPenalty: number;
+    wrongAttemptPenalty: number; // fraction of the step removed per wrong diagnosis
+    tolerance: number; // fraction of a control's range that counts as fixed
   };
   moduleC: {
     pointsPerRound: number;
     hint1Penalty: number; // Hint 2 always forfeits the round
     missPenalty: number;
     hullPips: number;
+  };
+  moduleD: {
+    maxPoints: number;
+    maxSeconds: number;
+    offerSeconds: number;
+    hint1Penalty: number;
+    successAt: number; // points needed for LINK RESTORED
   };
 }
 
@@ -152,9 +128,61 @@ export interface Station1Result {
   moduleA: QuestionResult[];
   moduleB: StepResult[];
   moduleC: RoundResult[];
+  moduleD: HandshakeResult[];
   scoreA: number;
   scoreB: number;
   scoreC: number;
+  /** Bonus Module D, 0..20. Not part of `total` (the base) or the letter grade. */
+  scoreD: number;
+  dPlayed: boolean;
+  dEnding: 'success' | 'fail' | null;
+  /** Seconds spent per module, for the debrief. */
+  moduleSeconds: { A: number; B: number; C: number; D: number };
   total: number;
   maxTotal: number;
+}
+
+/* ── Module B · Diagnose the leftover ─────────────────────────────── */
+export interface DiagWaveDef {
+  id: string;
+  label: string;
+  /** The incoming noise (violet). */
+  noise: { amplitude: number; frequency: number; phase: number };
+  /** Where the player's anti-wave (coral) starts: ALL THREE conditions are wrong. */
+  start: { amp: number; freq: number; phase: number };
+  /** Authored fix order (dominant error first). The fairness script proves it equals the computed order. */
+  order: ('amp' | 'phase' | 'freq')[];
+  /** Waveform 1 is guided: peak ticks, guide lines and a legend. */
+  guided: boolean;
+}
+
+/* ── Module D · Secret handshake ──────────────────────────────────── */
+export type HopRule =
+  | { kind: 'step'; d: number } // constant jump
+  | { kind: 'alt'; d1: number; d2: number } // jumps alternate d1, d2
+  | { kind: 'inter'; c: number; e: number } // two trails take turns, each moving by its own step
+  | { kind: 'grow'; d0: number; g: number } // jump grows by g each hop
+  | { kind: 'fib' }; // next = sum of the last two
+
+export interface HandshakeVariant {
+  id: string;
+  rule: HopRule;
+}
+
+export interface HandshakeRoundDef {
+  points: number;
+  hopMs: number;
+  scoredHops: number;
+  variants: HandshakeVariant[];
+}
+
+export interface HandshakeResult {
+  round: number; // 0-based
+  variantId: string;
+  locks: number; // hops the player locked on their own (auto-played hops are not counted)
+  misses: number;
+  scoredHops: number;
+  hintsUsed: 0 | 1 | 2;
+  points: number;
+  maxPoints: number;
 }

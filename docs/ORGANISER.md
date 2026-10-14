@@ -21,5 +21,5 @@ IDs must exist in `public.players` and have `paid = true` or the launcher refuse
 
 ## What is protected
 - Nobody can read or write `players` or `app_secrets` from the browser.
-- Scores are accepted only through `submit_run`, which needs the kiosk secret, both IDs registered and paid, a score of 0-120 and time left of 0-720.
+- Scores are accepted only through `submit_run`, which needs the kiosk secret, both IDs registered and paid, a score of 0-140 (base 100 + speed bonus 20 + optional Module D 20) and time left of 0-720.
 - The public board only receives masked IDs.
