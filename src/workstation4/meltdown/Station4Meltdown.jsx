@@ -237,6 +237,7 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
 
 
 
+  const winner = report?.result?.outcome === 'complete' ? teamLabel(ids.p1, ids.p2) : ''
   const inRun = stage === 'play' || stage === 'offer' || stage === 'bonus'
   const withD = stage === 'offer' || stage === 'bonus'
   const critical = timeLeft <= 120 && (stage === 'play' || stage === 'bonus')
