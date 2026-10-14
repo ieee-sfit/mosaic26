@@ -14,10 +14,11 @@ export function scoreQuestion(
   return round2(cfg.pointsPerQuestion * clamp01(1 - lost));
 }
 
-export function scoreStep(cfg: ScoringConfig['moduleB'], wrongAttempts: number, hintsUsed: 0 | 1 | 2 = 0): number {
+/** One diagnose-and-fix step of Module B: `stepIndex` picks its 7 / 7 / 6 points. */
+export function scoreStep(cfg: ScoringConfig['moduleB'], stepIndex: number, wrongAttempts: number, hintsUsed: 0 | 1 | 2 = 0): number {
   if (hintsUsed === 2) return 0;
   const lost = (hintsUsed === 1 ? cfg.hint1Penalty : 0) + wrongAttempts * cfg.wrongAttemptPenalty;
-  return round2(cfg.pointsPerStep * clamp01(1 - lost));
+  return round2(cfg.stepPoints[stepIndex] * clamp01(1 - lost));
 }
 
 export function scoreRound(cfg: ScoringConfig['moduleC'], misses: number, hintsUsed: 0 | 1 | 2 = 0): number {
@@ -30,7 +31,7 @@ export const sum = (xs: { points: number }[]) => xs.reduce((a, x) => a + x.point
 
 export function maxTotals(cfg: ScoringConfig) {
   const a = cfg.moduleA.questionCount * cfg.moduleA.pointsPerQuestion;
-  const b = 8 * cfg.moduleB.pointsPerStep;
+  const b = cfg.moduleB.waves * cfg.moduleB.stepPoints.reduce((n, p) => n + p, 0);
   const c = 3 * cfg.moduleC.pointsPerRound;
   return { a, b, c, total: a + b + c };
 }

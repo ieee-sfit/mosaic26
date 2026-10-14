@@ -19,7 +19,7 @@ function recordRun(stationId, session, payload) {
   const isGoat = stationId === 1 // Station1 emits its own result shape
   const ops = isGoat ? payload?.operators ?? [] : []
   const pick = (own, fallback) => (ID_RE.test(own ?? '') ? own : fallback)
-  // Station 1 reports on a 0-1000 scale; rescale to the shared contract (base 100 + speed bonus 20; the server accepts up to 140 once a station has a Module D).
+  // Station 1 reports points on its own base; rescale to the shared contract: base 100 + frozen speed bonus 20 + Module D 20 = 0..140.
   const norm = isGoat ? normalizeStation1(payload) : { raw_score: payload.raw_score, time_left: payload.time_left }
   saveRun({
     p1_id: isGoat ? pick(ops[0], session.p1_id) : payload.p1_id,
