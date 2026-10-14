@@ -59,19 +59,20 @@
   position: absolute;
   inset: 0;
   z-index: 10;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 2rem 2.5rem;
   pointer-events: none;
 }
 
 /* Top Header */
 .cfs-header {
+  position: absolute;
+  top: 1.5rem;
+  left: 2rem;
+  right: 2rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  z-index: 25;
 }
 
 .cfs-brand {
@@ -138,27 +139,26 @@
   box-shadow: 0 0 14px rgba(56, 189, 248, 0.3);
 }
 
-/* Center Stage Content */
-.cfs-center {
+/* Top Floating Logo Banner (Pinned above the cube) */
+.cfs-top-banner {
+  position: absolute;
+  top: 4.2rem;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  max-width: 900px;
-  margin: auto auto;
   pointer-events: auto;
-}
-
-.cfs-logo-wrap {
-  position: relative;
-  margin-bottom: 1.5rem;
+  user-select: none;
+  z-index: 20;
 }
 
 .cfs-logo-img {
-  max-width: 540px;
-  width: 80vw;
+  max-width: 320px;
+  width: min(320px, 48vw);
   height: auto;
-  filter: drop-shadow(0 0 35px rgba(239, 68, 68, 0.4));
+  filter: drop-shadow(0 0 25px rgba(239, 68, 68, 0.4));
   transition: transform 0.3s ease;
 }
 
@@ -166,64 +166,132 @@
   transform: scale(1.02);
 }
 
-.cfs-subtitle {
-  font-size: clamp(0.75rem, 1.3vw, 0.95rem);
-  letter-spacing: 0.22em;
-  color: #94a3b8;
-  max-width: 620px;
-  margin: 0 0 2.2rem 0;
-  line-height: 1.6;
-  text-transform: uppercase;
-}
-
-/* Primary Action Button: [ CHOOSE STATION → ] */
-.cfs-cta {
-  position: relative;
+/* Dynamic Active Sector Pill */
+.cfs-sector-indicator {
+  margin-top: 0.4rem;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  padding: 1rem 3rem;
-  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
-  border: 1px solid rgba(254, 202, 202, 0.5);
-  color: #ffffff;
+  gap: 0.5rem;
+  padding: 0.25rem 0.9rem;
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid var(--accent-color, #00f2fe);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  color: #e2e8f0;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent-color, #00f2fe) 40%, transparent);
+  backdrop-filter: blur(8px);
+  transition: all 0.4s ease;
+}
+
+.cfs-sector-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-color, #00f2fe);
+  box-shadow: 0 0 8px var(--accent-color, #00f2fe);
+}
+
+.cfs-sector-code {
   font-weight: 800;
-  font-size: 0.95rem;
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  border-radius: 6px;
+  color: var(--accent-color, #00f2fe);
+}
+
+.cfs-sector-sep {
+  color: #64748b;
+}
+
+.cfs-sector-name {
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.cfs-sector-loc {
+  color: #94a3b8;
+  font-size: 0.62rem;
+}
+
+/* Bottom Floating Dock: Press Space or Click */
+.cfs-bottom-dock {
+  position: absolute;
+  bottom: 3.4rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
   cursor: pointer;
-  box-shadow: 0 0 35px rgba(239, 68, 68, 0.55), inset 0 0 18px rgba(255, 255, 255, 0.25);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  overflow: hidden;
+  user-select: none;
+  z-index: 20;
+  transition: transform 0.2s ease;
 }
 
-.cfs-cta:hover {
-  transform: translateY(-2px) scale(1.03);
-  box-shadow: 0 0 50px rgba(239, 68, 68, 0.85), inset 0 0 25px rgba(255, 255, 255, 0.45);
-  border-color: #ffffff;
+.cfs-bottom-dock:hover {
+  transform: translateX(-50%) translateY(-2px);
 }
 
-.cfs-cta:active {
-  transform: translateY(1px) scale(0.98);
+.cfs-engage-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.7rem 1.8rem;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid var(--accent-color, #38bdf8);
+  border-radius: 9999px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 0 25px color-mix(in srgb, var(--accent-color, #38bdf8) 40%, transparent);
+  animation: cfsPulse 2.4s infinite ease-in-out;
+  transition: all 0.25s ease;
+}
+
+.cfs-bottom-dock:hover .cfs-engage-pill {
+  background: rgba(56, 189, 248, 0.15);
+  box-shadow: 0 0 35px var(--accent-color, #38bdf8);
+}
+
+.cfs-key-badge {
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.7);
+}
+
+.cfs-engage-text {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  color: #f1f5f9;
+  text-transform: uppercase;
 }
 
 .cfs-cta-hint {
-  margin-top: 1rem;
+  margin-top: 0.5rem;
   font-size: 0.65rem;
-  letter-spacing: 0.25em;
+  letter-spacing: 0.22em;
   color: #64748b;
   text-transform: uppercase;
 }
 
 /* Minimal Footer */
 .cfs-footer {
+  position: absolute;
+  bottom: 1rem;
+  left: 2rem;
+  right: 2rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.7rem;
-  letter-spacing: 0.16em;
-  color: #475569;
+  gap: 1.5rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  color: #64748b;
+  z-index: 25;
 }
 
 .cfs-footer-logos {

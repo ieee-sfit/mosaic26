@@ -13,11 +13,21 @@ export default function CtrlFreakSplash({ onEnterTerminal, onOpenLeaderboard }) 
   const sceneRef = useRef(null)
   const [isWarping, setIsWarping] = useState(false)
   const [audioMuted, setAudioMuted] = useState(false)
+  const [stationIdx, setStationIdx] = useState(0)
+
+  const STATIONS_INFO = [
+    { code: 'ST-01', name: 'GOAT ANC', sector: 'MILANO BRIDGE // COSMIC TOKAMAK', color: '#00f2fe' },
+    { code: 'ST-02', name: 'F1 0-LAG STREAM', sector: 'LE MANS // PIT WALL', color: '#dc2626' },
+    { code: 'ST-03', name: 'eCHALLAN TRACE', sector: 'TOKYO-MIDNIGHT // EXPRESSWAY', color: '#facc15' },
+    { code: 'ST-04', name: 'AREA 51 MELTDOWN', sector: 'CARDIFF // QUARANTINE AIRLOCK', color: '#22c55e' },
+  ]
 
   // Initialize Three.js 3D canvas
   useEffect(() => {
     if (!containerRef.current) return
-    const scene = initSplashScene(containerRef.current)
+    const scene = initSplashScene(containerRef.current, (nextIdx) => {
+      setStationIdx(nextIdx)
+    })
     sceneRef.current = scene
 
     const handleFirstTouch = () => {
@@ -67,8 +77,14 @@ export default function CtrlFreakSplash({ onEnterTerminal, onOpenLeaderboard }) 
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [isWarping])
 
+  const curStation = STATIONS_INFO[stationIdx] || STATIONS_INFO[0]
+
   return (
-    <div className="cfs-root">
+    <div className="cfs-root" onClick={(e) => {
+      // Allow clicking the 3D canvas to engage
+      if (e.target.closest('button')) return
+      handleEngage()
+    }}>
       {/* Three.js 3D Viewport */}
       <div ref={containerRef} className="cfs-canvas" />
 
@@ -78,7 +94,7 @@ export default function CtrlFreakSplash({ onEnterTerminal, onOpenLeaderboard }) 
 
       {/* Interactive HUD Overlay */}
       <div className="cfs-hud">
-        {/* Header */}
+        {/* Top Header */}
         <header className="cfs-header">
           <div className="cfs-brand">
             <span>MOSAIC<b>//26</b></span>
@@ -109,33 +125,32 @@ export default function CtrlFreakSplash({ onEnterTerminal, onOpenLeaderboard }) 
           </div>
         </header>
 
-        {/* Center Stage: Logo + Single Direct CTA */}
-        <div className="cfs-center">
-          <div className="cfs-logo-wrap">
-            <img
-              src="/ctrlfreak_logo.png"
-              alt="CtrlFreak: Critical Point"
-              className="cfs-logo-img"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none'
-              }}
-            />
+        {/* Top Floating Logo Banner (Pinned above the cube) */}
+        <div className="cfs-top-banner">
+          <img
+            src="/ctrlfreak_logo.png"
+            alt="CtrlFreak: Critical Point"
+            className="cfs-logo-img"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none'
+            }}
+          />
+          <div className="cfs-sector-indicator" style={{ '--accent-color': curStation.color }}>
+            <span className="cfs-sector-dot" />
+            <span className="cfs-sector-code">{curStation.code}</span>
+            <span className="cfs-sector-sep">//</span>
+            <span className="cfs-sector-name">{curStation.name}</span>
+            <span className="cfs-sector-loc">({curStation.sector})</span>
           </div>
+        </div>
 
-          <p className="cfs-subtitle">
-            FOUR CRITICAL SECTORS UNDER EMERGENCY PROTOCOL.
-            <br />
-            12-MINUTE CONTAINMENT WINDOW.
-          </p>
-
-          <button
-            type="button"
-            className="cfs-cta"
-            onClick={handleEngage}
-          >
-            <span>[ CHOOSE STATION → ]</span>
-          </button>
-          <span className="cfs-cta-hint">PRESS [SPACE] OR CLICK TO ENTER TERMINAL</span>
+        {/* Bottom Floating Prompt: Press Space or Click */}
+        <div className="cfs-bottom-dock" onClick={handleEngage} role="button" tabIndex={0}>
+          <div className="cfs-engage-pill" style={{ '--accent-color': curStation.color }}>
+            <span className="cfs-key-badge">SPACE</span>
+            <span className="cfs-engage-text">PRESS SPACE TO ENGAGE</span>
+          </div>
+          <span className="cfs-cta-hint">OR CLICK ANYWHERE TO ENTER TERMINAL</span>
         </div>
 
         {/* Minimal Footer */}
