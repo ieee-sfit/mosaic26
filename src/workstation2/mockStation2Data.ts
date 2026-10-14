@@ -1,9 +1,9 @@
 /**
  * STATION 2 — DATA (isolated, swap this file to change content).
- * Questions, cheat-sheet columns, route sections and race stints live here, not in components.
+ * Questions, route sections and race laps (authored variants) live here, not in components.
  */
 import type { CodeEntry, GenOptions, StageSpec } from '../core/radiolink/types';
-import type { Beam, CheatColumn, LapId, Need, QualityProfile, QuizQuestion, Section, Stint } from './types';
+import type { Beam, LapId, Need, QualityProfile, QuizQuestion, Section, Stint } from './types';
 
 export const STATION2_CONFIG = {
   totalSeconds: 720,
@@ -12,29 +12,22 @@ export const STATION2_CONFIG = {
   questionsPerRun: 3,
   hintPenalty: { hint1: 0.4, hint2: 1.0 }, // fraction of that item's points
   wrongAnswerPenalty: 0.2, // fraction of the item's points per wrong try (same -20% as every station)
-  gasketPips: 3,
   utilLimit: 0.8,
-  idleLimitMs: 40000, // no slider touched for this long while unbalanced: engine overheats, gasket blows
   relayHopMs: 90, // BACKUP RELAY adds this much latency
+  offerMinSeconds: 90, // Module D is only offered when at least this much shift time is left after Module C
   queueBaseMs: 45,
 };
 
 /** Expected clean-run time per module (seconds), used only to flag slow modules on the debrief. */
 export const PAR = { A: 100, B: 180, C: 300, D: 110 } as const;
 export const TIPS = {
-  A: 'Read the whole question, then check the cheat sheet before guessing.',
+  A: 'Read the whole question. Cross out the options you know are wrong before you guess.',
   B: 'Check every NEED line before you send. Latency adds, loss compounds, bandwidth is the narrowest link.',
-  C: 'Fix the node over 80% first, then latency, then quality. Use the relay only if a node cannot cope.',
+  C: 'Stay in the green zones. Fix the node over 80% first, then latency. The relay is optional and adds 90 ms.',
   D: 'Count the run between the two opposite bits. A length that matches no codebook entry is corrupted: RESEND.',
 } as const;
 
-export const CHEAT_COLUMNS: CheatColumn[] = [
-  { id: 'COL-1', label: 'CDN EDGE CACHING' },
-  { id: 'COL-2', label: 'LATENCY vs BANDWIDTH' },
-  { id: 'COL-3', label: 'PACKET LOSS' },
-  { id: 'COL-4', label: 'BITRATE LADDER (4K vs 1080p)' },
-];
-
+/** `column` is only a topic group (CDN, latency, loss, bitrate): the picker spreads a run across topics. */
 const q = (
   id: string, column: string, prompt: string,
   options: [string, string, string, string], correct: number,
@@ -168,24 +161,39 @@ export const QUALITY_PROFILES: QualityProfile[] = [
 ];
 
 /**
- * Three race laps. Contract per lap: latency under its limit, worst node under 80%, quality at or above the minimum.
- * Lap 1: no relay needed. Lap 2: the Mulsanne mast cannot take the spike, so BACKUP RELAY is required.
- * Lap 3: both ways work; the relay widens the split window but costs +90 ms against a tight limit.
- * (Checked by `solveStint` in logic.ts and by the Playwright run.)
+ * Three race laps, each authored as DATA with several variants. A seed picks one variant per lap (logic.ts `pickStints`),
+ * so a repeat attempt gets different numbers. Nothing here is tuned to one answer: every variant has a wide band of valid splits
+ * and more than one valid quality. Contract per lap: latency under its limit, every active node under 80%, quality at or above
+ * the lap's minimum (`worstQualityIdx`: 2 = anything from 720p up, 1 = 1080p and up).
+ *   Lap 1 (any quality allowed): 4K is too heavy, 1080p and 720p work.
+ *   Lap 2 and 3 (1080p and up): 1080p works, and so does 4K with a modest split.
+ * BACKUP RELAY is never required (every variant is solvable with it off). It can widen the safe split range, but it adds
+ * +90 ms, so switching it on when it is not needed can break the latency line.
+ * Every variant was checked by an exhaustive solver over quality x split x relay, and again in the browser.
  */
-export const STINTS: Stint[] = [
-  {
-    id: 'dry', name: 'DRY', tag: 'LAP 1 · CLEAR', viewersM: 1.6, spikeM: 0.6, spikeTarget: 'mulsanne',
-    capacity: { mulsanne: 14, pit: 20, arnage: 20 }, baseLatencyMs: 180, worstQualityIdx: 1, latencyLimitMs: 1100,
-  },
-  {
-    id: 'rain', name: 'RAIN', tag: 'LAP 2 · HEAVY RAIN', viewersM: 3.0, spikeM: 1.4, spikeTarget: 'mulsanne',
-    capacity: { mulsanne: 12, pit: 40, arnage: 30 }, baseLatencyMs: 420, worstQualityIdx: 1, latencyLimitMs: 1150,
-  },
-  {
-    id: 'final', name: 'FINAL', tag: 'LAP 3 · CHEQUERED FLAG', viewersM: 4.0, spikeM: 1.0, spikeTarget: 'mulsanne',
-    capacity: { mulsanne: 30, pit: 26, arnage: 28 }, baseLatencyMs: 380, worstQualityIdx: 1, latencyLimitMs: 1000,
-  },
+type Cap = Stint['capacity'];
+const lap = (
+  id: string, name: string, tag: string, worstQualityIdx: number, viewersM: number, spikeM: number, spikeTarget: Stint['spikeTarget'],
+  capacity: Cap, baseLatencyMs: number, latencyLimitMs: number,
+): Stint => ({ id, name, tag, viewersM, spikeM, spikeTarget, capacity, baseLatencyMs, worstQualityIdx, latencyLimitMs });
+const cap = (mulsanne: number, pit: number, arnage: number): Cap => ({ mulsanne, pit, arnage });
+
+export const LAP_VARIANTS: Stint[][] = [
+  [
+    lap('dry-a', 'DRY', 'LAP 1 · CLEAR', 2, 2.8, 1.4, 'pit', cap(26, 34, 24), 300, 900),
+    lap('dry-b', 'DRY', 'LAP 1 · DUSK', 2, 3.2, 0.4, 'mulsanne', cap(34, 38, 20), 240, 700),
+    lap('dry-c', 'DRY', 'LAP 1 · WARM-UP', 2, 4.4, 0.8, 'mulsanne', cap(38, 28, 30), 420, 1000),
+  ],
+  [
+    lap('rain-a', 'RAIN', 'LAP 2 · HEAVY RAIN', 1, 2.0, 0.6, 'mulsanne', cap(48, 52, 28), 240, 1200),
+    lap('rain-b', 'RAIN', 'LAP 2 · NIGHT RAIN', 1, 1.6, 0.6, 'pit', cap(54, 42, 22), 360, 1300),
+    lap('rain-c', 'RAIN', 'LAP 2 · SPRAY', 1, 1.4, 0.4, 'mulsanne', cap(34, 54, 24), 420, 1300),
+  ],
+  [
+    lap('final-a', 'FINAL', 'LAP 3 · CHEQUERED FLAG', 1, 2.0, 0.6, 'pit', cap(48, 46, 26), 360, 1300),
+    lap('final-b', 'FINAL', 'LAP 3 · LAST STINT', 1, 1.2, 0.4, 'mulsanne', cap(36, 52, 20), 180, 1000),
+    lap('final-c', 'FINAL', 'LAP 3 · RESTART', 1, 1.2, 1.0, 'pit', cap(46, 48, 34), 240, 1200),
+  ],
 ];
 
 export const BALANCER_DEFAULTS = { split: 50, qualityIdx: 0, divert: false };
@@ -206,8 +214,6 @@ export const RADIO_CODEBOOK: CodeEntry[] = [
 
 /** All Module D numbers live here so they can be tuned after a playtest. */
 export const RADIO_CONFIG = {
-  /** Cap on the whole round, in seconds (also capped by the shift time left). The line stops for every answer, so this is generous. */
-  maxSeconds: 360,
   /** Auto-skip of the PLAY / SKIP offer, so an abandoned kiosk still saves its run. */
   offerSeconds: 20,
   hint1SpeedFactor: 0.5, // Hint 1: the stage's stream runs at this share of its speed
