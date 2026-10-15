@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CHEAT_COLUMNS, STATION2_CONFIG } from '../mockStation2Data';
+import { STATION2_CONFIG } from '../mockStation2Data';
 import { fmt, itemPoints, pickQuestions } from '../logic';
 import HintDock from '../../core/HintDock';
 import type { HintLevel } from '../../core/HintDock';
@@ -15,8 +15,9 @@ interface Props {
 const LETTERS = ['A', 'B', 'C', 'D'];
 const PER_Q = STATION2_CONFIG.moduleMax.A / STATION2_CONFIG.questionsPerRun;
 
-interface QState { hint: HintLevel; wrong: number[]; picked: number | null; pts: number | null }
-const blank = (): QState => ({ hint: 0, wrong: [], picked: null, pts: null });
+/** `removed` is the wrong option Hint 1 took away (null until Hint 1 is used). */
+interface QState { hint: HintLevel; wrong: number[]; removed: number | null; picked: number | null; pts: number | null }
+const blank = (): QState => ({ hint: 0, wrong: [], removed: null, picked: null, pts: null });
 
 /** Module A: three questions on a paper timing sheet. Tap an answer to submit it. */
 export default function ModuleA({ onScore, onDone, onShake, track }: Props) {
@@ -30,7 +31,6 @@ export default function ModuleA({ onScore, onDone, onShake, track }: Props) {
   const q = questions[qi];
   const s = st[qi];
   const done = s.pts !== null;
-  const col = CHEAT_COLUMNS.find((c) => c.id === q.column);
   const total = st.reduce((n, x) => n + (x.pts ?? 0), 0);
 
   const patch = (p: Partial<QState>) => setSt((all) => all.map((x, i) => (i === qi ? { ...x, ...p } : x)));
@@ -47,7 +47,7 @@ export default function ModuleA({ onScore, onDone, onShake, track }: Props) {
   };
 
   const choose = (n: number) => {
-    if (done || s.wrong.includes(n)) return;
+    if (done || s.wrong.includes(n) || s.removed === n) return;
     if (n === q.correct) {
       const pts = itemPoints(PER_Q, s.hint, s.wrong.length);
       settle(pts, n, s.hint, `LOCKED · +${fmt(pts, 1)}`);
@@ -62,7 +62,11 @@ export default function ModuleA({ onScore, onDone, onShake, track }: Props) {
   const hint = (next: 1 | 2) => {
     if (done || s.hint >= next) return;
     track('A', 'hint', `Q${qi + 1} H${next}`);
-    if (next === 1) patch({ hint: 1 });
+    if (next === 1) {
+      // Hint 1 takes away ONE wrong option that is still on the sheet
+      const open = q.options.map((_, i) => i).filter((i) => i !== q.correct && !s.wrong.includes(i));
+      patch({ hint: 1, removed: open.length ? open[Math.floor(Math.random() * open.length)] : null });
+    }
     else settle(0, q.correct, 2, 'AUTO-SUBMITTED · 0 PTS');
   };
 
@@ -84,16 +88,18 @@ export default function ModuleA({ onScore, onDone, onShake, track }: Props) {
 
         <ol className="ws2-sheet__opts">
           {q.options.map((opt, n) => {
-            const rejected = s.wrong.includes(n);
+            const removed = s.removed === n;
+            const rejected = s.wrong.includes(n) || removed;
             const right = done && s.picked === n;
             return (
               <li key={n}>
                 <button
                   type="button" disabled={done || rejected} onClick={() => choose(n)}
-                  className={`ws2-opt ${rejected ? 'is-struck' : ''} ${right ? 'is-right' : ''}`}
+                  className={`ws2-opt ${rejected ? 'is-struck' : ''} ${removed ? 'is-removed' : ''} ${right ? 'is-right' : ''}`}
                 >
                   <span className="ws2-opt__box">{LETTERS[n]}</span>
                   <span className="ws2-opt__text">{opt}</span>
+                  {removed && <i className="ws2-stamp ws2-stamp--out" aria-hidden>REMOVED</i>}
                   {right && <i className="ws2-stamp" aria-hidden>LOCKED</i>}
                 </button>
               </li>
@@ -113,7 +119,7 @@ export default function ModuleA({ onScore, onDone, onShake, track }: Props) {
       <HintDock
         level={s.hint}
         itemLabel={`QUESTION ${qi + 1}/${questions.length}`}
-        hint1Text={`Check the cheat sheet: ${col?.id} ${col?.label}.`}
+        hint1Text={s.removed !== null ? `Option [${LETTERS[s.removed]}] is wrong and has been removed.` : 'No wrong option left to remove.'}
         hint2Text={`Option [${LETTERS[q.correct]}] was submitted for you. This question scores 0.`}
         cost1={STATION2_CONFIG.hintPenalty.hint1}
         disabled={done}

@@ -13,15 +13,12 @@ export const CONFIG = {
   moduleB: { rounds: 4, pointsPerRound: 10, wrongCost: 0.2 }, // 4 plates x 10 = 40 pts; a wrong check costs 20% of the plate
   moduleC: {
     pointsPerRound: 15, // 3 rounds x 15 = 45 pts
-    failPenalty: 5, // per burned pip within the round (floor: minRoundPoints)
-    minRoundPoints: 5,
-    pips: 3,
-    roundSeconds: 75, // pursuit window per attempt
+    failCost: 0.2, // a failed lock (below the pass mark) costs 20% of that suspect's points; the player keeps trying
     passConfidence: 80,
   },
   moduleD: {
     max: 20, // bonus, never part of the base or the letter grade
-    maxSeconds: 180, // capped at min(180, shift time left)
+    minSecondsToOffer: 90, // the bonus is only offered when at least this much shift time is left after Module C
     offerSeconds: 20, // an unanswered BONUS card auto-skips so an idle kiosk still saves
     items: { chain: 10, offender: 5, blockade: 5 },
     wrongCost: 0.2, // a wrong try costs 20% of the item
@@ -230,6 +227,8 @@ export const COMPLAINT_TEXT: Record<Complaint, string> = {
 
 export interface ChaseCase {
   complaint: Complaint;
+  /** Kilometre marker of CAM 1, CAM 2 and CAM 3 on the expressway (display only). */
+  kms: [number, number, number];
   offender: 0 | 1; // the twin that matches the complaint
   sightings: Sighting[]; // 2 per gantry; the G1 pair are the locked anchors
 }
@@ -298,11 +297,12 @@ export const CASES: CaseFile[] = [
       row('DL04RV3592', 'Blue Hatchback', 'DL-04', 'SCHOOL', 30, 61, 'CLEAR'),
     ],
     rounds: [
-      { id: 'R1', label: 'TWIN 1', model: 'Silver Coupe', plate: 'MH02CN4901', location: 'BANDRA LINK · KM 14', target: { ir: 1, pol: 0, fog: 2, bin: 1 }, peak: 96.4, floor: 6.0, ocrNoise: '▒' },
-      { id: 'R2', label: 'TRAFFIC CAR', model: 'Blue Hatchback', plate: 'DL04RV3592', location: 'EASTERN EXPRESSWAY · KM 31', target: { ir: 2, pol: 2, fog: 1, bin: 0 }, peak: 97.2, floor: 8.0, ocrNoise: '▒' },
-      { id: 'R3', label: 'TWIN 2', model: 'Silver Coupe', plate: 'MH02GN4907', location: 'YAMUNA EXPRESSWAY · KM 62', target: { ir: 0, pol: 1, fog: 2, bin: 2 }, peak: 95.8, floor: 5.0, ocrNoise: '▒' },
+      { id: 'R1', label: 'TWIN 1', model: 'Silver Coupe', plate: 'MH02CN4901', location: 'BANDRA LINK · KM 14', ocrNoise: '▒' },
+      { id: 'R2', label: 'TRAFFIC CAR', model: 'Blue Hatchback', plate: 'DL04RV3592', location: 'EASTERN EXPRESSWAY · KM 31', ocrNoise: '▒' },
+      { id: 'R3', label: 'TWIN 2', model: 'Silver Coupe', plate: 'MH02GN4907', location: 'YAMUNA EXPRESSWAY · KM 62', ocrNoise: '▒' },
     ],
     chase: {
+      kms: [14, 15, 16],
       complaint: 'EXPIRED_PUC',
       offender: 1,
       sightings: [
@@ -364,11 +364,12 @@ export const CASES: CaseFile[] = [
       row('RJ14PT2760', 'Blue Hatchback', 'RJ-14', 'RESIDENTIAL', 40, 63, 'CLEAR'),
     ],
     rounds: [
-      { id: 'R1', label: 'TWIN 1', model: 'Silver Coupe', plate: 'KA05HM3814', location: 'OUTER RING ROAD · KM 9', target: { ir: 2, pol: 1, fog: 0, bin: 2 }, peak: 96.8, floor: 6.0, ocrNoise: '▒' },
-      { id: 'R2', label: 'TRAFFIC CAR', model: 'Blue Hatchback', plate: 'RJ14PT2760', location: 'MYSORE EXPRESSWAY · KM 22', target: { ir: 1, pol: 2, fog: 2, bin: 0 }, peak: 97.0, floor: 8.0, ocrNoise: '▒' },
-      { id: 'R3', label: 'TWIN 2', model: 'Silver Coupe', plate: 'KA05NM3819', location: 'MYSORE EXPRESSWAY · KM 48', target: { ir: 0, pol: 0, fog: 1, bin: 1 }, peak: 95.9, floor: 5.0, ocrNoise: '▒' },
+      { id: 'R1', label: 'TWIN 1', model: 'Silver Coupe', plate: 'KA05HM3814', location: 'OUTER RING ROAD · KM 9', ocrNoise: '▒' },
+      { id: 'R2', label: 'TRAFFIC CAR', model: 'Blue Hatchback', plate: 'RJ14PT2760', location: 'MYSORE EXPRESSWAY · KM 22', ocrNoise: '▒' },
+      { id: 'R3', label: 'TWIN 2', model: 'Silver Coupe', plate: 'KA05NM3819', location: 'MYSORE EXPRESSWAY · KM 48', ocrNoise: '▒' },
     ],
     chase: {
+      kms: [9, 10, 11],
       complaint: 'WEAVING',
       offender: 0,
       sightings: [
@@ -390,61 +391,14 @@ export const registryRow = (cas: CaseFile, plate: string): RegistryRow => {
   return r;
 };
 
-/* ---------- Module C · filters & suspect rounds -------------------------- */
-export type FilterKey = 'ir' | 'pol' | 'fog' | 'bin';
-export const FILTER_KEYS: FilterKey[] = ['ir', 'pol', 'fog', 'bin'];
-
-export interface FilterDef {
-  key: FilterKey;
-  label: string; // button caption
-  weight: number; // confidence lost per level of error
-  levels: [string, string, string]; // what OFF / LVL 1 / LVL 2 do
-  signal: [string, string, string]; // scene telemetry that implies the needed level
-  signalLabel: string;
-}
-
-export const FILTER_DEFS: FilterDef[] = [
-  {
-    key: 'ir', label: '[IR INFRARED]', weight: 20.5, signalLabel: 'LUX_LEVEL',
-    levels: ['SENSOR PASSIVE', 'NEAR-IR FILL', 'FULL IR FLOOD'],
-    signal: ['62 · ADEQUATE', '18 · LOW', '03 · CRITICAL'],
-  },
-  {
-    key: 'pol', label: '[POLARIZED ANTI-GLARE]', weight: 22.5, signalLabel: 'GLARE_IDX',
-    levels: ['NO POLARIZER', 'PARTIAL CUT', 'CROSS-POLARIZED'],
-    signal: ['0.1 · CLEAN', '0.5 · MODERATE', '0.9 · BLINDING'],
-  },
-  {
-    key: 'fog', label: '[RAIN DEFOG]', weight: 24, signalLabel: 'RAIN_STREAK',
-    levels: ['NO DESTREAK', 'LIGHT DESTREAK', 'HEAVY DESTREAK'],
-    signal: ['0.1 · DRY', '0.5 · LIGHT', '0.9 · HEAVY'],
-  },
-  {
-    key: 'bin', label: '[EDGE BINARIZATION]', weight: 21.5, signalLabel: 'EDGE_SHARP',
-    levels: ['GRAYSCALE RAW', 'SOFT THRESHOLD', 'HARD THRESHOLD'],
-    signal: ['0.8 · CRISP', '0.5 · SOFT', '0.2 · SMEARED'],
-  },
-];
-
-export type FilterLevels = Record<FilterKey, number>;
-
+/* ---------- Module C · suspect rounds ------------------------------------- *
+ * The filters, reading scales and authored confidence tables live in ./lens.ts.
+ * ------------------------------------------------------------------------- */
 export interface SuspectRound {
   id: string;
   label: string;
   model: string;
   plate: string; // registry key
   location: string;
-  target: FilterLevels; // the sweet-spot combination (also = scene severity)
-  peak: number; // confidence at the sweet spot
-  floor: number; // never reads below this
   ocrNoise: string; // character shown for unresolved glyphs
 }
-
-/** Live ANPR confidence for a filter combination (0–100). */
-export const computeConfidence = (round: SuspectRound, levels: FilterLevels): number => {
-  let c = round.peak;
-  for (const def of FILTER_DEFS) {
-    c -= def.weight * Math.abs(levels[def.key] - round.target[def.key]);
-  }
-  return Math.max(round.floor, Math.min(99.9, Math.round(c * 10) / 10));
-};

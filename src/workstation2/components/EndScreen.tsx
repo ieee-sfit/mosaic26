@@ -3,7 +3,8 @@ import type { ModuleStat } from '../../core/diagnose';
 import { SCORING, gradeFor } from '../../core/scoring';
 import { PAR, STATION2_CONFIG, TIPS } from '../mockStation2Data';
 
-export type Outcome = 'complete' | 'timeout' | 'forfeit';
+/** 'complete' = Module C was finished (SUCCESS, even if the clock later died in D); 'timeout' = the clock hit 0 in A, B or C (FAIL). */
+export type Outcome = 'complete' | 'timeout';
 
 export interface Report {
   outcome: Outcome;
@@ -26,7 +27,6 @@ export interface Report {
 const HEAD: Record<Outcome, { title: string; tone: string; line: string }> = {
   complete: { title: 'CHEQUERED FLAG', tone: 'ok', line: 'ALL MODULES CLEARED' },
   timeout: { title: 'CLOCK RAN OUT', tone: 'bad', line: 'TIME EXPIRED, PARTIAL SCORE LOGGED' },
-  forfeit: { title: 'ENGINE SEIZED', tone: 'bad', line: 'ALL GASKETS BLOWN, PARTIAL SCORE LOGGED' },
 };
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
