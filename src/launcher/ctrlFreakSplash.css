@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CTRL FREAK: CRITICAL POINT — 3D INTRO SPLASH HUD
+   CTRL-FREAK: CRITICAL POINT — THEMATIC TITLE SPLASH SCREEN
    ========================================================================== */
 
 .cfs-root {
@@ -13,6 +13,11 @@
   overflow: hidden;
   user-select: none;
   z-index: 1000;
+  transition: opacity 0.5s ease;
+}
+
+.cfs-root.is-warping {
+  pointer-events: none;
 }
 
 /* 3D Canvas Background */
@@ -32,12 +37,12 @@
   z-index: 2;
   background: repeating-linear-gradient(
     to bottom,
-    rgba(255, 255, 255, 0.025) 0px,
-    rgba(255, 255, 255, 0.025) 1px,
+    rgba(255, 255, 255, 0.02) 0px,
+    rgba(255, 255, 255, 0.02) 1px,
     transparent 2px,
     transparent 4px
   );
-  opacity: 0.65;
+  opacity: 0.6;
 }
 
 /* Vignette & Radial Depth */
@@ -48,9 +53,9 @@
   z-index: 2;
   background: radial-gradient(
     circle at 50% 50%,
-    transparent 35%,
-    rgba(3, 7, 18, 0.7) 75%,
-    rgba(3, 7, 18, 0.98) 100%
+    transparent 30%,
+    rgba(3, 7, 18, 0.65) 75%,
+    rgba(3, 7, 18, 0.96) 100%
   );
 }
 
@@ -59,25 +64,27 @@
   position: absolute;
   inset: 0;
   z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1.75rem 2.5rem 1.25rem;
+  box-sizing: border-box;
   pointer-events: none;
 }
 
-/* Top Header */
+/* Top Navigation / Brand Bar */
 .cfs-header {
-  position: absolute;
-  top: 1.5rem;
-  left: 2rem;
-  right: 2rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 1.5rem;
   z-index: 25;
+  pointer-events: auto;
 }
 
 .cfs-brand {
   font-size: 0.78rem;
-  letter-spacing: 0.25em;
+  letter-spacing: 0.22em;
   font-weight: 700;
   color: #94a3b8;
   display: flex;
@@ -90,18 +97,22 @@
   font-weight: 800;
 }
 
+.cfs-sep {
+  color: #475569;
+}
+
 .cfs-status-pill {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.28rem 0.75rem;
+  padding: 0.25rem 0.75rem;
   border-radius: 9999px;
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.4);
   color: #f87171;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   letter-spacing: 0.16em;
-  animation: cfsPulse 2s infinite ease-in-out;
+  animation: cfsPulse 2.2s infinite ease-in-out;
 }
 
 .cfs-status-dot {
@@ -116,14 +127,13 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  pointer-events: auto;
 }
 
 .cfs-btn-ghost {
   background: rgba(15, 23, 42, 0.7);
   border: 1px solid rgba(148, 163, 184, 0.25);
   color: #94a3b8;
-  padding: 0.4rem 0.85rem;
+  padding: 0.42rem 0.95rem;
   font-size: 0.72rem;
   letter-spacing: 0.15em;
   border-radius: 4px;
@@ -136,162 +146,512 @@
   border-color: #38bdf8;
   color: #f8fafc;
   background: rgba(56, 189, 248, 0.15);
-  box-shadow: 0 0 14px rgba(56, 189, 248, 0.3);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.35);
 }
 
-/* Top Floating Logo Banner (Pinned above the cube) */
-.cfs-top-banner {
-  position: absolute;
-  top: 4.2rem;
-  left: 50%;
-  transform: translateX(-50%);
+/* ==========================================================================
+   CENTER HERO: THEMATIC IMAGE-WRAPPED TITLE WITH SUBTLE GLITCH
+   ========================================================================== */
+
+.cfs-center {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
+  margin: auto 0;
+  max-width: 1050px;
+  align-self: center;
   pointer-events: auto;
   user-select: none;
-  z-index: 20;
 }
 
-.cfs-logo-img {
-  max-width: 320px;
-  width: min(320px, 48vw);
-  height: auto;
-  filter: drop-shadow(0 0 25px rgba(239, 68, 68, 0.4));
-  transition: transform 0.3s ease;
-}
-
-.cfs-logo-img:hover {
-  transform: scale(1.02);
-}
-
-/* Dynamic Active Sector Pill */
-.cfs-sector-indicator {
-  margin-top: 0.4rem;
+.cfs-kicker-wrap {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.25rem 0.9rem;
+  gap: 0.55rem;
+  margin-bottom: 0.65rem;
+  padding: 0.2rem 0.85rem;
   border-radius: 9999px;
-  background: rgba(15, 23, 42, 0.88);
-  border: 1px solid var(--accent-color, #00f2fe);
-  font-size: 0.68rem;
-  letter-spacing: 0.18em;
-  color: #e2e8f0;
-  box-shadow: 0 0 16px color-mix(in srgb, var(--accent-color, #00f2fe) 40%, transparent);
-  backdrop-filter: blur(8px);
-  transition: all 0.4s ease;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  backdrop-filter: blur(6px);
 }
 
-.cfs-sector-dot {
+.cfs-kicker-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--accent-color, #00f2fe);
-  box-shadow: 0 0 8px var(--accent-color, #00f2fe);
+  box-shadow: 0 0 8px currentColor;
+  transition: background-color 0.4s ease;
 }
 
-.cfs-sector-code {
-  font-weight: 800;
-  color: var(--accent-color, #00f2fe);
-}
-
-.cfs-sector-sep {
-  color: #64748b;
-}
-
-.cfs-sector-name {
+.cfs-kicker {
+  font-size: 0.72rem;
+  letter-spacing: 0.28em;
   font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+/* Title Wrapper */
+.cfs-title-wrapper {
+  position: relative;
+  display: inline-block;
+  margin: 0.2rem 0 0.6rem;
+  cursor: pointer;
+}
+
+/* Main Glitch Title: Thematic Image Fill inside Orbitron 900 letterforms */
+.cfs-glitch-title {
+  position: relative;
+  display: inline-block;
+  margin: 0;
+  padding: 0;
+  font-family: 'Orbitron', 'Chakra Petch', sans-serif;
+  font-weight: 900;
+  font-size: clamp(3.4rem, 8.2vw, 7.2rem);
+  letter-spacing: 0.06em;
+  line-height: 1.05;
+  text-transform: uppercase;
+
+  /* Image Wrap via background-clip: text */
+  background-image: var(--cfs-bg-image);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+
+  /* High-contrast cyber laser contour & drop shadow */
+  -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.45);
+  filter: drop-shadow(0 0 28px rgba(var(--cfs-accent-rgb, 56, 189, 248), 0.65));
+  transition: filter 0.5s ease;
+}
+
+/* Glitch Pseudo-elements: Cyan (left) & Red (right) horizontal slice jitter */
+.cfs-glitch-title::before,
+.cfs-glitch-title::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: var(--cfs-bg-image);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  pointer-events: none;
+  opacity: 0;
+}
+
+/* Cyan Slice Jitter (Subtle, firing periodically) */
+.cfs-glitch-title::before {
+  -webkit-text-stroke: 1.5px rgba(0, 242, 254, 0.85);
+  filter: drop-shadow(-3px 0 0 rgba(0, 242, 254, 0.85));
+  animation: cfsSubtleGlitch1 4.2s infinite ease-in-out;
+}
+
+/* Red Slice Jitter */
+.cfs-glitch-title::after {
+  -webkit-text-stroke: 1.5px rgba(239, 68, 68, 0.85);
+  filter: drop-shadow(3px 0 0 rgba(239, 68, 68, 0.85));
+  animation: cfsSubtleGlitch2 4.2s infinite ease-in-out;
+}
+
+/* Hovering or active burst animation */
+.cfs-glitch-title.is-bursting::before {
+  animation: cfsGlitchBurst1 0.38s ease-out forwards;
+}
+
+.cfs-glitch-title.is-bursting::after {
+  animation: cfsGlitchBurst2 0.38s ease-out forwards;
+}
+
+/* Periodic subtle glitch slice keyframes (quiet for 82% of time, subtle jitter 83-88%) */
+@keyframes cfsSubtleGlitch1 {
+  0%, 82%, 100% {
+    opacity: 0;
+    transform: translate(0, 0);
+    clip-path: inset(50%);
+  }
+  83% {
+    opacity: 0.9;
+    transform: translate(-3px, 1px);
+    clip-path: polygon(0 16%, 100% 16%, 100% 32%, 0 32%);
+  }
+  84.5% {
+    opacity: 0.65;
+    transform: translate(2px, -1px);
+    clip-path: polygon(0 50%, 100% 50%, 100% 62%, 0 62%);
+  }
+  86% {
+    opacity: 0.85;
+    transform: translate(-2px, 0);
+    clip-path: polygon(0 76%, 100% 76%, 100% 88%, 0 88%);
+  }
+  87.5% {
+    opacity: 0;
+    transform: translate(0, 0);
+    clip-path: inset(50%);
+  }
+}
+
+@keyframes cfsSubtleGlitch2 {
+  0%, 82%, 100% {
+    opacity: 0;
+    transform: translate(0, 0);
+    clip-path: inset(50%);
+  }
+  83.5% {
+    opacity: 0.85;
+    transform: translate(3px, -1px);
+    clip-path: polygon(0 28%, 100% 28%, 100% 42%, 0 42%);
+  }
+  85% {
+    opacity: 0.7;
+    transform: translate(-2px, 1px);
+    clip-path: polygon(0 8%, 100% 8%, 100% 20%, 0 20%);
+  }
+  86.5% {
+    opacity: 0.85;
+    transform: translate(2px, 0);
+    clip-path: polygon(0 62%, 100% 62%, 100% 74%, 0 74%);
+  }
+  88% {
+    opacity: 0;
+    transform: translate(0, 0);
+    clip-path: inset(50%);
+  }
+}
+
+/* Dynamic fast glitch burst on theme change */
+@keyframes cfsGlitchBurst1 {
+  0% {
+    opacity: 1;
+    transform: translate(-5px, 1px);
+    clip-path: polygon(0 14%, 100% 14%, 100% 38%, 0 38%);
+  }
+  30% {
+    opacity: 0.8;
+    transform: translate(4px, -1px);
+    clip-path: polygon(0 48%, 100% 48%, 100% 68%, 0 68%);
+  }
+  65% {
+    opacity: 0.6;
+    transform: translate(-2px, 0);
+    clip-path: polygon(0 72%, 100% 72%, 100% 88%, 0 88%);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, 0);
+    clip-path: inset(50%);
+  }
+}
+
+@keyframes cfsGlitchBurst2 {
+  0% {
+    opacity: 1;
+    transform: translate(5px, -1px);
+    clip-path: polygon(0 30%, 100% 30%, 100% 55%, 0 55%);
+  }
+  35% {
+    opacity: 0.75;
+    transform: translate(-3px, 1px);
+    clip-path: polygon(0 10%, 100% 10%, 100% 25%, 0 25%);
+  }
+  70% {
+    opacity: 0.5;
+    transform: translate(2px, 0);
+    clip-path: polygon(0 60%, 100% 60%, 100% 80%, 0 80%);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, 0);
+    clip-path: inset(50%);
+  }
+}
+
+/* Subtitle & Active Station Status HUD */
+.cfs-sub-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 0.4rem;
+  padding: 0.35rem 1.1rem;
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid var(--accent-color, #38bdf8);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--accent-color, #38bdf8) 35%, transparent);
+  backdrop-filter: blur(10px);
+  transition: all 0.4s ease;
+}
+
+.cfs-sub-bracket {
+  color: var(--accent-color, #38bdf8);
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.cfs-subtitle-strong {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.32em;
   color: #f8fafc;
 }
 
-.cfs-sector-loc {
-  color: #94a3b8;
-  font-size: 0.62rem;
+.cfs-sub-sep {
+  color: #475569;
 }
 
-/* Bottom Floating Dock: Press Space or Click */
-.cfs-bottom-dock {
-  position: absolute;
-  bottom: 3.4rem;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  pointer-events: auto;
-  cursor: pointer;
-  user-select: none;
-  z-index: 20;
-  transition: transform 0.2s ease;
-}
-
-.cfs-bottom-dock:hover {
-  transform: translateX(-50%) translateY(-2px);
-}
-
-.cfs-engage-pill {
+.cfs-active-station-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.85rem;
-  padding: 0.7rem 1.8rem;
-  background: rgba(15, 23, 42, 0.85);
+  gap: 0.45rem;
+  font-size: 0.74rem;
+  letter-spacing: 0.16em;
+}
+
+.cfs-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-color, #38bdf8);
+  box-shadow: 0 0 8px var(--accent-color, #38bdf8);
+}
+
+.cfs-badge-code {
+  font-weight: 800;
+  color: var(--accent-color, #38bdf8);
+}
+
+.cfs-badge-name {
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.cfs-badge-theme {
+  color: #94a3b8;
+  font-size: 0.68rem;
+}
+
+.cfs-tagline {
+  margin: 1.1rem 0 1.5rem;
+  max-width: 680px;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  letter-spacing: 0.14em;
+  color: #94a3b8;
+}
+
+/* Master Primary CTA Action */
+.cfs-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+}
+
+.cfs-cta-primary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.95rem;
+  padding: 0.85rem 2.2rem;
+  background: rgba(15, 23, 42, 0.88);
   border: 1px solid var(--accent-color, #38bdf8);
   border-radius: 9999px;
+  color: #ffffff;
+  cursor: pointer;
+  overflow: hidden;
   backdrop-filter: blur(12px);
-  box-shadow: 0 0 25px color-mix(in srgb, var(--accent-color, #38bdf8) 40%, transparent);
-  animation: cfsPulse 2.4s infinite ease-in-out;
+  box-shadow: 0 0 28px rgba(var(--accent-rgb, 56, 189, 248), 0.4);
   transition: all 0.25s ease;
+  animation: cfsPulse 2.5s infinite ease-in-out;
 }
 
-.cfs-bottom-dock:hover .cfs-engage-pill {
-  background: rgba(56, 189, 248, 0.15);
-  box-shadow: 0 0 35px var(--accent-color, #38bdf8);
+.cfs-cta-primary:hover {
+  transform: translateY(-2px);
+  background: rgba(var(--accent-rgb, 56, 189, 248), 0.18);
+  box-shadow: 0 0 40px var(--accent-color, #38bdf8);
 }
 
-.cfs-key-badge {
+.cfs-key-pill {
   background: #ef4444;
   color: #ffffff;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 800;
-  letter-spacing: 0.1em;
-  padding: 0.2rem 0.6rem;
+  letter-spacing: 0.12em;
+  padding: 0.22rem 0.62rem;
   border-radius: 4px;
   box-shadow: 0 0 12px rgba(239, 68, 68, 0.7);
 }
 
-.cfs-engage-text {
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.24em;
-  color: #f1f5f9;
-  text-transform: uppercase;
+.cfs-cta-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.86rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  color: #f8fafc;
 }
 
-.cfs-cta-hint {
-  margin-top: 0.5rem;
-  font-size: 0.65rem;
+.cfs-cta-arrow {
+  color: var(--accent-color, #38bdf8);
+  font-size: 1.1rem;
+  font-weight: 700;
+  transition: transform 0.2s ease;
+}
+
+.cfs-cta-primary:hover .cfs-cta-arrow {
+  transform: translateX(4px);
+}
+
+.cfs-quick-hint {
+  margin-top: 0.75rem;
+  font-size: 0.68rem;
   letter-spacing: 0.22em;
   color: #64748b;
   text-transform: uppercase;
 }
 
-/* Minimal Footer */
+.cfs-quick-hint b {
+  color: #cbd5e1;
+}
+
+/* ==========================================================================
+   BOTTOM DOCK: 4 SECTOR SWITCHER CARDS & FOOTER
+   ========================================================================== */
+
+.cfs-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  z-index: 25;
+  pointer-events: auto;
+}
+
+.cfs-sectors-dock {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.cfs-sector-card {
+  position: relative;
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cfs-sector-card:hover,
+.cfs-sector-card.is-active {
+  border-color: var(--c-accent);
+  background: rgba(15, 23, 42, 0.92);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px -5px rgba(var(--c-rgb), 0.35),
+              0 0 16px rgba(var(--c-rgb), 0.25);
+}
+
+.cfs-sec-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+}
+
+.cfs-sec-code {
+  font-weight: 800;
+  color: var(--c-accent);
+}
+
+.cfs-sec-class {
+  color: #64748b;
+  font-size: 0.6rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cfs-sec-name {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #f8fafc;
+  margin: 0;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cfs-sec-sub {
+  font-size: 0.66rem;
+  color: #94a3b8;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cfs-sec-status {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  color: #64748b;
+}
+
+.cfs-sector-card.is-active .cfs-sec-status {
+  color: var(--c-accent);
+}
+
+.cfs-sec-status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #64748b;
+  transition: all 0.2s ease;
+}
+
+.cfs-sector-card.is-active .cfs-sec-status-dot {
+  background: var(--c-accent);
+  box-shadow: 0 0 6px var(--c-accent);
+}
+
+/* Footer Bar */
 .cfs-footer {
-  position: absolute;
-  bottom: 1rem;
-  left: 2rem;
-  right: 2rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1.5rem;
-  font-size: 0.65rem;
+  font-size: 0.66rem;
   letter-spacing: 0.18em;
   color: #64748b;
-  z-index: 25;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  padding-top: 0.85rem;
 }
 
 .cfs-footer-logos {
@@ -301,19 +661,50 @@
 }
 
 .cfs-comm-logo {
-  height: 26px;
+  height: 24px;
   width: auto;
-  opacity: 0.95;
-  filter: drop-shadow(0 0 10px rgba(0, 242, 254, 0.3));
+  opacity: 0.85;
+  filter: drop-shadow(0 0 10px rgba(0, 242, 254, 0.25));
 }
 
 @keyframes cfsPulse {
-  0%, 100% { opacity: 0.85; }
-  50% { opacity: 0.45; }
+  0%, 100% { opacity: 0.95; }
+  50% { opacity: 0.65; }
 }
 
-@media (max-width: 860px) {
+/* ==========================================================================
+   RESPONSIVE DESIGN BREAKPOINTS
+   ========================================================================== */
+
+@media (max-width: 980px) {
   .cfs-hud {
-    padding: 1.25rem;
+    padding: 1.25rem 1.5rem;
+  }
+  .cfs-sectors-dock {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  .cfs-glitch-title {
+    font-size: clamp(2.5rem, 8vw, 4.5rem);
+  }
+  .cfs-sub-banner {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .cfs-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  .cfs-sectors-dock {
+    grid-template-columns: 1fr;
+  }
+  .cfs-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
   }
 }
