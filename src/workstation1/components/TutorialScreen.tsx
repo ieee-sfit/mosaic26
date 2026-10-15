@@ -1,6 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { HudPanel } from './HudPanel';
 import { LAB } from './DiagScope';
+import { DIAG_WAVEFORMS, WAVE_CALIBRATION } from '../mockStation1Data';
+import { profileOf, residualAt, targetsOf } from '../utils/diagnose';
+import { antiAt, noiseAt, type Controls, type Targets } from '../utils/waves';
 
 export type TutorialId = 'A' | 'B' | 'C' | 'D';
 
@@ -152,20 +155,63 @@ function HintTable() {
   );
 }
 
-/* ── Module B: a silver leftover that swells and shrinks ─────────────────────────────── */
+/* ── Module B: the real lab-notebook plot, cycling through the three kinds of error ─────── */
+const B_WAVE = DIAG_WAVEFORMS[0];
+const B_STATES: { label: string; hint: string; patch: (t: Targets) => Controls }[] = [
+  { label: 'PITCH OFF', hint: 'SWELLS AND SHRINKS', patch: (t) => ({ amp: t.amp, freq: t.freq + 0.12, phase: t.phase }) },
+  { label: 'LOUDNESS OFF', hint: 'PEAKS LINE UP', patch: (t) => ({ amp: t.amp - 0.3, freq: t.freq, phase: t.phase }) },
+  { label: 'TIMING OFF', hint: 'PEAKS BETWEEN', patch: (t) => ({ amp: t.amp, freq: t.freq, phase: t.phase + 75 }) },
+  { label: 'ALL FIXED', hint: 'LEFTOVER IS FLAT', patch: (t) => ({ amp: t.amp, freq: t.freq, phase: t.phase }) },
+];
+
 function LeftoverPicture() {
-  const pts = Array.from({ length: 120 }, (_, i) => {
-    const x = i / 119;
-    const swell = 0.25 + 0.75 * Math.abs(Math.sin(Math.PI * 1.5 * x));
-    return `${i === 0 ? 'M' : 'L'}${(10 + x * 310).toFixed(1)},${(100 - 62 * swell * Math.sin(2 * Math.PI * 9 * x)).toFixed(1)}`;
-  }).join(' ');
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    if (reduced()) return undefined;
+    const id = window.setInterval(() => setStep((n) => (n + 1) % B_STATES.length), 2300);
+    return () => window.clearInterval(id);
+  }, []);
+  const W = 330, H = 200, L = 10, R = 320, T = 26, Bm = 172;
+  const cy = (T + Bm) / 2, half = (Bm - T) / 2, pw = R - L;
+  const t = targetsOf(WAVE_CALIBRATION, B_WAVE);
+  const c = B_STATES[step].patch(t);
+  const prof = profileOf(B_WAVE);
+  const path = (fn: (x: number) => number) =>
+    Array.from({ length: 160 }, (_, i) => {
+      const x = i / 159;
+      return `${i === 0 ? 'M' : 'L'}${(L + x * pw).toFixed(1)},${(cy - (fn(x) / 2.15) * half).toFixed(1)}`;
+    }).join(' ');
+  const noise = path((x) => noiseAt(prof, x));
+  const anti = path((x) => antiAt(WAVE_CALIBRATION, c, x));
+  const left = path((x) => residualAt(WAVE_CALIBRATION, B_WAVE, c, x));
   return (
-    <svg viewBox="0 0 330 200" className="block w-full border border-goat-cyan/30" style={{ background: '#f4f0e3' }}>
-      <path d="M0,100 H330" stroke="#1f2937" strokeOpacity="0.25" />
-      <path d={pts} fill="none" stroke={LAB.silverEdge} strokeWidth="9" strokeLinejoin="round" />
-      <path d={pts} fill="none" stroke={LAB.silver} strokeWidth="5" strokeLinejoin="round" className="tut-draw" />
-      <text x="12" y="188" fontFamily="JetBrains Mono, monospace" fontSize="12" fontWeight="700" fill="#1f2937">LEFTOVER</text>
-    </svg>
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="block w-full border-2 border-[#1f2937]" style={{ background: LAB.paper }}>
+        {Array.from({ length: 41 }, (_, i) => (
+          <path key={`v${i}`} d={`M${L + (i / 40) * pw},${T} V${Bm}`} stroke="rgba(70,100,150,0.4)" strokeOpacity={i % 10 === 0 ? 1 : 0.4} strokeWidth="1" />
+        ))}
+        {[-4, -3, -2, -1, 0, 1, 2, 3, 4].map((j) => (
+          <path key={`h${j}`} d={`M${L},${cy - (j / 4) * half} H${R}`} stroke={j === 0 ? 'rgba(31,41,55,0.7)' : 'rgba(70,100,150,0.4)'} strokeOpacity={j === 0 || j % 2 === 0 ? 1 : 0.4} strokeWidth={j === 0 ? 1.6 : 1} />
+        ))}
+        <rect x={L} y={T} width={pw} height={Bm - T} fill="none" stroke={LAB.ink} strokeWidth="2" />
+        <clipPath id="tutb-clip"><rect x={L} y={T} width={pw} height={Bm - T} /></clipPath>
+        <g clipPath="url(#tutb-clip)" fill="none" strokeLinejoin="round">
+          <path d={noise} stroke={LAB.noise} strokeWidth="3" />
+          <path d={anti} stroke={LAB.anti} strokeWidth="3" />
+          <path d={left} stroke={LAB.silverEdge} strokeWidth="6" />
+          <path d={left} stroke={LAB.silver} strokeWidth="3" />
+        </g>
+        <g fontFamily="JetBrains Mono, monospace" fontSize="9" fontWeight="700">
+          <text x="6" y="16" fill={LAB.noise}>━ NOISE</text>
+          <text x="66" y="16" fill={LAB.anti}>━ YOUR WAVE</text>
+          <text x="152" y="16" fill={LAB.ink}>━ LEFTOVER</text>
+        </g>
+      </svg>
+      <div className="mt-1.5 flex items-baseline justify-between font-tele text-[11px] font-bold uppercase tracking-widest" aria-live="off">
+        <span className={step === B_STATES.length - 1 ? 'text-goat-lock' : 'text-goat-crimson'}>{B_STATES[step].label}</span>
+        <span className="text-goat-mute">{B_STATES[step].hint}</span>
+      </div>
+    </div>
   );
 }
 
