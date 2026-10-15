@@ -41,18 +41,20 @@ export default function RunBadge({ playerId, saved }: { playerId: string; saved:
     )
   return (
     <aside className="rb-badge" aria-label="Leaderboard">
-      <button type="button" className="rb-x" onClick={() => setOpen(false)} aria-label="Hide leaderboard link">×</button>
-      <small>LIVE LEADERBOARD</small>
       <span className="rb-qr" dangerouslySetInnerHTML={{ __html: svg }} />
-      <b className="rb-url">{url.replace(/^https?:\/\//, '')}</b>
-      {!saved && <em>SAVING SCORE…</em>}
-      {saved && standing?.ok && (
-        <p data-testid="standing">
-          YOU: <b>{standing.codename}</b>
-          <br />
-          {standing.rank ? `RANK ${standing.rank} OF ${standing.of} · ${standing.total} PTS${standing.shared ? ' (SHARED)' : ''}` : 'NOT RANKED YET'}
-        </p>
-      )}
+      <div className="rb-info">
+        <small>LIVE LEADERBOARD</small>
+        <b className="rb-url">{url.replace(/^https?:\/\//, '')}</b>
+        {!saved && <em>SAVING SCORE…</em>}
+        {saved && standing?.ok && (
+          <p data-testid="standing">
+            YOU: <b>{standing.codename}</b>
+            <br />
+            {standing.rank ? `RANK ${standing.rank} OF ${standing.of} · ${standing.total} PTS${standing.shared ? ' (SHARED)' : ''}` : 'NOT RANKED YET'}
+          </p>
+        )}
+      </div>
+      <button type="button" className="rb-x" onClick={() => setOpen(false)} aria-label="Hide leaderboard link">×</button>
     </aside>
   )
 }

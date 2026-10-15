@@ -17,10 +17,10 @@ export interface Fx {
   flash: () => void;
 }
 
-export const shuffle = <T,>(items: readonly T[]): T[] => {
+export const shuffle = <T,>(items: readonly T[], rng: () => number = Math.random): T[] => {
   const a = [...items];
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rng() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;

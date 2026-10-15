@@ -1,18 +1,18 @@
 import { LAP_VARIANTS, QUALITY_PROFILES, QUESTION_BANK, STATION2_CONFIG } from './mockStation2Data';
 import type { Beam, QuizQuestion, Section, Stint } from './types';
 
-export function shuffle<T>(arr: T[]): T[] {
+export function shuffle<T>(arr: T[], rng: () => number = Math.random): T[] {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rng() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
 }
 
 /** Pick N questions, preferring distinct topic groups, with shuffled options. */
-export function pickQuestions(n = STATION2_CONFIG.questionsPerRun): QuizQuestion[] {
-  const pool = shuffle(QUESTION_BANK);
+export function pickQuestions(n = STATION2_CONFIG.questionsPerRun, rng: () => number = Math.random): QuizQuestion[] {
+  const pool = shuffle(QUESTION_BANK, rng);
   const picked: QuizQuestion[] = [];
   for (const item of pool) {
     if (picked.length >= n) break;
@@ -23,7 +23,7 @@ export function pickQuestions(n = STATION2_CONFIG.questionsPerRun): QuizQuestion
     if (!picked.includes(item)) picked.push(item);
   }
   return picked.map((item) => {
-    const order = shuffle([0, 1, 2, 3]);
+    const order = shuffle([0, 1, 2, 3], rng);
     return {
       ...item,
       options: order.map((i) => item.options[i]) as QuizQuestion['options'],

@@ -1,10 +1,10 @@
 import { STATION4_CONFIG } from '../mockStation4Data'
 
 // ---------- Module A ----------
-export function pickQuestions(bank, count) {
+export function pickQuestions(bank, count, rng = Math.random) {
   const pool = [...bank]
   for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
+    const j = Math.floor(rng() * (i + 1))
     ;[pool[i], pool[j]] = [pool[j], pool[i]]
   }
   return pool.slice(0, count)

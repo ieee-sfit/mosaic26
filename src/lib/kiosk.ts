@@ -94,3 +94,47 @@ export async function getStanding(id: string): Promise<Standing | null> {
     return null
   }
 }
+
+/* ── Versus lobbies (2-5 players, one station, same seed, polled every 2 s) ─────────────────────────── */
+
+export interface LobbyPlayer { first_name: string; college: string; is_creator: boolean; is_you: boolean }
+export interface LobbyResultRow { rank: number; first_name: string; codename: string; score: number; hints: number; wrong: number; time_left: number; is_you: boolean }
+export interface LobbyStatus {
+  ok: boolean
+  error?: string
+  state?: 'open' | 'running' | 'finished' | 'cancelled' | 'expired'
+  number?: number
+  number_text?: string
+  station?: string
+  is_creator?: boolean
+  server_now?: string
+  expires_at?: string
+  start_at?: string | null
+  seed?: number | null
+  run_id?: string | null
+  cancel_reason?: string | null
+  min_players?: number
+  max_players?: number
+  players?: LobbyPlayer[]
+  results?: LobbyResultRow[] | null
+  winner_is_you?: boolean
+  medal_awarded?: boolean
+}
+export interface LobbyReply { ok: boolean; error?: string; lobby_id?: number; number?: number; number_text?: string; start_at?: string; seed?: number; dropped?: string[]; min?: number }
+
+async function lobbyCall<T extends { ok: boolean; error?: string }>(fn: string, args: Record<string, unknown>): Promise<T> {
+  if (!isKioskConfigured) return { ok: false, error: 'KIOSK_NOT_CONFIGURED' } as T
+  try {
+    const { data, error } = await supabase.rpc(fn, { p_secret: KIOSK_SECRET, ...args })
+    if (error) throw new Error(error.message)
+    return data as T
+  } catch (e) {
+    console.warn(`[MOSAIC] ${fn} failed`, e)
+    return { ok: false, error: 'OFFLINE' } as T
+  }
+}
+export const lobbyCreate = (id: string, station: string) => lobbyCall<LobbyReply>('lobby_create', { p_id: id, p_station: station })
+export const lobbyJoin = (id: string, number: number, station: string) => lobbyCall<LobbyReply>('lobby_join', { p_id: id, p_number: number, p_station: station })
+export const lobbyLeave = (id: string, lobbyId: number) => lobbyCall<LobbyReply>('lobby_leave', { p_id: id, p_lobby: lobbyId })
+export const lobbyStart = (id: string, lobbyId: number) => lobbyCall<LobbyReply>('lobby_start', { p_id: id, p_lobby: lobbyId })
+export const lobbyStatus = (id: string, lobbyId: number) => lobbyCall<LobbyStatus>('lobby_status', { p_id: id, p_lobby: lobbyId })

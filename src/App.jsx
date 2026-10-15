@@ -7,6 +7,7 @@ import Launcher from './launcher/Launcher'
 import Leaderboard from './launcher/Leaderboard'
 import LaunchLoader from './launcher/LaunchLoader'
 import RunBadge from './launcher/RunBadge'
+import LobbyResult from './launcher/LobbyResult'
 import { saveRun } from './lib/saveRun'
 import { normalizeStation1 } from './core/scoring'
 import { SessionContext, createSession } from './session/sessionContext'
@@ -35,12 +36,12 @@ function App() {
   const [done, setDone] = useState('no') // 'no' | 'saving' | 'saved': the finished run is being sent, or has been sent / queued
 
   // The session clock starts only once the countdown finishes
-  const finishLaunch = () => {
-    if (!launching) return
+  const begin = (stationId, playerId, runId, extra) => {
     setDone('no')
-    setSession(createSession(launching.id, launching.playerId, launching.runId))
+    setSession(createSession(stationId, playerId, runId, extra))
     setLaunching(null)
   }
+  const finishLaunch = () => launching && begin(launching.id, launching.playerId, launching.runId)
 
   const returnToLauncher = () => {
     setSession(null)
@@ -60,7 +61,12 @@ function App() {
           onNavigateStation={returnToLauncher} // every new attempt goes back through the ID and attempt check
           onOpenStationChooser={returnToLauncher}
         />
-        {done !== 'no' && <RunBadge playerId={session.player_id} saved={done === 'saved'} />}
+        {done !== 'no' && (
+          <div className="rb-dock">
+            <RunBadge playerId={session.player_id} saved={done === 'saved'} />
+            {done === 'saved' && session.lobbyId && <LobbyResult playerId={session.player_id} lobbyId={session.lobbyId} />}
+          </div>
+        )}
       </SessionContext.Provider>
     )
   }
@@ -73,7 +79,8 @@ function App() {
 
   return (
     <Launcher
-      onEngage={(id, playerId, runId) => setLaunching({ id, playerId, runId })}
+      // A versus lobby has already run its own synchronized countdown, so it starts the session at once
+      onEngage={(id, playerId, runId, extra) => (extra?.lobbyId ? begin(id, playerId, runId, extra) : setLaunching({ id, playerId, runId }))}
       onOpenLeaderboard={() => setView('leaderboard')}
     />
   )

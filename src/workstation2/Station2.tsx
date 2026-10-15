@@ -75,7 +75,7 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
   /** True from the moment the last Module C lap is banked: the clock stops there, so the speed bonus is frozen at that instant. */
   const [cCleared, setCCleared] = useState(false);
   /** Fixes this run's lap variants (Module C): a repeat attempt remounts the station and draws a new seed. */
-  const [seed] = useState(() => (Math.random() * 4294967296) >>> 0);
+  const [seed] = useState(() => session?.seed ?? (Math.random() * 4294967296) >>> 0);
   const stints = useMemo(() => pickStints(seed), [seed]);
 
   const endAt = useRef(0);
@@ -355,7 +355,7 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
         {stage === 'launch' && <LaunchScreen playerId={playerId} onGo={go} onBack={onOpenStationChooser} />}
         {playing && board && board.kind === 'quali' && <BoardScreen data={board} onContinue={qualiContinue} />}
         {playing && !board && mod === 'A' && (
-          <ModuleA track={track} onShake={shake} onScore={setA} onDone={() => leaveModule('story1')} />
+          <ModuleA track={track} onShake={shake} onScore={setA} onDone={() => leaveModule('story1')} seed={seed} />
         )}
         {playing && !board && mod === 'B' && (
           <ModuleB track={track} onShake={shake} onScore={setB} onDone={routesDone} />
@@ -390,6 +390,7 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
         {stage === 'bonus' && (
           <ModuleD
             deadline={dDeadline}
+            seed={seed}
             track={track} onShake={shake}
             onScore={setD}
             onDone={doneD}

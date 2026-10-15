@@ -29,6 +29,7 @@
     "src/launcher/Leaderboard.tsx",
     "src/desk",
     "src/board",
-    "src/launcher/RunBadge.tsx"
+    "src/launcher/RunBadge.tsx",
+    "src/launcher/LobbyResult.tsx"
   ]
 }

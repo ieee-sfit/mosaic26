@@ -77,7 +77,7 @@ export default function Station3({ onOpenStationChooser, onComplete }: Station3P
   const [phase, setPhase] = useState<Phase>('story-opening');
   const [timeLeft, setTimeLeft] = useState<number>(CONFIG.totalSeconds);
   const [scores, setScores] = useState<Scores>(NO_SCORES);
-  const [seed] = useState(() => (Math.random() * 4294967296) >>> 0);
+  const [seed] = useState(() => session?.seed ?? (Math.random() * 4294967296) >>> 0);
   const cas = caseFor(seed);
   const [result, setResult] = useState<Breakdown | null>(null);
   const [shake, setShake] = useState(false);
@@ -250,7 +250,7 @@ export default function Station3({ onOpenStationChooser, onComplete }: Station3P
 
       {phase === 'story-opening' && <StoryScreen key="opening" beat={BEATS.opening} onContinue={() => setPhase('tut-A')} />}
       {phase === 'tut-A' && <TutorialScreen module="A" onContinue={() => setPhase('A')} />}
-      {phase === 'A' && <ModuleA fx={fx} onScore={(d) => addScore('a', d)} onStat={(k) => bump('A', k)} onDone={() => setPhase('story-1')} />}
+      {phase === 'A' && <ModuleA fx={fx} seed={seed} onScore={(d) => addScore('a', d)} onStat={(k) => bump('A', k)} onDone={() => setPhase('story-1')} />}
 
       {phase === 'story-1' && <StoryScreen key="story1" beat={BEATS.story1} onContinue={() => setPhase('tut-B')} />}
       {phase === 'tut-B' && <TutorialScreen module="B" onContinue={() => setPhase('B')} />}

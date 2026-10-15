@@ -159,7 +159,7 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
     finished.current = false
     committed.current = false
     frozen.current = null
-    setSeed(Date.now())
+    setSeed(session?.seed ?? Date.now())
     timeRef.current = STATION4_CONFIG.totalSeconds
     setTimeLeft(STATION4_CONFIG.totalSeconds)
     resetStats()
@@ -234,7 +234,7 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
 
         {phase === 'tut-A' && <TutorialScreen module="A" onContinue={() => setPhase('A')} />}
         {phase === 'A' && (
-          <ModuleA fx={fx} log={log} track={track} onScore={(a) => setScore((s) => ({ ...s, a }))} onDone={() => setPhase('story-1')} />
+          <ModuleA fx={fx} log={log} track={track} seed={seed} onScore={(a) => setScore((s) => ({ ...s, a }))} onDone={() => setPhase('story-1')} />
         )}
         {phase === 'tut-B' && <TutorialScreen module="B" onContinue={() => setPhase('B')} />}
         {phase === 'B' && (

@@ -6,6 +6,7 @@ import { QUESTION_BANK, SCORING } from './mockStation1Data';
 import { ShakeContext, useScreenShake } from './hooks/useScreenShake';
 import { useCountdown } from './hooks/useCountdown';
 import { pickRandom } from './utils/pick';
+import { mulberry32 } from './utils/handshake';
 import { maxTotals, sum } from './utils/scoring';
 import type { EndReason, HandshakeResult, McqQuestion, Phase, QuestionResult, RoundResult, Station1Result, StepResult } from './types';
 import { ModuleA } from './components/ModuleA';
@@ -57,13 +58,14 @@ function Session({ onComplete, onRestart }: HostProps & { onRestart: () => void 
   // The arcade launcher has already verified the player's single 4-digit ID; '0000' only appears when the station is opened outside it.
   const operator = session?.player_id ?? '0000';
   const [phase, setPhase] = useState<Phase>('opening');
-  const [questions] = useState<McqQuestion[]>(() => pickRandom(QUESTION_BANK, SCORING.moduleA.questionCount));
+  // Versus lobby: every player gets the same seed, hence the same Module A questions and Module D handshakes.
+  const [seed] = useState(() => session?.seed ?? (Math.random() * 4294967296) >>> 0);
+  const [questions] = useState<McqQuestion[]>(() => pickRandom(QUESTION_BANK, SCORING.moduleA.questionCount, session?.seed != null ? mulberry32(seed ^ 0xa5a5a5) : Math.random));
   const [a, setA] = useState<QuestionResult[]>([]);
   const [b, setB] = useState<StepResult[]>([]);
   const [c, setC] = useState<RoundResult[]>([]);
   const [cCleared, setCCleared] = useState(false);
   const [result, setResult] = useState<Station1Result | null>(null);
-  const [seed] = useState(() => (Math.random() * 4294967296) >>> 0);
   const { ref, shake } = useScreenShake();
 
   const phaseRef = useRef<Phase>(phase);
