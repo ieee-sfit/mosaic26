@@ -7,6 +7,7 @@ import Launcher from './launcher/Launcher'
 import Leaderboard from './launcher/Leaderboard'
 import LaunchLoader from './launcher/LaunchLoader'
 import CtrlFreakSplash from './launcher/CtrlFreakSplash'
+import IntroCinematic from './launcher/IntroCinematic'
 import { saveRun } from './lib/saveRun'
 import { normalizeStation1 } from './core/scoring'
 import { SessionContext, createSession } from './session/sessionContext'
@@ -32,7 +33,7 @@ function recordRun(stationId, session, payload) {
 
 function App() {
   const [session, setSession] = useState(null)
-  const [view, setView] = useState('splash') // 'splash' | 'launcher' | 'leaderboard'
+  const [view, setView] = useState('intro') // 'intro' | 'splash' | 'launcher' | 'leaderboard'
   const [launching, setLaunching] = useState(null) // { id, p1, p2 } during the pre-game countdown
   const [initialStation, setInitialStation] = useState(null)
 
@@ -76,6 +77,14 @@ function App() {
         p1={launching.p1}
         p2={launching.p2}
         onComplete={finishLaunch}
+      />
+    )
+  }
+
+  if (view === 'intro') {
+    return (
+      <IntroCinematic
+        onComplete={() => setView('splash')}
       />
     )
   }
