@@ -30,10 +30,13 @@ export default function ModuleA({
   onScore,
   onDone,
   fx,
+  onStat,
 }: {
   onScore: (delta: number) => void;
   onDone: () => void;
   fx: Fx;
+  /** Reports a wrong pick or a hint for the end-of-run diagnostic. */
+  onStat: (kind: 'wrong' | 'hint') => void;
 }) {
   const [cards] = useState(dealCards);
   const [idx, setIdx] = useState(0);
@@ -66,6 +69,7 @@ export default function ModuleA({
       resolve(i, hint, wrong.length);
     } else {
       setWrong((w) => [...w, i]);
+      onStat('wrong');
       fx.shake();
     }
   };
@@ -73,6 +77,7 @@ export default function ModuleA({
   const requestHint = (next: 1 | 2) => {
     if (resolved || hint >= next) return;
     setHint(next);
+    onStat('hint');
     // Hint 1 strikes out one wrong option that has not been tried yet
     if (next === 1) {
       const left = card.options.map((o, i) => (!o.correct && !wrong.includes(i) ? i : -1)).filter((i) => i >= 0);
