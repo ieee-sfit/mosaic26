@@ -183,8 +183,13 @@ export function initSplashScene(container) {
     }
   }
 
+  function setThemeColor(hexColor) {
+    coreLight.color.set(hexColor)
+  }
+
   return {
     triggerWarp,
+    setThemeColor,
     dispose,
   }
 }

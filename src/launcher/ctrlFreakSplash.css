@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CTRL FREAK: CRITICAL POINT — 3D INTRO SPLASH HUD
+   CTRL FREAK: CRITICAL POINT — 3D INTRO SPLASH WITH CHARACTER PARALLAX
    ========================================================================== */
 
 .cfs-root {
@@ -13,6 +13,11 @@
   overflow: hidden;
   user-select: none;
   z-index: 1000;
+  transition: opacity 0.5s ease;
+}
+
+.cfs-root.is-warping {
+  pointer-events: none;
 }
 
 /* 3D Canvas Background */
@@ -32,8 +37,8 @@
   z-index: 2;
   background: repeating-linear-gradient(
     to bottom,
-    rgba(255, 255, 255, 0.025) 0px,
-    rgba(255, 255, 255, 0.025) 1px,
+    rgba(255, 255, 255, 0.02) 0px,
+    rgba(255, 255, 255, 0.02) 1px,
     transparent 2px,
     transparent 4px
   );
@@ -95,12 +100,12 @@
   gap: 0.45rem;
   padding: 0.28rem 0.75rem;
   border-radius: 9999px;
-  background: rgba(239, 68, 68, 0.15);
+  background: rgba(15, 23, 42, 0.65);
   border: 1px solid rgba(239, 68, 68, 0.45);
-  color: #f87171;
   font-size: 0.7rem;
   letter-spacing: 0.16em;
   animation: cfsPulse 2s infinite ease-in-out;
+  transition: all 0.4s ease;
 }
 
 .cfs-status-dot {
@@ -109,6 +114,7 @@
   border-radius: 50%;
   background: #ef4444;
   box-shadow: 0 0 10px #ef4444;
+  transition: all 0.4s ease;
 }
 
 .cfs-header-actions {
@@ -138,7 +144,10 @@
   box-shadow: 0 0 14px rgba(56, 189, 248, 0.3);
 }
 
-/* Center Stage Content */
+/* ==========================================================================
+   CENTER STAGE: PARALLAX MASKED LOGO & ZOOM-IN CAMERA DIVE
+   ========================================================================== */
+
 .cfs-center {
   display: flex;
   flex-direction: column;
@@ -147,25 +156,140 @@
   max-width: 900px;
   margin: auto auto;
   pointer-events: auto;
+  user-select: none;
 }
 
-.cfs-logo-wrap {
+/* Logo Stage Container */
+.cfs-logo-stage {
   position: relative;
+  display: inline-block;
   margin-bottom: 1.5rem;
-}
-
-.cfs-logo-img {
   max-width: 540px;
-  width: 80vw;
-  height: auto;
-  filter: drop-shadow(0 0 35px rgba(239, 68, 68, 0.4));
-  transition: transform 0.3s ease;
+  width: min(540px, 80vw);
+  aspect-ratio: 565 / 156;
+  transform-origin: 50% 50%;
+  filter: drop-shadow(0 0 35px rgba(var(--accent-rgb, 239, 68, 68), 0.55));
+  transition: filter 0.5s ease, transform 0.2s ease-out;
 }
 
-.cfs-logo-img:hover {
+.cfs-logo-stage:hover {
   transform: scale(1.02);
 }
 
+/* Camera Zoom Dive Animation */
+.cfs-logo-stage.is-warping-dive {
+  transform: scale(32);
+  opacity: 0;
+  filter: drop-shadow(0 0 100px rgba(var(--accent-rgb, 239, 68, 68), 1));
+  transition: transform 0.65s cubic-bezier(0.7, 0, 0.84, 0), opacity 0.65s cubic-bezier(0.7, 0, 0.84, 0);
+  pointer-events: none;
+}
+
+/* Stencil Mask Portal: Logo PNG acts as alpha cutout mask */
+.cfs-logo-mask-portal {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  -webkit-mask-image: url('/ctrlfreak_logo.png');
+  mask-image: url('/ctrlfreak_logo.png');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Parallax Interior Layers */
+.cfs-portal-layer {
+  position: absolute;
+  inset: -20%;
+  width: 140%;
+  height: 140%;
+  background-size: cover;
+  background-position: center;
+  pointer-events: none;
+  will-change: transform;
+  transition: transform 0.08s ease-out, background-image 0.5s ease;
+}
+
+/* Layer 1: Background Thematic Chamber */
+.cfs-layer-bg {
+  z-index: 1;
+  filter: brightness(0.85) contrast(1.15);
+}
+
+/* Layer 2: Midground Glowing Details */
+.cfs-layer-mid {
+  z-index: 2;
+  mix-blend-mode: screen;
+  filter: brightness(1.25) contrast(1.3) saturate(1.4);
+  opacity: 0.85;
+}
+
+/* Layer 3: Foreground Optical Flares */
+.cfs-layer-fore {
+  z-index: 3;
+  mix-blend-mode: screen;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    rgba(var(--accent-rgb, 0, 242, 254), 0.4) 0%,
+    transparent 70%
+  );
+  opacity: 0.65;
+}
+
+/* Subtle Glitch Slice Jitter inside the Letters */
+.cfs-portal-glitch-slice {
+  position: absolute;
+  inset: 0;
+  background: rgba(var(--accent-rgb, 239, 68, 68), 0.2);
+  mix-blend-mode: overlay;
+  z-index: 4;
+  animation: cfsLetterGlitch 0.35s ease-out forwards;
+}
+
+@keyframes cfsLetterGlitch {
+  0% {
+    clip-path: polygon(0 15%, 100% 15%, 100% 35%, 0 35%);
+    transform: translate(-3px, 1px);
+    opacity: 0.9;
+  }
+  40% {
+    clip-path: polygon(0 55%, 100% 55%, 100% 70%, 0 70%);
+    transform: translate(3px, -1px);
+    opacity: 0.8;
+  }
+  80% {
+    clip-path: polygon(0 75%, 100% 75%, 100% 88%, 0 88%);
+    transform: translate(-2px, 0);
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+}
+
+/* Logo Overlay: Specular Bevels & Chrome Rim Outlines */
+.cfs-logo-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  z-index: 5;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  opacity: 0.55;
+  filter: contrast(1.35) brightness(1.15);
+}
+
+/* Subtitle */
 .cfs-subtitle {
   font-size: clamp(0.75rem, 1.3vw, 0.95rem);
   letter-spacing: 0.22em;
@@ -184,7 +308,7 @@
   justify-content: center;
   gap: 0.75rem;
   padding: 1rem 3rem;
-  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+  background: linear-gradient(135deg, var(--accent-color, #ef4444) 0%, rgba(15, 23, 42, 0.9) 100%);
   border: 1px solid rgba(254, 202, 202, 0.5);
   color: #ffffff;
   font-weight: 800;
@@ -193,14 +317,14 @@
   text-transform: uppercase;
   border-radius: 6px;
   cursor: pointer;
-  box-shadow: 0 0 35px rgba(239, 68, 68, 0.55), inset 0 0 18px rgba(255, 255, 255, 0.25);
+  box-shadow: 0 0 35px rgba(var(--accent-rgb, 239, 68, 68), 0.55), inset 0 0 18px rgba(255, 255, 255, 0.25);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
 }
 
 .cfs-cta:hover {
   transform: translateY(-2px) scale(1.03);
-  box-shadow: 0 0 50px rgba(239, 68, 68, 0.85), inset 0 0 25px rgba(255, 255, 255, 0.45);
+  box-shadow: 0 0 50px rgba(var(--accent-rgb, 239, 68, 68), 0.85), inset 0 0 25px rgba(255, 255, 255, 0.45);
   border-color: #ffffff;
 }
 
