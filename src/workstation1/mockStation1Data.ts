@@ -342,7 +342,9 @@ export const DIAG_WAVEFORMS: [DiagWaveDef, DiagWaveDef] = [
 ];
 
 /* ── Module D · SECRET HANDSHAKE · three rounds ──────────────────────
-   4 free demo hops, then the scored hops. Two authored rule variants per round; the seed picks one. */
+   4 free demo hops, then the scored hops. Two authored rule variants per round; the seed picks one.
+   Every rule is a plain, regular jump pattern, always counted clockwise (+1..+12): round 1 repeats one jump, round 2 alternates two
+   jumps, round 3 makes each jump bigger by a fixed amount. The 4 free hops show the jumps so the pattern can be read off. */
 export const HANDSHAKE_ROUNDS: [HandshakeRoundDef, HandshakeRoundDef, HandshakeRoundDef] = [
   {
     points: 5,
@@ -350,7 +352,7 @@ export const HANDSHAKE_ROUNDS: [HandshakeRoundDef, HandshakeRoundDef, HandshakeR
     scoredHops: 6,
     variants: [
       { id: '1a', rule: { kind: 'step', d: 5 } },
-      { id: '1b', rule: { kind: 'step', d: -5 } },
+      { id: '1b', rule: { kind: 'step', d: 7 } },
     ],
   },
   {
@@ -358,8 +360,8 @@ export const HANDSHAKE_ROUNDS: [HandshakeRoundDef, HandshakeRoundDef, HandshakeR
     hopMs: 5450, // speed 110
     scoredHops: 8,
     variants: [
-      { id: '2a', rule: { kind: 'alt', d1: 7, d2: -2 } },
-      { id: '2b', rule: { kind: 'inter', c: 5, e: -1 } },
+      { id: '2a', rule: { kind: 'alt', d1: 5, d2: 2 } },
+      { id: '2b', rule: { kind: 'alt', d1: 3, d2: 7 } },
     ],
   },
   {
@@ -368,7 +370,7 @@ export const HANDSHAKE_ROUNDS: [HandshakeRoundDef, HandshakeRoundDef, HandshakeR
     scoredHops: 10,
     variants: [
       { id: '3a', rule: { kind: 'grow', d0: 1, g: 3 } },
-      { id: '3b', rule: { kind: 'fib' } },
+      { id: '3b', rule: { kind: 'grow', d0: 2, g: 3 } },
     ],
   },
 ];

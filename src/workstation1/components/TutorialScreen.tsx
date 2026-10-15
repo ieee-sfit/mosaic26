@@ -288,6 +288,8 @@ function BeaconPicture() {
   const now = ch(reduced() ? 2 : hop);
   const prev = ch(reduced() ? 1 : hop - 1);
   const p = pos(now);
+  const free = (reduced() ? 2 : hop) % 8 < 4; // the first four hops of the demo are the free ones
+  const beacon = free ? '#c084fc' : '#f59e0b';
   return (
     <svg viewBox="0 0 330 200" className="block w-full border border-goat-cyan/30 bg-goat-void">
       <circle cx="165" cy="100" r="74" fill="none" stroke="#00f2fe" strokeOpacity="0.2" strokeDasharray="3 6" />
@@ -296,14 +298,15 @@ function BeaconPicture() {
         const on = n === now;
         return (
           <g key={n}>
-            <circle cx={q.x} cy={q.y} r="11" fill={on ? '#f59e0b' : n === prev ? '#16202e' : '#0b1220'} stroke={on ? '#fde68a' : '#1e3a4a'} strokeWidth="2" />
+            <circle cx={q.x} cy={q.y} r="11" fill={on ? beacon : n === prev ? '#16202e' : '#0b1220'} stroke={on ? '#fff' : '#1e3a4a'} strokeWidth="2" />
             <text x={q.x} y={q.y + 1} textAnchor="middle" dominantBaseline="middle" fontFamily="JetBrains Mono, monospace" fontSize="10" fontWeight="700" fill={on ? '#1b1100' : '#bfeaf0'}>{n}</text>
           </g>
         );
       })}
       <text x="165" y="96" textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontSize="11" fill="#5d7388" letterSpacing="2">BEACON</text>
-      <text x="165" y="124" textAnchor="middle" fontFamily="Chakra Petch, monospace" fontSize="26" fontWeight="700" fill="#f59e0b">+3</text>
-      <circle cx={p.x} cy={p.y} r="16" fill="none" stroke="#f59e0b" strokeWidth="3" key={hop} className="tut-ping" />
+      <text x="165" y="124" textAnchor="middle" fontFamily="Chakra Petch, monospace" fontSize="26" fontWeight="700" fill={beacon}>+3</text>
+      <text x="165" y="146" textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontSize="9" fontWeight="700" letterSpacing="1.5" fill={beacon}>{free ? 'FREE HOP' : 'YOUR HOP'}</text>
+      <circle cx={p.x} cy={p.y} r="16" fill="none" stroke={beacon} strokeWidth="3" key={hop} className="tut-ping" />
     </svg>
   );
 }

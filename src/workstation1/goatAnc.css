@@ -393,15 +393,12 @@
 .hs-pad button:hover { background: #00f2fe; color: #060813; }
 .hs-hops { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-family: var(--font-tele); font-size: 18px; }
 .hs-hops i { font-style: normal; width: 26px; text-align: center; color: #5d7388; }
-.hs-hops i.is-demo.is-seen { color: #bfeaf0; }
+.hs-hops i.is-demo { font-size: 12px; }
+.hs-hops i.is-demo.is-seen { color: #c084fc; }
 .hs-hops i.is-lock { color: #39ff88; }
 .hs-hops i.is-auto { color: #f59e0b; }
 .hs-hops i.is-miss { color: #ef4444; }
 .hs-hops span { color: #5d7388; }
-.hs-trail { margin-top: 10px; font-family: var(--font-tele); }
-.hs-trail small { font-size: 9px; letter-spacing: 0.2em; color: #5d7388; }
-.hs-trail p { margin: 4px 0 0; display: flex; gap: 10px; align-items: baseline; font-size: 20px; color: #7fb7c0; }
-.hs-trail b.is-now { color: #f59e0b; font-size: 28px; }
 .hs-end, .hs-intro { position: fixed; left: 50%; top: 42%; z-index: 58; transform: translate(-50%, -50%); text-align: center; pointer-events: none; font-family: var(--font-hud); font-weight: 700; text-transform: uppercase; }
 .hs-end { padding: 22px 40px; font-size: 34px; letter-spacing: 0.24em; border-block: 3px solid; backdrop-filter: blur(2px); }
 .hs-end small { display: block; margin-top: 6px; font-size: 14px; letter-spacing: 0.3em; opacity: 0.85; }
@@ -481,3 +478,29 @@
 @media (prefers-reduced-motion: reduce) {
   .tut-arrow, .tut-pulse, .tut-draw, .tut-ping { animation: none; }
 }
+
+/* Module D: the four free hops are purple, the scored hops gold; a clue strip spells out every jump */
+.hs-node.is-beacon.is-free .hs-disc { fill: #c084fc; stroke: #f3e8ff; }
+.hs-node.is-beacon.is-free .hs-n { fill: #1a0b2e; }
+.hs-beacon.is-free { fill: rgba(192, 132, 252, 0.22); stroke: #c084fc; filter: drop-shadow(0 0 8px #c084fc); }
+.hs-countdown.is-free { stroke: #c084fc; filter: drop-shadow(0 0 6px #c084fc); }
+.hs-phase { width: min(100%, 560px); padding: 6px 12px; text-align: center; font-family: var(--font-tele); font-size: 12px; font-weight: 700; letter-spacing: 0.2em; border-block: 2px solid; }
+.hs-phase.is-free { color: #e9d5ff; background: rgba(192, 132, 252, 0.14); border-color: #c084fc; }
+.hs-phase.is-live { color: #fde68a; background: rgba(245, 158, 11, 0.12); border-color: #f59e0b; }
+.hs-clue, .hs-trail { margin-top: 10px; font-family: var(--font-tele); }
+.hs-clue small, .hs-trail small { display: block; margin-bottom: 4px; font-size: 9px; letter-spacing: 0.2em; color: #5d7388; }
+.hs-clue > div, .hs-trail > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.hs-clue span, .hs-trail span { display: flex; flex-direction: column; align-items: center; min-width: 54px; padding: 4px 8px; background: #0b1220; border: 1px solid #1e3a4a; }
+.hs-clue b, .hs-trail b { font-size: 22px; line-height: 1.1; color: #5d7388; }
+.hs-clue i, .hs-trail i { font-style: normal; font-size: 10px; letter-spacing: 0.06em; color: #5d7388; }
+.hs-clue span.is-seen { border-color: #c084fc; background: rgba(192, 132, 252, 0.12); }
+.hs-clue span.is-seen b { color: #e9d5ff; }
+.hs-clue span.is-seen i { color: #c4b5fd; }
+.hs-trail span b { color: #fde68a; }
+.hs-trail span { border-color: rgba(245, 158, 11, 0.5); }
+.hs-trail span.is-lock { border-color: #39ff88; background: rgba(57, 255, 136, 0.1); }
+.hs-trail span.is-lock b { color: #39ff88; }
+.hs-trail span.is-miss { border-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+.hs-trail span.is-miss b { color: #fca5a5; }
+.hs-trail span.is-auto { border-color: #f59e0b; }
+.hs-bar i.is-free { background: #c084fc; }

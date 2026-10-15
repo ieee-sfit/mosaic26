@@ -47,6 +47,8 @@ const NODE = (n: number) => {
   const a = ((n - 1) * 30 - 90) * (Math.PI / 180);
   return { x: 200 + 140 * Math.cos(a), y: 200 + 140 * Math.sin(a) };
 };
+/** Clockwise steps from one channel to the next, 1..12: the same number the hint and the tutorial use. */
+const jump = (from: number, to: number) => ((((to - from) % CHANNELS) + CHANNELS - 1) % CHANNELS) + 1;
 const secs = (ms: number) => (ms / 1000).toFixed(2).replace(/\.?0+$/, '');
 const mmss = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 /** Made-up radio labels so every channel has a frequency. */
@@ -240,6 +242,9 @@ export function ModuleD({ seed, operators, secondsLeft, onDone }: Props) {
           : s.phase === 'between' ? `ROUND ${s.round + 1} DONE · ${s.locks}/${def.scoredHops} LOCKED`
             : '';
   const hopKey = `${s.round}-${s.t}-${s.phase}`;
+  /** The 4 free hops are drawn in purple everywhere: the beacon, the ring, the clue strip. */
+  const freeNow = s.t <= DEMO_HOPS && s.phase !== 'between';
+  const upFree = s.t < DEMO_HOPS;
   const lowTime = secondsLeft <= 30;
   const hintActive = s.phase === 'demo' || s.phase === 'play';
 
@@ -268,6 +273,11 @@ export function ModuleD({ seed, operators, secondsLeft, onDone }: Props) {
 
       <div className="grid flex-1 gap-3 p-3 pb-24 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
         <HudPanel title={`Handshake ${Math.min(s.round + 1, 3)}/3`} tag={status} tone="gold" cut="both" bodyClassName="flex flex-col items-center gap-2 p-3">
+          {(s.phase === 'intro' || s.phase === 'demo' || s.phase === 'play') && (
+            <div className={`hs-phase ${upFree || s.phase === 'intro' ? 'is-free' : 'is-live'}`} role="status">
+              {upFree || s.phase === 'intro' ? `FREE HOPS · WATCH THE JUMPS (${demoLeft} LEFT)` : 'YOUR HOPS · PICK THE NEXT CHANNEL'}
+            </div>
+          )}
           <svg viewBox="0 0 400 400" className="hs-ring" role="group" aria-label="Twelve radio channels">
             <circle cx="200" cy="200" r="140" className="hs-orbit" />
             {Array.from({ length: CHANNELS }, (_, i) => i + 1).map((n) => {
@@ -277,7 +287,7 @@ export function ModuleD({ seed, operators, secondsLeft, onDone }: Props) {
               return (
                 <g
                   key={n}
-                  className={`hs-node ${isBeacon ? 'is-beacon' : ''} ${isSel ? 'is-sel' : ''}`}
+                  className={`hs-node ${isBeacon ? 'is-beacon' : ''} ${isBeacon && freeNow ? 'is-free' : ''} ${isSel ? 'is-sel' : ''}`}
                   role="button"
                   tabIndex={0}
                   aria-label={`Channel ${n}, ${freqLabel(n)} megahertz${isSel ? ', selected' : ''}${isBeacon ? ', beacon is here' : ''}`}
@@ -290,7 +300,7 @@ export function ModuleD({ seed, operators, secondsLeft, onDone }: Props) {
                   }}
                 >
                   <circle cx={x} cy={y} r="30" className="hs-hit" />
-                  {isBeacon && <circle cx={x} cy={y} r="27" className="hs-beacon" />}
+                  {isBeacon && <circle cx={x} cy={y} r="27" className={`hs-beacon ${freeNow ? 'is-free' : ''}`} />}
                   {isSel && <rect x={x - 25} y={y - 25} width="50" height="50" className="hs-sel" />}
                   <circle cx={x} cy={y} r="19" className="hs-disc" />
                   <text x={x} y={y + 1} textAnchor="middle" dominantBaseline="middle" className="hs-n">{n}</text>
@@ -299,7 +309,7 @@ export function ModuleD({ seed, operators, secondsLeft, onDone }: Props) {
               );
             })}
             {(s.phase === 'demo' || s.phase === 'play') && (
-              <circle key={hopKey} cx="200" cy="200" r="92" className="hs-countdown" style={{ animationDuration: `${def.hopMs}ms` }} />
+              <circle key={hopKey} cx="200" cy="200" r="92" className={`hs-countdown ${upFree ? 'is-free' : ''}`} style={{ animationDuration: `${def.hopMs}ms` }} />
             )}
             <text x="200" y="176" textAnchor="middle" className="hs-c1">BEACON</text>
             <text x="200" y="212" textAnchor="middle" className="hs-c2">CH {beacon}</text>
@@ -312,7 +322,7 @@ export function ModuleD({ seed, operators, secondsLeft, onDone }: Props) {
             </div>
           )}
           <div className="hs-bar" aria-hidden>
-            {(s.phase === 'demo' || s.phase === 'play') && <i key={hopKey} style={{ animationDuration: `${def.hopMs}ms` }} />}
+            {(s.phase === 'demo' || s.phase === 'play') && <i key={hopKey} className={upFree ? 'is-free' : ''} style={{ animationDuration: `${def.hopMs}ms` }} />}
           </div>
 
           <div className="hs-pad" role="group" aria-label="Move your channel">
@@ -327,7 +337,7 @@ export function ModuleD({ seed, operators, secondsLeft, onDone }: Props) {
           <HudPanel title="Hops" tag={`${s.locks}/${def.scoredHops} locked`} tone="cyan" bodyClassName="p-3">
             <div className="hs-hops" aria-label="Hop results">
               {Array.from({ length: DEMO_HOPS }, (_, i) => (
-                <i key={`d${i}`} className={`is-demo ${i < Math.min(s.t, DEMO_HOPS) ? 'is-seen' : ''}`}>·</i>
+                <i key={`d${i}`} className={`is-demo ${i < Math.min(s.t, DEMO_HOPS) ? 'is-seen' : ''}`}>◆</i>
               ))}
               <span aria-hidden>|</span>
               {Array.from({ length: def.scoredHops }, (_, i) => {
@@ -335,11 +345,36 @@ export function ModuleD({ seed, operators, secondsLeft, onDone }: Props) {
                 return <i key={i} className={m ? `is-${m}` : ''}>{m === 'lock' ? '●' : m === 'auto' ? '◐' : m === 'miss' ? '✕' : '○'}</i>;
               })}
             </div>
-            <div className="hs-trail" aria-label="Beacon trail">
-              <small>BEACON TRAIL</small>
-              <p>{s.history.slice(-7).map((c, i, arr) => (
-                <b key={i} className={i === arr.length - 1 ? 'is-now' : ''}>{c}</b>
-              ))}</p>
+            <div className="hs-clue" aria-label="The clue: the four free jumps">
+              <small>THE CLUE · THE 4 FREE JUMPS</small>
+              <div>
+                {Array.from({ length: DEMO_HOPS }, (_, i) => {
+                  const seen = i < Math.min(s.t, DEMO_HOPS);
+                  return (
+                    <span key={i} className={seen ? 'is-seen' : ''}>
+                      {seen ? (
+                        <>
+                          <b>+{jump(s.history[i], s.history[i + 1])}</b>
+                          <i>{s.history[i]} → {s.history[i + 1]}</i>
+                        </>
+                      ) : (
+                        <b>?</b>
+                      )}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="hs-trail" aria-label="Your hops">
+              <small>YOUR HOPS · JUMP AND LANDING</small>
+              <div>
+                {s.history.slice(DEMO_HOPS + 1).map((c, i) => (
+                  <span key={i} className={s.marks[i] ? `is-${s.marks[i]}` : ''}>
+                    <b>+{jump(s.history[DEMO_HOPS + i], c)}</b>
+                    <i>→ {c}</i>
+                  </span>
+                ))}
+              </div>
             </div>
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
               <TeleChip label="ROUND" value={`${def.points} PTS · ${secs(def.hopMs)}s HOPS`} tone="gold" />
@@ -352,7 +387,7 @@ export function ModuleD({ seed, operators, secondsLeft, onDone }: Props) {
               <span className="text-lg text-goat-mute"> / {cfg.maxPoints}</span>
             </div>
             <p className="mt-2 font-tele text-[11px] uppercase tracking-wider text-goat-mute">
-              Watch 4 hops. Find the rule. Then pick the channel BEFORE each hop. The ring and bar drain until the hop.
+              The 4 PURPLE hops are free: read the jumps. Then pick the channel BEFORE each GOLD hop. The ring and bar drain until the hop.
             </p>
           </HudPanel>
         </div>
