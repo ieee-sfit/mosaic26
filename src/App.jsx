@@ -83,8 +83,8 @@ function App() {
   if (view === 'splash') {
     return (
       <CtrlFreakSplash
-        onEnterTerminal={(stationId) => {
-          setInitialStation(stationId)
+        onEnterTerminal={() => {
+          setInitialStation(null)
           setView('launcher')
         }}
         onOpenLeaderboard={() => setView('leaderboard')}

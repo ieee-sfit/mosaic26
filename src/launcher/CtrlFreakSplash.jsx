@@ -128,7 +128,7 @@ export default function CtrlFreakSplash({ onEnterTerminal, onOpenLeaderboard }) 
     stopAmbientDrone()
 
     sceneRef.current?.triggerWarp(() => {
-      onEnterTerminal?.(THEMES[themeIdx].id)
+      onEnterTerminal?.()
     })
   }
 
