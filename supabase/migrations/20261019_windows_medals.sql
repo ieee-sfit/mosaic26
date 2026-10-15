@@ -44,8 +44,7 @@ begin
   if new.status <> old.status and old.status <> 'toss' then raise exception 'WINDOW_RESULTS_IMMUTABLE'; end if;
   return new;
 end $$;
-drop trigger if exists window_results_guard on public.window_results;
-create trigger window_results_guard before update or delete on public.window_results
+create or replace trigger window_results_guard before update or delete on public.window_results
   for each row execute function public._window_results_guard();
 
 create or replace function public._medal_windows_guard()
@@ -61,8 +60,7 @@ begin
   end if;
   return new;
 end $$;
-drop trigger if exists medal_windows_guard on public.medal_windows;
-create trigger medal_windows_guard before update or delete on public.medal_windows
+create or replace trigger medal_windows_guard before update or delete on public.medal_windows
   for each row execute function public._medal_windows_guard();
 
 -- Seed (IST). Day 1 = 2026-10-16, Day 2 = 2026-10-17. One medal each; raise medals_count if more medals are bought.

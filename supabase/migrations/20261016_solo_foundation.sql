@@ -1,34 +1,19 @@
 -- MOSAIC 26 rebuild, part 1: solo players, config, credit ledger, committee, lockdown.
--- Replaces the team-of-2 model, the coverage multiplier and the paid flag.
+-- Replaces the team-of-2 model, the coverage multiplier and the paid flag. Nothing is deleted or dropped here.
 -- NOT applied automatically. Review, then apply by hand after sign-off.
 
--- 1. Pre-event test data cleanup (approved). Aborts if anything looks like real event data.
-do $$
-begin
-  if exists (select 1 from public.station_runs where created_at >= timestamptz '2026-10-16 04:00:00+00') then
-    raise exception 'station_runs has rows from the event period; refusing to wipe test data automatically';
-  end if;
-  if exists (select 1 from public.players where id !~ '^90000[0-9]$') then
-    raise exception 'players has rows other than the known test IDs 900001-900003; refusing to wipe';
-  end if;
-end $$;
+-- 1. Retire the pre-event test data (3 test players, 20 test runs). The old tables are renamed and locked: no grants for
+--    anon/authenticated, so nothing in the app or the public API can read them. Drop them whenever convenient:
+--      drop table public.legacy_station_runs_test; drop table public.legacy_players_test;
+alter table public.players rename to legacy_players_test;
+alter table public.station_runs rename to legacy_station_runs_test;
+revoke all on public.legacy_players_test, public.legacy_station_runs_test from anon, authenticated;
 
-delete from public.station_runs;
-delete from public.players;
-
--- 2. Public read paths that exposed teams, multipliers or raw runs.
-drop view if exists public.leaderboard_standings;
-drop policy if exists "Allow anonymous public reads" on public.station_runs;
-drop policy if exists "Allow anonymous inserts from game stations" on public.station_runs;
-revoke all on public.station_runs from anon, authenticated;
-
-drop function if exists public.board_players(int);
-drop function if exists public.board_teams(int);
-drop function if exists public.player_profile(text);
-drop function if exists public.check_players(text, text, text);
-drop function if exists public.check_players_for(text, text, text, text);
-drop function if exists public.submit_run(text, uuid, text, text, text, int, int);
-drop function if exists public._mult(int);
+-- 2. Old public read paths (teams, multiplier, raw runs) are closed. They are revoked rather than dropped; drop them later.
+revoke all on public.leaderboard_standings from anon, authenticated;
+revoke all on function public.board_players(int), public.board_teams(int), public.player_profile(text),
+  public.check_players(text, text, text), public.check_players_for(text, text, text, text),
+  public.submit_run(text, uuid, text, text, text, int, int), public._mult(int) from public, anon, authenticated;
 
 -- 3. Config (price, cap, thresholds). Editable by the desk/SQL without a rebuild.
 create table if not exists public.app_config (
@@ -56,55 +41,50 @@ returns int language sql stable security definer set search_path = public as $$
 $$;
 
 -- 4. Players: 4-digit system-generated ID, contact + class details, masked codename.
-alter table public.players drop constraint if exists players_id_check;
-alter table public.players alter column id type varchar(4);
-alter table public.players add constraint players_id_check check (id ~ '^[0-9]{4}$');
-alter table public.players drop column if exists paid;
-alter table public.players
-  add column if not exists is_internal boolean not null default false,
-  add column if not exists pid text,
-  add column if not exists department text not null,
-  add column if not exists phone text not null,
-  add column if not exists notes text,
-  add column if not exists codename text not null,
-  add column if not exists registered_by uuid;
-alter table public.players alter column college set not null;
-alter table public.players alter column year set not null;
-alter table public.players add constraint players_name_ck check (length(btrim(name)) > 0);
-alter table public.players add constraint players_year_ck check (length(btrim(year)) > 0);
-alter table public.players add constraint players_dept_ck check (length(btrim(department)) > 0);
-alter table public.players add constraint players_phone_ck check (phone ~ '^[0-9]{10}$');
-create unique index if not exists players_phone_uq on public.players (phone);
-create unique index if not exists players_pid_uq on public.players (lower(pid)) where pid is not null and btrim(pid) <> '';
-create unique index if not exists players_codename_uq on public.players (codename);
-create index if not exists players_name_idx on public.players (lower(name));
+create table public.players (
+  id varchar(4) primary key check (id ~ '^[0-9]{4}$'),
+  name text not null check (length(btrim(name)) > 0),
+  college text not null,
+  year text not null check (length(btrim(year)) > 0),
+  department text not null check (length(btrim(department)) > 0),
+  phone text not null check (phone ~ '^[0-9]{10}$'),
+  is_internal boolean not null default false,
+  pid text,
+  notes text,
+  codename text not null,
+  registered_by uuid,
+  created_at timestamptz not null default now()
+);
+create unique index players_phone_uq on public.players (phone);
+create unique index players_pid_uq on public.players (lower(pid)) where pid is not null and btrim(pid) <> '';
+create unique index players_codename_uq on public.players (codename);
+create index players_name_idx on public.players (lower(name));
+alter table public.players enable row level security;
+revoke all on public.players from anon, authenticated;
 
 -- 5. Runs: solo, created when a run STARTS, completed later by submit_run.
-alter table public.station_runs drop column if exists p1_id;
-alter table public.station_runs drop column if exists p2_id;
-alter table public.station_runs
-  add column if not exists player_id varchar(4) not null references public.players (id),
-  add column if not exists state text not null default 'started',
-  add column if not exists hints_used int,
-  add column if not exists wrong_attempts int,
-  add column if not exists lobby_id bigint,
-  add column if not exists started_at timestamptz not null default now(),
-  add column if not exists finished_at timestamptz,
-  add column if not exists voided_at timestamptz,
-  add column if not exists void_reason text;
-alter table public.station_runs alter column raw_score drop not null;
-alter table public.station_runs alter column time_left drop not null;
-alter table public.station_runs alter column client_run_id set not null;
-alter table public.station_runs alter column station_id type text;
-alter table public.station_runs add constraint station_runs_state_ck check (state in ('started', 'completed', 'refunded', 'voided'));
-alter table public.station_runs add constraint station_runs_station_ck check (station_id in ('station1', 'station2', 'station3', 'station4'));
-alter table public.station_runs add constraint station_runs_raw_ck check (raw_score is null or (raw_score >= 0 and raw_score <= 140));
-alter table public.station_runs add constraint station_runs_time_ck check (time_left is null or (time_left >= 0 and time_left <= 720));
-alter table public.station_runs add constraint station_runs_hw_ck check (
-  (hints_used is null or hints_used >= 0) and (wrong_attempts is null or wrong_attempts >= 0));
-create index if not exists station_runs_player_station_idx on public.station_runs (player_id, station_id, state);
-create index if not exists station_runs_finished_idx on public.station_runs (finished_at) where finished_at is not null;
-create index if not exists station_runs_lobby_idx on public.station_runs (lobby_id) where lobby_id is not null;
+create table public.station_runs (
+  id uuid primary key default gen_random_uuid(),
+  player_id varchar(4) not null references public.players (id),
+  station_id text not null check (station_id in ('station1', 'station2', 'station3', 'station4')),
+  state text not null default 'started' check (state in ('started', 'completed', 'refunded', 'voided')),
+  raw_score int check (raw_score is null or (raw_score >= 0 and raw_score <= 140)),
+  time_left int check (time_left is null or (time_left >= 0 and time_left <= 720)),
+  hints_used int check (hints_used is null or hints_used >= 0),
+  wrong_attempts int check (wrong_attempts is null or wrong_attempts >= 0),
+  lobby_id bigint,
+  client_run_id uuid not null unique,
+  started_at timestamptz not null default now(),
+  finished_at timestamptz,
+  voided_at timestamptz,
+  void_reason text,
+  created_at timestamptz default now()
+);
+create index station_runs_player_station_idx on public.station_runs (player_id, station_id, state);
+create index station_runs_finished_idx on public.station_runs (finished_at) where finished_at is not null;
+create index station_runs_lobby_idx on public.station_runs (lobby_id) where lobby_id is not null;
+alter table public.station_runs enable row level security;
+revoke all on public.station_runs from anon, authenticated;
 
 -- 6. Committee (desk users) and audit log.
 create table if not exists public.committee_members (
