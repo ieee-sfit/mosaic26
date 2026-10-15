@@ -1,8 +1,6 @@
-export interface CheatColumn { id: string; label: string }
-
 export interface QuizQuestion {
   id: string;
-  column: string; // CheatColumn id referenced by Hint 1
+  column: string; // topic group, used only to spread a run across topics
   prompt: string;
   options: [string, string, string, string];
   correct: number; // index into options
@@ -33,7 +31,7 @@ export interface QualityProfile { id: string; label: string; mbps: number; laten
 export interface Stint {
   id: string;
   name: string; // short lap name
-  tag: string; // one short line, e.g. "RAIN"
+  tag: string; // one short line, e.g. "LAP 2 · HEAVY RAIN"
   viewersM: number; // millions of concurrent viewers
   spikeM: number; // extra viewers in the traffic spike
   spikeTarget: 'mulsanne' | 'pit';
