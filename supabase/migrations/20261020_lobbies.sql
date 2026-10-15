@@ -2,6 +2,19 @@
 -- No realtime dependency: clients poll lobby_status every 2 s.
 -- NOT applied automatically.
 
+-- Leaving a lobby (or being dropped at start) is recorded with left_at; rows are never deleted.
+alter table public.lobby_players add column if not exists left_at timestamptz;
+
+create or replace function public._in_active_lobby(p_id text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.lobby_players lp join public.lobbies l on l.id = lp.lobby_id
+    where lp.player_id = p_id and lp.left_at is null
+      and ((l.state = 'open' and l.expires_at > now())
+           or (l.state = 'running' and exists (select 1 from public.station_runs r where r.client_run_id = lp.run_id and r.state = 'started'))));
+$$;
+revoke all on function public._in_active_lobby(text) from public, anon, authenticated;
+
 alter table public.lobbies
   add column if not exists winner_id varchar(4) references public.players (id),
   add column if not exists medal_awarded boolean;
@@ -103,17 +116,18 @@ begin
   select * into l from public.lobbies where number = p_number and state in ('open', 'running') for update;
   if not found then return jsonb_build_object('ok', false, 'error', 'LOBBY_NOT_FOUND'); end if;
   if l.station_id <> p_station then return jsonb_build_object('ok', false, 'error', 'WRONG_STATION', 'station', l.station_id); end if;
-  if exists (select 1 from public.lobby_players where lobby_id = l.id and player_id = p_id) and l.state = 'open' then
+  if exists (select 1 from public.lobby_players where lobby_id = l.id and player_id = p_id and left_at is null) and l.state = 'open' then
     return jsonb_build_object('ok', true, 'lobby_id', l.id, 'number', l.number, 'duplicate', true);
   end if;
   if l.state <> 'open' then return jsonb_build_object('ok', false, 'error', 'LOBBY_STARTED'); end if;
   if public._in_active_lobby(p_id) then return jsonb_build_object('ok', false, 'error', 'IN_LOBBY'); end if;
   st := public._player_status(p_id, p_station);
   if (st ->> 'status') <> 'OK' then return jsonb_build_object('ok', false, 'error', st ->> 'status'); end if;
-  if (select count(*) from public.lobby_players where lobby_id = l.id) >= public._cfg_int('lobby_max_players') then
+  if (select count(*) from public.lobby_players where lobby_id = l.id and left_at is null) >= public._cfg_int('lobby_max_players') then
     return jsonb_build_object('ok', false, 'error', 'LOBBY_FULL');
   end if;
-  insert into public.lobby_players (lobby_id, player_id) values (l.id, p_id);
+  insert into public.lobby_players (lobby_id, player_id) values (l.id, p_id)
+  on conflict (lobby_id, player_id) do update set left_at = null, joined_at = now();
   return jsonb_build_object('ok', true, 'lobby_id', l.id, 'number', l.number, 'duplicate', false);
 end $$;
 
@@ -127,7 +141,7 @@ begin
   if l.creator_id = p_id then
     update public.lobbies set state = 'cancelled', cancel_reason = 'creator left', finished_at = now() where id = p_lobby;
   else
-    delete from public.lobby_players where lobby_id = p_lobby and player_id = p_id;
+    update public.lobby_players set left_at = now() where lobby_id = p_lobby and player_id = p_id;
   end if;
   return jsonb_build_object('ok', true);
 end $$;
@@ -140,7 +154,7 @@ begin
   perform public._lobby_housekeeping();
   select * into l from public.lobbies where id = p_lobby;
   if not found then return jsonb_build_object('ok', false, 'error', 'LOBBY_NOT_FOUND'); end if;
-  select * into mine from public.lobby_players where lobby_id = p_lobby and player_id = p_id;
+  select * into mine from public.lobby_players where lobby_id = p_lobby and player_id = p_id and left_at is null;
   if not found then return jsonb_build_object('ok', false, 'error', 'NOT_IN_LOBBY', 'state', l.state); end if;
   if l.state = 'running' then perform public._lobby_try_finish(p_lobby); select * into l from public.lobbies where id = p_lobby; end if;
   if l.state = 'finished' then
@@ -154,7 +168,7 @@ begin
     'min_players', public._cfg_int('lobby_min_players'), 'max_players', public._cfg_int('lobby_max_players'),
     'players', (select jsonb_agg(jsonb_build_object('first_name', split_part(btrim(p.name), ' ', 1), 'college', p.college,
                   'is_creator', p.id = l.creator_id, 'is_you', p.id = p_id) order by lp.joined_at)
-                from public.lobby_players lp join public.players p on p.id = lp.player_id where lp.lobby_id = p_lobby),
+                from public.lobby_players lp join public.players p on p.id = lp.player_id where lp.lobby_id = p_lobby and lp.left_at is null),
     'results', res, 'winner_is_you', l.winner_id = p_id, 'medal_awarded', coalesce(l.medal_awarded, false) and l.winner_id = p_id);
 end $$;
 
@@ -173,21 +187,21 @@ begin
   if l.state <> 'open' then return jsonb_build_object('ok', false, 'error', 'LOBBY_' || upper(l.state)); end if;
 
   -- Lock players in id order (no deadlocks), drop anyone who can no longer pay / is capped.
-  for v_p in select player_id from public.lobby_players where lobby_id = p_lobby order by player_id loop
+  for v_p in select player_id from public.lobby_players where lobby_id = p_lobby and left_at is null order by player_id loop
     perform 1 from public.players where id = v_p for update;
     st := public._player_status(v_p, l.station_id);
     if (st ->> 'status') <> 'OK' then
       dropped := dropped || v_p;
-      delete from public.lobby_players where lobby_id = p_lobby and player_id = v_p;
+      update public.lobby_players set left_at = now() where lobby_id = p_lobby and player_id = v_p;
     end if;
   end loop;
-  select count(*) into n from public.lobby_players where lobby_id = p_lobby;
+  select count(*) into n from public.lobby_players where lobby_id = p_lobby and left_at is null;
   if n < public._cfg_int('lobby_min_players') then
     -- roll the drops back: raise so nothing is half-applied, caller sees TOO_FEW
     raise exception 'LOBBY_TOO_FEW:%', n using errcode = 'P0001';
   end if;
 
-  for v_p in select player_id from public.lobby_players where lobby_id = p_lobby order by player_id loop
+  for v_p in select player_id from public.lobby_players where lobby_id = p_lobby and left_at is null order by player_id loop
     rid := gen_random_uuid();
     err := public._charge_start(v_p, l.station_id, rid, p_lobby);
     if err is not null then raise exception 'LOBBY_CHARGE_FAILED:%', err using errcode = 'P0001'; end if;
@@ -215,7 +229,7 @@ begin
         'created_at', l.created_at, 'expires_at', l.expires_at, 'start_at', l.start_at, 'winner', (select name from public.players where id = l.winner_id),
         'medal_awarded', l.medal_awarded, 'cancel_reason', l.cancel_reason,
         'players', (select jsonb_agg(jsonb_build_object('id', p.id, 'name', p.name) order by lp.joined_at)
-                    from public.lobby_players lp join public.players p on p.id = lp.player_id where lp.lobby_id = l.id))
+                    from public.lobby_players lp join public.players p on p.id = lp.player_id where lp.lobby_id = l.id and lp.left_at is null))
       order by (l.state in ('open', 'running')) desc, l.created_at desc)
     from (select * from public.lobbies order by (state in ('open', 'running')) desc, created_at desc limit 40) l), '[]'::jsonb);
 end $$;

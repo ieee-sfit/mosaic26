@@ -211,18 +211,6 @@ begin
   return jsonb_build_object('ok', true, 'id', w.id);
 end $$;
 
-create or replace function public.desk_window_delete(p_id bigint)
-returns jsonb language plpgsql security definer set search_path = public as $$
-begin
-  perform public._require_desk();
-  if exists (select 1 from public.medal_windows where id = p_id and closed_at is not null) then
-    return jsonb_build_object('ok', false, 'error', 'WINDOW_CLOSED');
-  end if;
-  delete from public.medal_windows where id = p_id;
-  perform public._audit('window_delete', p_id::text);
-  return jsonb_build_object('ok', true);
-end $$;
-
 -- CLOSE: desk presses it once a window has ended (otherwise the first public/desk read after the end does it).
 create or replace function public.desk_close_window(p_id bigint)
 returns jsonb language plpgsql security definer set search_path = public as $$
@@ -303,9 +291,9 @@ end $$;
 
 revoke all on function public._window_candidates(bigint, timestamptz), public._close_one_window(bigint), public._close_due_windows() from public, anon, authenticated;
 revoke all on function public.public_windows(), public.desk_windows(), public.desk_window_save(bigint, text, timestamptz, timestamptz, int),
-  public.desk_window_delete(bigint), public.desk_close_window(bigint), public.desk_resolve_toss(bigint, text[]),
+  public.desk_close_window(bigint), public.desk_resolve_toss(bigint, text[]),
   public.desk_medals_unclaimed(), public.desk_claim_window_medal(bigint), public.desk_claim_match_medal(text, text) from public, anon, authenticated;
 grant execute on function public.public_windows() to anon, authenticated;
 grant execute on function public.desk_windows(), public.desk_window_save(bigint, text, timestamptz, timestamptz, int),
-  public.desk_window_delete(bigint), public.desk_close_window(bigint), public.desk_resolve_toss(bigint, text[]),
+  public.desk_close_window(bigint), public.desk_resolve_toss(bigint, text[]),
   public.desk_medals_unclaimed(), public.desk_claim_window_medal(bigint), public.desk_claim_match_medal(text, text) to authenticated;
