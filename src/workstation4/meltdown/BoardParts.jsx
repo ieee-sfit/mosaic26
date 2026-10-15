@@ -1,34 +1,42 @@
-import { PIN_XY, pinAt } from './breadboard'
+import { PIN_XY, pinAt, pinUnused } from './breadboard'
 
 /**
- * Small SVG building blocks shared by the Module B breadboard and the Module D repair boards, so both look like the
- * same hardware: DIP chips with a notch, round holes, toggle switches, an LED with a glow, and truth tables.
+ * Small SVG building blocks for the Module B breadboard (and the tutorial pictures): DIP chips with a notch, round holes,
+ * toggle switches, an LED with a glow, and truth tables. Green means 1 and red means 0 everywhere.
  */
 
-const PIN_COLOR = { VCC: '#f87171', GND: '#60a5fa', OUT: '#4ade80', A: '#e5e7eb', B: '#e5e7eb', NC: '#475569' }
+const PIN_COLOR = { VCC: '#4ade80', GND: '#f87171', OUT: '#d9ffe8', A: '#e5e7eb', B: '#e5e7eb', NC: '#475569' }
 
-/** A DIP package centred on (cx, cy). `chip.flip` turns it 180 degrees: the notch and the pin labels move with it. */
+/**
+ * A DIP package centred on (cx, cy). Chips always sit upright: notch at the top, pin labels VCC / GND / A / B / OUT on every
+ * chip. The B pin of a NOT chip is greyed and marked "not used".
+ */
 export function Chip({ cx, cy, chip, labels = true, scale = 1, glow, name, dim, ghost, dataset = {} }) {
   const type = chip?.type
-  const flip = chip?.flip ? 1 : 0
   const showName = name ?? type
   return (
     <g transform={`translate(${cx} ${cy}) scale(${scale})`} className={`mz-chip ${glow ? 'is-glow' : ''} ${dim ? 'is-dim' : ''} ${ghost ? 'is-ghost' : ''}`} {...dataset}>
       {PIN_XY.map(([x, y], i) => (
         <rect key={i} className="mz-chip-leg" x={x < 0 ? x : 36} y={y - 4} width={Math.abs(x) - 36} height="8" />
       ))}
-      <g transform={flip ? 'rotate(180)' : undefined}>
+      <g>
         <rect className="mz-chip-body" x="-40" y="-55" width="80" height="110" rx="4" />
         <path className="mz-chip-notch" d="M-9 -55 a9 9 0 0 0 18 0" />
         <circle className="mz-chip-dot" cx="-28" cy="-43" r="3" />
-        {showName && <text className="mz-chip-name" x="0" y="6" textAnchor="middle">{showName}</text>}
+        {showName && <text className="mz-chip-name" x="0" y="-12" textAnchor="middle">{showName}</text>}
       </g>
       {labels && type && PIN_XY.map(([x, y], i) => {
-        const fn = pinAt({ type, flip }, i + 1)
+        const fn = pinAt({ type }, i + 1)
+        const off = pinUnused({ type }, fn)
+        const anchor = x < 0 ? 'start' : 'end'
+        const lx = x < 0 ? -35 : 35
         return (
-          <text key={i} className="mz-pinlab" x={x < 0 ? -34 : 34} y={y + 4} textAnchor={x < 0 ? 'start' : 'end'} fill={PIN_COLOR[fn]}>
-            {fn === 'NC' ? '–' : fn}
-          </text>
+          <g key={i} className={off ? 'is-unused' : ''}>
+            <text className="mz-pinlab" x={lx} y={off ? y : y + 4} textAnchor={anchor} fill={off ? '#475569' : PIN_COLOR[fn]}>
+              {fn === 'NC' ? '–' : fn}
+            </text>
+            {off && <text className="mz-pinoff" x={lx} y={y + 11} textAnchor={anchor}>not used</text>}
+          </g>
         )
       })}
     </g>

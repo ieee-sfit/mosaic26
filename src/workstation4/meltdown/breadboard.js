@@ -11,8 +11,11 @@
  *   P3 GND└───┘  OUT P4
  *
  * Nets: holes in the same rail are one net, every wire joins two nets. A chip is powered only when its VCC pin is on the
- * +5V net and its GND pin on the GND net. Seating a chip the wrong way round (flip = 1) swaps the pins end for end, so
- * VCC lands where GND was: wired the usual way that is reversed power.
+ * +5V net and its GND pin on the GND net. Chips always sit upright. Wiring VCC to GND and GND to +5V is reversed power
+ * and fries the chip.
+ *
+ * Every chip shows the same five labels VCC, GND, A, B, OUT (the sixth pin is NC). A NOT chip has no second input:
+ * its B pin is greyed and marked "not used".
  */
 
 export const RAIL_N = 9
@@ -25,29 +28,25 @@ export const ALL_HOLES = [...V_HOLES, ...G_HOLES, 'SA', 'SB', 'LED', ...PIN_HOLE
 
 const and = (a, b) => a & b
 const or = (a, b) => a | b
-const PINS2 = ['A', 'B', 'GND', 'OUT', 'NC', 'VCC']
-const PINS1 = ['A', 'NC', 'GND', 'OUT', 'NC', 'VCC']
+const PINS = ['A', 'B', 'GND', 'OUT', 'NC', 'VCC']
 
-/** Every chip in the tray. NAND / NOR / XOR are decoys: they never match a target table. */
+/** The three chips in the tray. All carry the same pin layout; NOT leaves B unused. */
 export const CHIPS = {
-  AND: { pins: PINS2, fn: and, inputs: 2 },
-  OR: { pins: PINS2, fn: or, inputs: 2 },
-  NOT: { pins: PINS1, fn: (a) => (a ? 0 : 1), inputs: 1 },
-  NAND: { pins: PINS2, fn: (a, b) => (a & b ? 0 : 1), inputs: 2 },
-  NOR: { pins: PINS2, fn: (a, b) => (a | b ? 0 : 1), inputs: 2 },
-  XOR: { pins: PINS2, fn: (a, b) => a ^ b, inputs: 2 },
+  AND: { pins: PINS, fn: and, inputs: 2 },
+  OR: { pins: PINS, fn: or, inputs: 2 },
+  NOT: { pins: PINS, fn: (a) => (a ? 0 : 1), inputs: 1 },
 }
-export const TRAY_ORDER = ['AND', 'NAND', 'OR', 'NOT', 'NOR', 'XOR']
+export const TRAY_ORDER = ['AND', 'OR', 'NOT']
 
-/** Which pin function sits in hole `pos` (1..6) for a chip of this type and orientation. */
+/** Which pin function sits in hole `pos` (1..6) for a chip. */
 export function pinAt(chip, pos) {
-  const pins = CHIPS[chip.type].pins
-  return pins[(pos - 1 + (chip.flip ? 3 : 0)) % 6]
+  return CHIPS[chip.type].pins[pos - 1]
 }
+/** True for the pin a chip does not use (the B pin of a NOT chip). */
+export const pinUnused = (chip, fn) => fn === 'B' && CHIPS[chip.type].inputs === 1
 /** The hole (P1..P6) where pin function `fn` sits for this chip. */
 export function holeOfPin(chip, fn) {
-  const idx = CHIPS[chip.type].pins.indexOf(fn)
-  return `P${((idx + (chip.flip ? 3 : 0)) % 6) + 1}`
+  return `P${CHIPS[chip.type].pins.indexOf(fn) + 1}`
 }
 
 /** Input rows of a bay: 2 inputs -> 4 rows ('00','01','10','11'), 1 input -> 2 rows ('0','1'). */
@@ -60,7 +59,7 @@ export function targetTable(gate) {
   return Object.fromEntries(rowKeys(spec.inputs).map((k) => [k, spec.fn(+k[0], +(k[1] ?? 0))]))
 }
 
-/** wires: [{ a, b }]. chip: null | { type, flip }. sw: { A, B }. inputs: 1 | 2 (how many fixed switches the bay has). */
+/** wires: [{ a, b }]. chip: null | { type }. sw: { A, B }. inputs: 1 | 2 (how many fixed switches the bay has). */
 export function simulate({ chip, wires, sw, inputs = 2 }) {
   const parent = new Map(ALL_HOLES.map((h) => [h, h]))
   const find = (h) => {
@@ -161,8 +160,8 @@ export function verifyBay({ chip, wires, sw, rows }, gate) {
   return { ok: true, reason: 'MATCH' }
 }
 
-/** Hint 2 / auto mode: the correct chip, upright, with every required wire. */
+/** Hint 2 / auto mode: the correct chip with every required wire. */
 export function builtBay(gate) {
-  const chip = { type: gate, flip: 0 }
+  const chip = { type: gate }
   return { chip, wires: requiredWires(chip, CHIPS[gate].inputs).map((w, i) => ({ id: `auto${i}`, a: w.a, b: w.b, fixed: true })) }
 }

@@ -1,0 +1,36 @@
+/* ---------- STATION 4 TUTORIAL SCREENS (green on black) ---------- */
+.mz-tut { display: grid; justify-content: center; align-items: center; min-height: calc(100vh - 190px); padding: 4px 0; }
+.mz-tut-card { width: min(1180px, 100%); }
+.mz-tut-inner { padding: 16px 24px 20px; }
+.mz-tut-title { margin: 0 0 12px; font: 700 clamp(26px, 2.6vw, 38px) 'Chakra Petch', sans-serif; letter-spacing: 0.08em; color: #fff; }
+.mz-tut-title span { color: var(--g1); }
+.mz-tut-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.mz-tut-svg { display: block; width: 100%; height: auto; }
+.mz-tut-picture { border: 1px solid var(--line-hi); }
+.mz-tut-lines { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 10px; }
+.mz-tut-lines li { display: grid; grid-template-columns: 38px 1fr; gap: 12px; align-items: center; font: 600 clamp(17px, 1.7vw, 24px)/1.25 'Chakra Petch', sans-serif; color: #e8f6ee; }
+.mz-tut-lines b { display: grid; place-items: center; width: 34px; height: 34px; font: 700 18px 'JetBrains Mono', monospace; color: #04080b; background: var(--g1); border-radius: 50%; }
+.mz-tut-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.mz-tut-table caption { text-align: left; margin-bottom: 6px; font-weight: 700; letter-spacing: 0.2em; color: var(--g1); }
+.mz-tut-table th { width: 110px; text-align: left; padding: 5px 10px 5px 0; color: var(--g2); letter-spacing: 0.1em; }
+.mz-tut-table td { color: #d9f5e3; }
+.mz-tut-table tr { border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.mz-tut-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.mz-tut-chip { font: 700 14px 'JetBrains Mono', monospace; letter-spacing: 0.1em; color: var(--g1); padding: 8px 14px; border: 1px solid var(--line-hi); background: rgba(34, 197, 94, 0.08); }
+.mz-tut-foot .mz-btn { margin-left: auto; }
+
+/* preview drawings */
+.mz-tut-t { font: 700 13px 'JetBrains Mono', monospace; fill: #e2e8f0; }
+.mz-tut-sm { font: 12px 'JetBrains Mono', monospace; fill: #cbd5e1; }
+.mz-tut-big { font: 700 20px 'JetBrains Mono', monospace; fill: #fff; }
+.mz-tut-white { fill: #fff; } .mz-tut-dark { fill: #04080b; }
+.mz-tut-ok { fill: #4ade80; } .mz-tut-bad { fill: #f87171; }
+.mz-tut-t.is-struck { text-decoration: line-through; fill: #64748b; }
+.mz-tut-hintwire { fill: none; stroke: #d9ffe8; stroke-width: 6; stroke-dasharray: 9 6; stroke-linecap: round; filter: drop-shadow(0 0 6px #d9ffe8); animation: mz-tut-pulse 1.1s ease-in-out infinite; }
+.mz-tut-ring { fill: none; stroke: #d9ffe8; stroke-width: 3; animation: mz-tut-pulse 1.3s ease-in-out infinite; filter: drop-shadow(0 0 5px rgba(217, 255, 232, 0.8)); }
+.mz-tut-callout circle { fill: #22c55e; stroke: #04080b; stroke-width: 2; }
+.mz-tut-callout text { font: 700 18px 'JetBrains Mono', monospace; fill: #04080b; }
+@keyframes mz-tut-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+@media (max-width: 860px) { .mz-tut-grid { grid-template-columns: minmax(0, 1fr); } .mz-tut-picture { max-width: 640px; } }
+@media (prefers-reduced-motion: reduce) { .mz-tut-ring, .mz-tut-hintwire { animation: none; } }

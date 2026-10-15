@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CONFIG, SLOT_TYPES, formatPlate, type CaseFile } from '../mockStation3Data';
+import { CONFIG, SLOT_TYPES, type CaseFile } from '../mockStation3Data';
 import { clueText, seededShuffle, wrongSlots } from '../logic';
+import type { Clue } from '../mockStation3Data';
 import type { Fx } from '../utils';
 import { ActionBar, Readout } from './Hud';
+import { Glyph, plateLabel } from './Glyph';
+import './moduleB.css';
 import { useDrag } from '../useDrag';
 import HintDock from '../../core/HintDock';
 import type { HintLevel } from '../../core/HintDock';
@@ -23,12 +26,15 @@ export default function ModuleB({
   onScore,
   onDone,
   fx,
+  onStat,
 }: {
   cas: CaseFile;
   seed: number;
   onScore: (delta: number) => void;
   onDone: () => void;
   fx: Fx;
+  /** Reports a failed check or a hint for the end-of-run diagnostic. */
+  onStat: (kind: 'wrong' | 'hint') => void;
 }) {
   const [idx, setIdx] = useState(0);
   const [picks, setPicks] = useState<Record<number, string>>({}); // smudge position -> tile id
@@ -106,12 +112,14 @@ export default function ModuleB({
     } else {
       setWrong((w) => w + 1);
       setLastMiss(miss);
+      onStat('wrong');
       fx.shake();
     }
   };
   const requestHint = (next: 1 | 2) => {
     if (resolved || hint >= next) return;
     setHint(next);
+    onStat('hint');
     if (next === 1) {
       // lock one still-unsolved smudge onto its true glyph
       const open = round.smudges.find((s) => !locked.includes(s.idx) && glyphOf(picks[s.idx]) !== round.plate[s.idx]);
@@ -157,17 +165,35 @@ export default function ModuleB({
     return () => clearTimeout(t);
   }, [resolved, idx]);
 
+  /* ---- helpers shown next to the clues (they never change an answer) ---- */
+  const sumClue = round.clues.find((c): c is Extract<Clue, { k: 'sum' }> => c.k === 'sum');
+  const letterClue = round.clues.find((c): c is Extract<Clue, { k: 'before' | 'after' }> => c.k === 'before' || c.k === 'after');
+  let serialSum = 0;
+  let serialEmpty = 0;
+  for (let i = 6; i < 10; i++) {
+    const sm = round.smudges.find((x) => x.idx === i);
+    if (!sm) {
+      serialSum += Number(round.plate[i]);
+      continue;
+    }
+    const g = glyphOf(picks[i]);
+    if (g === undefined) serialEmpty++;
+    else if (g >= '0' && g <= '9') serialSum += Number(g);
+  }
+  const firstLetter = glyphOf(picks[4]) ?? (round.smudges.some((x) => x.idx === 4) ? undefined : round.plate[4]);
+  const allowed = (ch: string): boolean => (letterClue ? (letterClue.k === 'before' ? ch < letterClue.v : ch > letterClue.v) : false);
+
   /* ---- twin reveal after the last plate ---- */
   if (reveal) {
     const [a, b] = cas.twins;
     const differs = (i: number) => a[i] !== b[i];
-    const row = (plate: string, label: string) => (
-      <div className="ws3-twin-row">
+    const row = (plate: string, label: string, tone: 1 | 2) => (
+      <div className={`ws3-twin-row ws3-twin-row--${tone}`}>
         <span className="ws3-twin-tag">{label}</span>
-        <div className="ws3-plate ws3-plate--final" aria-label={`${label} plate ${formatPlate(plate)}`}>
+        <div className="ws3-plate ws3-plate--final" role="img" aria-label={`${label} plate ${plateLabel(plate)}`}>
           {plate.split('').map((ch, i) => (
             <span key={i} className={`ws3-glyph ${differs(i) ? 'is-diff' : ''} ${GROUP_AFTER.includes(i - 1) ? 'ws3-glyph--gap' : ''}`}>
-              {ch}
+              <Glyph ch={ch} />
             </span>
           ))}
         </div>
@@ -175,15 +201,15 @@ export default function ModuleB({
     );
     return (
       <>
-        <main className="ws3-main ws3-modB2">
+        <main className="ws3-main ws3-modB3">
           <section className="ws3-panel ws3-rebuild">
             <div className="ws3-panel-tag">MOD_B // PLATE REBUILD · TWIN CHECK</div>
             <h2 className="ws3-reveal-title">TWO SILVER COUPES · TWO DIFFERENT PLATES</h2>
-            <p className="ws3-qtext ws3-qtext--sm">The plates looked the same on camera. Rebuilt, they are not. These are two different cars.</p>
-            {row(a, 'TWIN 1')}
-            {row(b, 'TWIN 2')}
-            <p className="ws3-twin-note">▸ {[...a].filter((_, i) => differs(i)).length} GLYPHS DIFFER · BOTH CARS GO ON THE PURSUIT LIST</p>
-            <button type="button" className="ws3-btn ws3-btn--primary" onClick={() => doneRef.current()}>
+            <p className="ws3-bigtext">The plates looked the same on camera. Rebuilt, they are not. These are two different cars.</p>
+            {row(a, 'TWIN 1', 1)}
+            {row(b, 'TWIN 2', 2)}
+            <p className="ws3-twin-note">▸ {[...a].filter((_, i) => differs(i)).length} CHARACTERS DIFFER (HIGHLIGHTED) · BOTH CARS GO ON THE PURSUIT LIST</p>
+            <button type="button" className="ws3-btn ws3-btn--primary ws3-btn--big" onClick={() => doneRef.current()}>
               [ENTER FILTER CONSOLE ➔]
             </button>
           </section>
@@ -215,7 +241,7 @@ export default function ModuleB({
           </div>
           <div className="ws3-prob-head">
             <span className="ws3-prob-id">{round.label}</span>
-            <span>{round.camera} · {round.smudges.length} SMUDGED GLYPHS</span>
+            <span>{round.camera} · {round.smudges.length} SMUDGED CHARACTERS</span>
           </div>
 
           <div className="ws3-plate" role="group" aria-label="Smudged plate. Drop a glyph tile on each smudge.">
@@ -233,6 +259,7 @@ export default function ModuleB({
                     : g
                       ? 'is-filled'
                       : 'is-empty';
+              const kind = SLOT_TYPES[i] === 'D' ? 'digit' : 'letter';
               return (
                 <div key={i} className={`ws3-slotcell ${GROUP_AFTER.includes(i - 1) ? 'ws3-glyph--gap' : ''}`}>
                   {sm ? (
@@ -241,14 +268,14 @@ export default function ModuleB({
                       className={`ws3-glyph ws3-glyph--smudge ${state} ${selected && !resolved ? 'is-target' : ''}`}
                       data-slot={i}
                       onClick={() => onSlot(i)}
-                      aria-label={`Smudged ${SLOT_TYPES[i] === 'D' ? 'digit' : 'letter'} slot ${i + 1}${g ? `, holds ${g}` : ', empty'}`}
+                      aria-label={`Smudged ${kind} slot ${i + 1}${g ? `, holds ${plateLabel(g)}` : ', empty'}`}
                     >
-                      {g ?? '▒'}
+                      {g ? <Glyph ch={g} /> : '▒'}
                     </button>
                   ) : (
-                    <span className="ws3-glyph">{ch}</span>
+                    <span className="ws3-glyph"><Glyph ch={ch} /></span>
                   )}
-                  <i className="ws3-slottype" aria-hidden="true">{SLOT_TYPES[i] === 'D' ? '123' : 'ABC'}</i>
+                  <i className={`ws3-slottype ws3-slottype--${kind}`} aria-label={kind}>{SLOT_TYPES[i] === 'D' ? '123' : 'ABC'}</i>
                 </div>
               );
             })}
@@ -270,15 +297,15 @@ export default function ModuleB({
                     }
                   }}
                   disabled={used || resolved}
-                  aria-label={`Tile ${t.glyph}${selected === t.id ? ', selected' : ''}`}
+                  aria-label={`Tile ${plateLabel(t.glyph)}${selected === t.id ? ', selected' : ''}`}
                 >
-                  {t.glyph}
+                  <Glyph ch={t.glyph} />
                 </button>
               );
             })}
           </div>
 
-          <div className="ws3-qfeed" aria-live="polite">
+          <div className="ws3-qfeed ws3-qfeed--b" aria-live="polite">
             {resolved && <div className="ws3-intel ws3-intel--ok">▸ PLATE LOCKED · +{earned} PTS</div>}
             {!resolved && lastMiss !== null && (
               <div className="ws3-intel ws3-intel--red">
@@ -287,26 +314,59 @@ export default function ModuleB({
             )}
           </div>
 
-          <button type="button" className={`ws3-btn ws3-btn--primary ${filled && !resolved ? 'ws3-pulse' : ''}`} onClick={check} disabled={!filled || resolved}>
+          <button type="button" className={`ws3-btn ws3-btn--primary ws3-btn--big ${filled && !resolved ? 'ws3-pulse' : ''}`} onClick={check} disabled={!filled || resolved}>
             [CHECK PLATE]
           </button>
         </section>
 
-        <aside className="ws3-side">
-          <div className="ws3-panel ws3-sidebox">
-            <div className="ws3-panel-tag">SLOT RULE</div>
-            <p className="ws3-rule"><b>ABC</b> slot = letter · <b>123</b> slot = digit</p>
-            <p className="ws3-rule ws3-rule--sub">0 / O, 8 / B, 2 / Z look alike. The slot type tells you which.</p>
-          </div>
-          <div className="ws3-panel ws3-sidebox">
-            <div className="ws3-panel-tag">WITNESS CLUES</div>
-            {round.clues.length === 0 && <p className="ws3-log-empty">NONE · THE SLOT RULE IS ENOUGH</p>}
+        <aside className="ws3-rules" aria-label="Rules and witness clues">
+          <div className="ws3-panel ws3-rulebox">
+            <div className="ws3-panel-tag">RULES</div>
+            <div className="ws3-rule-card ws3-rule-card--slot">
+              <h3>SLOT RULE</h3>
+              <p><b className="ws3-chip">ABC</b> slot = a LETTER</p>
+              <p><b className="ws3-chip">123</b> slot = a DIGIT</p>
+              <p className="ws3-rule-sub">
+                Zero has a DOT inside: <span className="ws3-egbox"><Glyph ch="0" /></span> is a digit. The letter <span className="ws3-egbox"><Glyph ch="O" /></span> is plain round.
+                 8 / B and 2 / Z look alike too. The slot type tells you which.
+              </p>
+            </div>
+
+            <h3 className="ws3-rule-h">WITNESS CLUES</h3>
+            {round.clues.length === 0 && <div className="ws3-clue-card ws3-clue-card--none">NONE · THE SLOT RULE IS ENOUGH</div>}
             {round.clues.map((c, i) => (
-              <div key={i} className="ws3-clue">
-                <b>W{i + 1}</b> {clueText(c)}
+              <div key={i} className="ws3-clue-card">
+                <b className="ws3-clue-id">W{i + 1}</b>
+                <span>{clueText(c)}</span>
               </div>
             ))}
+
+            {sumClue && (
+              <div className={`ws3-helper ${serialEmpty === 0 && serialSum === sumClue.v ? 'is-match' : ''}`} aria-live="polite">
+                <div className="ws3-helper-line">SERIAL SUM NOW: <b>{serialSum}</b></div>
+                <div className="ws3-helper-sub">
+                  {serialEmpty > 0 ? `${serialEmpty} serial slot${serialEmpty > 1 ? 's' : ''} still empty` : serialSum === sumClue.v ? 'Matches the clue' : 'Does not match the clue yet'}
+                </div>
+              </div>
+            )}
+
+            {letterClue && (
+              <div className="ws3-helper">
+                <div className="ws3-helper-line">FIRST SERIES LETTER MUST BE IN THE LIT ZONE</div>
+                <div className="ws3-az" role="img" aria-label={`Allowed letters ${letterClue.k} ${letterClue.v}`}>
+                  {Array.from({ length: 26 }, (_, n) => {
+                    const ch = String.fromCharCode(65 + n);
+                    return (
+                      <span key={ch} className={`ws3-az-c ${allowed(ch) ? 'is-ok' : ''} ${ch === letterClue.v ? 'is-edge' : ''} ${firstLetter === ch ? 'is-pick' : ''}`}>
+                        {ch}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
+
           <div className="ws3-panel ws3-sidebox">
             <div className="ws3-panel-tag">PLATE VALUE</div>
             <Readout label="THIS_PLATE" value={`${value} PTS`} tone={value < pointsPerRound ? 'warn' : 'ok'} />
@@ -317,7 +377,7 @@ export default function ModuleB({
 
       {drag?.moved && dragGlyph && (
         <div className="ws3-tile ws3-tile--ghost" style={{ left: drag.x, top: drag.y }} aria-hidden="true">
-          {dragGlyph}
+          <Glyph ch={dragGlyph} />
         </div>
       )}
 

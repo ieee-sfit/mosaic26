@@ -1,26 +1,33 @@
 import { useEffect, useRef, useState } from 'react';
+import { CONFIG, formatPlate, registryRow, tierFor, type CaseFile } from '../mockStation3Data';
 import {
-  CONFIG,
   FILTER_DEFS,
+  FILTER_KEYS,
+  POSITIONS,
   computeConfidence,
-  formatPlate,
-  registryRow,
-  type CaseFile,
-  tierFor,
+  costOf,
+  fmtEdge,
+  fmtReading,
+  lensFor,
+  scaleFraction,
+  type FilterDef,
   type FilterKey,
   type FilterLevels,
-} from '../mockStation3Data';
+} from '../lens';
 import type { Fx } from '../utils';
 import { ActionBar, Readout } from './Hud';
 import ConfidenceGauge from './ConfidenceGauge';
-import Viewfinder, { ocrRead, type PursuitStatus } from './Viewfinder';
+import Viewfinder, { ocrRead, type LockStatus } from './Viewfinder';
+import { PlateText } from './Glyph';
 import HintDock from '../../core/HintDock';
 import type { HintLevel } from '../../core/HintDock';
+import './moduleC.css';
 
 const OFF: FilterLevels = { ir: 0, pol: 0, fog: 0, bin: 0 };
-const LEVEL_NAMES = ['OFF', 'LVL 1', 'LVL 2'];
 const RESOLVE_MS = 2000;
-const { roundSeconds, pips: MAX_PIPS, passConfidence } = CONFIG.moduleC;
+const NOLOCK_MS = 1800;
+const { passConfidence, failCost, pointsPerRound } = CONFIG.moduleC;
+const failPts = Math.round(failCost * pointsPerRound);
 
 interface ChallanEntry {
   no: string;
@@ -31,103 +38,125 @@ interface ChallanEntry {
   pts: number;
 }
 
+/** One filter: a numeric reading next to a four-band scale, and four positions to pick from. */
+function FilterCard({
+  def,
+  reading,
+  level,
+  live,
+  hinted,
+  onPick,
+}: {
+  def: FilterDef;
+  reading: number;
+  level: number;
+  live: boolean;
+  hinted: boolean;
+  onPick: (pos: number) => void;
+}) {
+  const x = scaleFraction(def, reading) * 100;
+  return (
+    <div className={`ws3-filter ${level > 0 ? 'is-on' : ''} ${hinted ? 'is-hint' : ''}`}>
+      <div className="ws3-filter-top">
+        <span className="ws3-filter-name">{def.label}</span>
+        {def.fine && <span className="ws3-filter-tag">FINE-TUNE</span>}
+      </div>
+      <div className="ws3-filter-read" aria-label={`${def.reading} reading ${fmtReading(def, reading)}`}>
+        <span className="ws3-filter-rk">{def.reading}</span>
+        <b>{reading.toFixed(def.decimals)}</b>
+        {def.unit && <small>{def.unit}</small>}
+      </div>
+      <div className="ws3-scale" aria-hidden="true">
+        <div className="ws3-scale-bar">
+          {POSITIONS.map((p, i) => (
+            <span key={p} className={i === level ? 'is-set' : ''}>{p}</span>
+          ))}
+          <i className="ws3-scale-mark" style={{ left: `${x}%` }} />
+        </div>
+        <div className="ws3-scale-edges">
+          <em style={{ left: '25%' }}>{fmtEdge(def, def.scale[1])}</em>
+          <em style={{ left: '50%' }}>{fmtEdge(def, def.scale[2])}</em>
+          <em style={{ left: '75%' }}>{fmtEdge(def, def.scale[3])}</em>
+        </div>
+      </div>
+      <div className="ws3-pos" role="group" aria-label={`${def.label} position`}>
+        {POSITIONS.map((p, i) => (
+          <button key={p} type="button" className={`ws3-pos-btn ${i === level ? 'is-set' : ''}`} onClick={() => onPick(i)} disabled={!live} aria-pressed={i === level}>
+            {p}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function ModuleC({
   cas,
+  seed,
   onScore,
   onDone,
-  onForfeit,
   fx,
+  onStat,
 }: {
   cas: CaseFile;
+  seed: number;
   onScore: (delta: number) => void;
   onDone: () => void;
-  onForfeit: () => void;
   fx: Fx;
+  /** Reports a failed lock or a hint for the end-of-run diagnostic. */
+  onStat: (kind: 'wrong' | 'hint') => void;
 }) {
   const ROUNDS = cas.rounds;
   const [roundIdx, setRoundIdx] = useState(0);
   const [levels, setLevels] = useState<FilterLevels>(OFF);
-  const [status, setStatus] = useState<PursuitStatus>('live');
-  const [pips, setPips] = useState<number>(MAX_PIPS);
+  const [status, setStatus] = useState<LockStatus>('live');
   const [roundFails, setRoundFails] = useState(0);
-  const [roundTime, setRoundTime] = useState<number>(roundSeconds);
   const [log, setLog] = useState<ChallanEntry[]>([]);
   const [lastPts, setLastPts] = useState(0);
-  const [reason, setReason] = useState('');
+  const [lockMsg, setLockMsg] = useState<string | null>(null);
+  const [noLock, setNoLock] = useState(0);
   const [hint, setHint] = useState<HintLevel>(0);
 
   const round = ROUNDS[roundIdx];
-  const confidence = computeConfidence(round, levels);
+  const lens = lensFor(roundIdx, seed);
+  const confidence = computeConfidence(lens, levels);
   const ready = confidence >= passConfidence;
   const live = status === 'live';
-  const roundValue = Math.max(CONFIG.moduleC.minRoundPoints, CONFIG.moduleC.pointsPerRound - roundFails * CONFIG.moduleC.failPenalty);
+  const hintCut = hint === 1 ? 1 - CONFIG.hintPenalty[1] : 1;
+  const roundValue = Math.max(0, Math.round(pointsPerRound * hintCut) - roundFails * failPts);
 
-  const timeRef = useRef<number>(roundSeconds);
-  const escapeRef = useRef<(why: string) => void>(() => {});
-  const resetClock = () => {
-    timeRef.current = roundSeconds;
-    setRoundTime(roundSeconds);
-  };
-
-  const escape = (why: string) => {
-    setPips((p) => Math.max(0, p - 1));
-    setRoundFails((f) => f + 1);
-    setReason(why);
-    setStatus('escaped');
-    fx.shake();
-  };
+  // resolve a caught state after the banner has shown
+  const doneRef = useRef(onDone);
   useEffect(() => {
-    escapeRef.current = escape;
-  });
-
-  // pursuit window countdown
-  useEffect(() => {
-    if (status !== 'live') return;
-    const id = setInterval(() => {
-      timeRef.current -= 1;
-      setRoundTime(timeRef.current);
-      if (timeRef.current <= 0) {
-        clearInterval(id);
-        escapeRef.current('PURSUIT WINDOW EXPIRED');
-      }
-    }, 1000);
-    return () => clearInterval(id);
-  }, [status, roundIdx]);
-
-  // resolve a caught / escaped state after the banner has shown
-  const doneRef = useRef({ onDone, onForfeit });
-  useEffect(() => {
-    doneRef.current = { onDone, onForfeit };
+    doneRef.current = onDone;
   });
   useEffect(() => {
-    if (status === 'live') return;
+    if (status !== 'caught') return undefined;
     const t = setTimeout(() => {
-      if (status === 'escaped') {
-        if (pips <= 0) {
-          doneRef.current.onForfeit();
-          return;
-        }
-        setLevels(OFF);
-        resetClock();
-        setStatus('live');
-      } else if (roundIdx + 1 >= ROUNDS.length) {
-        doneRef.current.onDone();
+      if (roundIdx + 1 >= ROUNDS.length) {
+        doneRef.current();
       } else {
         setRoundIdx(roundIdx + 1);
         setHint(0);
         setRoundFails(0);
         setLevels(OFF);
-        resetClock();
+        setLockMsg(null);
         setStatus('live');
       }
     }, RESOLVE_MS);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, pips, roundIdx]);
+  }, [status, roundIdx, ROUNDS.length]);
 
-  const step = (key: FilterKey) => {
+  // the NO LOCK banner shows briefly
+  useEffect(() => {
+    if (!noLock) return undefined;
+    const t = setTimeout(() => setNoLock(0), NOLOCK_MS);
+    return () => clearTimeout(t);
+  }, [noLock]);
+
+  const pick = (key: FilterKey, pos: number) => {
     if (!live) return;
-    setLevels((l) => ({ ...l, [key]: (l[key] + 1) % 3 }));
+    setLevels((l) => ({ ...l, [key]: pos }));
   };
 
   const issue = (pts: number) => {
@@ -139,6 +168,7 @@ export default function ModuleC({
       ...l,
       { no: `E-${String(l.length + 1).padStart(4, '0')}`, plate: round.plate, code: tier.code, points: tier.points, fine: tier.fine, pts },
     ]);
+    setLockMsg(null);
     setStatus('caught');
     fx.flash();
   };
@@ -146,67 +176,58 @@ export default function ModuleC({
   const lock = () => {
     if (!live) return;
     if (!ready) {
-      escape(`SUBMITTED AT ${confidence.toFixed(1)}% — BELOW ${passConfidence}%`);
+      // NO LOCK: costs 20% of this suspect's points, and the player keeps trying
+      setRoundFails((f) => f + 1);
+      setLockMsg(`NO LOCK · ${confidence.toFixed(1)}% - need ${passConfidence}% · −${failPts} PTS`);
+      setNoLock(Date.now());
+      onStat('wrong');
+      fx.shake();
       return;
     }
-    issue(hint === 1 ? Math.round(roundValue * (1 - CONFIG.hintPenalty[1])) : roundValue);
+    issue(roundValue);
   };
 
-  // Hint 1 points at the filter furthest from its sweet spot; Hint 2 sets the filters and issues the challan for 0 pts
-  const worst = FILTER_DEFS.reduce((a, d) => {
-    const off = d.weight * Math.abs(levels[d.key] - round.target[d.key]);
-    return off > a.off ? { def: d, off } : a;
-  }, { def: FILTER_DEFS[0], off: 0 });
+  // Hint 1 marks the filter that costs the most right now; Hint 2 sets the best combination and issues the challan for 0 pts
+  const worst = FILTER_KEYS.reduce(
+    (a, k) => {
+      const c = costOf(lens, k, levels[k]);
+      return c > a.cost ? { key: k, cost: c } : a;
+    },
+    { key: FILTER_KEYS[0], cost: 0 },
+  );
+  const worstDef = FILTER_DEFS.find((d) => d.key === worst.key) as FilterDef;
   const requestHint = (next: 1 | 2) => {
     if (!live || hint >= next) return;
     setHint(next);
+    onStat('hint');
     if (next === 2) {
-      setLevels(round.target);
+      setLevels(lens.target);
       issue(0);
     }
   };
 
-  const clockTone = roundTime <= 10 ? 'bad' : roundTime <= 25 ? 'warn' : undefined;
   const ocr = ocrRead(round.plate, round.ocrNoise, confidence);
+  const hinted = hint >= 1 && live && worst.cost > 0 ? worst.key : null;
 
   return (
     <>
       <main className="ws3-main ws3-modC">
         <section className="ws3-panel ws3-console">
           <div className="ws3-panel-tag">MOD_C // FORENSIC LENS SHUFFLER</div>
-          <Viewfinder round={round} levels={levels} confidence={confidence} status={status} />
+          <Viewfinder round={round} levels={levels} confidence={confidence} status={status} target={lens.target} noLock={noLock} />
 
           <div className="ws3-ocr" aria-live="off">
             <span className="ws3-ocr-k">OCR_READ</span>
-            <span className={`ws3-ocr-v ${ready ? 'is-ok' : ''}`}>{ocr}</span>
+            <span className={`ws3-ocr-v ${ready ? 'is-ok' : ''}`}>
+              <PlateText text={ocr} />
+            </span>
           </div>
 
-          <div className="ws3-filters" role="group" aria-label="Multi-spectrum filter array">
-            {FILTER_DEFS.map((def) => {
-              const lvl = levels[def.key];
-              return (
-                <button
-                  key={def.key}
-                  type="button"
-                  className={`ws3-filter ${lvl > 0 ? 'is-on' : ''} ${hint === 1 && worst.off > 0 && worst.def.key === def.key ? 'is-hint' : ''}`}
-                  onClick={() => step(def.key)}
-                  disabled={!live}
-                  aria-label={`${def.label} ${LEVEL_NAMES[lvl]}`}
-                >
-                  <span className="ws3-filter-name">{def.label}</span>
-                  <span className="ws3-filter-leds" aria-hidden="true">
-                    {[1, 2].map((n) => (
-                      <i key={n} className={lvl >= n ? 'is-lit' : ''} />
-                    ))}
-                  </span>
-                  <span className="ws3-filter-level">{LEVEL_NAMES[lvl]}</span>
-                  <span className="ws3-filter-mode">{def.levels[lvl]}</span>
-                  <span className="ws3-filter-sig">
-                    {def.signalLabel}: {def.signal[round.target[def.key]]}
-                  </span>
-                </button>
-              );
-            })}
+          <p className="ws3-c-how">Match each reading to a band: set each filter to OFF, 1, 2 or 3.</p>
+          <div className="ws3-filters" role="group" aria-label="Filter array">
+            {FILTER_DEFS.map((def) => (
+              <FilterCard key={def.key} def={def} reading={lens.reading[def.key]} level={levels[def.key]} live={live} hinted={hinted === def.key} onPick={(p) => pick(def.key, p)} />
+            ))}
           </div>
         </section>
 
@@ -214,31 +235,21 @@ export default function ModuleC({
           <div className="ws3-panel ws3-sidebox">
             <div className="ws3-panel-tag">AI CONFIDENCE</div>
             <ConfidenceGauge value={confidence} threshold={passConfidence} />
-            <button
-              type="button"
-              className={`ws3-lock ${ready ? 'is-ready' : ''}`}
-              onClick={lock}
-              disabled={!live}
-            >
-              [LOCK TELEMETRY / ISSUE CHALLAN]
+            <button type="button" className={`ws3-lock ${ready ? 'is-ready' : ''}`} onClick={lock} disabled={!live}>
+              [LOCK PLATE / ISSUE CHALLAN]
             </button>
             <p className="ws3-lock-note">
-              {ready ? `≥ ${passConfidence}% — CHALLAN CLEARED FOR ISSUE` : `BELOW ${passConfidence}% — LOCKING NOW LOSES THE SUSPECT`}
+              {ready ? `${confidence.toFixed(1)}% · ABOVE ${passConfidence}% · READY TO LOCK` : `BELOW ${passConfidence}% · LOCKING NOW IS NO LOCK AND COSTS ${failPts} PTS`}
             </p>
+            {lockMsg && live && <div className="ws3-intel ws3-intel--red" role="alert">▸ {lockMsg}</div>}
+            {status === 'caught' && <div className="ws3-intel ws3-intel--ok">▸ LOCKED · +{lastPts} PTS · NEXT SUSPECT INBOUND</div>}
           </div>
 
           <div className="ws3-panel ws3-sidebox">
-            <div className="ws3-panel-tag">RADAR PURSUIT INTEGRITY</div>
-            <div className="ws3-pips" aria-label={`${pips} of ${MAX_PIPS} radar pips left`}>
-              {Array.from({ length: MAX_PIPS }, (_, i) => (
-                <span key={i} className={`ws3-pip ${i < pips ? 'is-live' : 'is-burned'}`} />
-              ))}
-            </div>
-            <Readout label="PURSUIT_WINDOW" value={`${String(roundTime).padStart(2, '0')}s`} tone={clockTone} />
-            <Readout label="SUSPECT" value={`${roundIdx + 1}/${ROUNDS.length}`} />
-            <Readout label="ROUND_VALUE" value={`${roundValue} PTS`} />
-            {status === 'escaped' && <div className="ws3-intel ws3-intel--red">▸ {reason}</div>}
-            {status === 'caught' && <div className="ws3-intel ws3-intel--ok">▸ +{lastPts} PTS · NEXT TARGET INBOUND</div>}
+            <div className="ws3-panel-tag">SUSPECT</div>
+            <Readout label="SUSPECT" value={`${roundIdx + 1}/${ROUNDS.length} · ${round.label}`} />
+            <Readout label="ROUND_VALUE" value={`${roundValue} PTS`} tone={roundValue < pointsPerRound ? 'warn' : 'ok'} />
+            <Readout label="NO_LOCKS" value={roundFails} tone={roundFails ? 'bad' : undefined} />
           </div>
 
           <div className="ws3-panel ws3-sidebox ws3-log">
@@ -246,7 +257,7 @@ export default function ModuleC({
             {log.length === 0 && <p className="ws3-log-empty">NO VIOLATIONS LOGGED</p>}
             {log.map((e) => (
               <div key={e.no} className="ws3-log-row">
-                <b>{e.no}</b> {formatPlate(e.plate)} · {e.code} · {e.fine} · <em>{e.points} VIOLATION PTS</em>
+                <b>{e.no}</b> <PlateText text={formatPlate(e.plate)} /> · {e.code} · {e.fine} · <em>{e.points} VIOLATION PTS</em>
               </div>
             ))}
           </div>
@@ -257,19 +268,18 @@ export default function ModuleC({
         <div className="ws3-bar-info">
           <span>MOD_C</span>
           <span>{round.label} · {round.model.toUpperCase()}</span>
-          <span>PIPS {pips}/{MAX_PIPS}</span>
         </div>
-        <span className="ws3-bar-note">CLICK A FILTER BLOCK TO STEP OFF → LVL 1 → LVL 2</span>
+        <span className="ws3-bar-note">PICK A POSITION ON EACH FILTER · REACH {passConfidence}% · THEN LOCK</span>
       </ActionBar>
       <HintDock
         level={hint}
         itemLabel={`SUSPECT ${roundIdx + 1}/${ROUNDS.length}`}
         hint1Text={
-          worst.off > 0
-            ? `${worst.def.label} is the furthest from its sweet spot. Compare its signal (${worst.def.signalLabel}) with the scene and re-set it. It is highlighted.`
-            : 'Every filter matches the scene. Lock the telemetry.'
+          worst.cost > 0
+            ? `${worstDef.label} is costing you the most (−${worst.cost.toFixed(1)} confidence). Re-check its ${worstDef.reading} reading against the scale. It is highlighted.`
+            : 'Every filter matches its reading. Lock the plate.'
         }
-        hint2Text="The filters were set and the challan issued for you. This suspect scores 0."
+        hint2Text="The best filter combination was set and the challan issued for you. This suspect scores 0."
         cost1={CONFIG.hintPenalty[1]}
         disabled={!live}
         onHint={requestHint}

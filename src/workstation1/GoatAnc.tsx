@@ -13,19 +13,39 @@ import { ModuleA } from './components/ModuleA';
 import { ModuleB } from './components/ModuleB';
 import { ModuleC } from './components/ModuleC';
 import { ModuleD } from './components/ModuleD';
-import { ColorMapCard } from './components/ColorMapCard';
 import { BonusOffer } from './components/BonusOffer';
 import { SummaryScreen } from './components/SummaryScreen';
+import { StoryScreen } from './components/StoryScreen';
+import { TutorialScreen } from './components/TutorialScreen';
 import { TimerBadge } from './components/TimerBadge';
+import { BEATS, D_ENDING_LINE, type StoryBeat } from './story/story';
 
 interface HostProps {
-  /** Fired once when the run ends (complete, timed out, or hull breach). */
+  /** Fired once when the run ends (complete or timed out). */
   onComplete?: (result: Station1Result) => void;
   /** Back to the launcher, so a replay is re-verified and counted against the attempt cap. */
   onOpenStationChooser?: () => void;
 }
 
-/** Station 1 · GOAT ANC. Flow: Launcher → Module A → Module B → colour key → Module C → (bonus offer → Module D) → Summary. */
+/** Story and tutorial screens in play order. Every one of them runs with the shift clock paused. */
+const STORY_PHASES: Partial<Record<Phase, { beat: keyof typeof BEATS; next: Phase }>> = {
+  opening: { beat: 'opening', next: 'tutA' },
+  story1: { beat: 'story1', next: 'tutB' },
+  story2: { beat: 'story2', next: 'tutC' },
+  story3: { beat: 'story3', next: 'tutD' },
+};
+const TUTORIAL_PHASES: Partial<Record<Phase, { module: 'A' | 'B' | 'C' | 'D'; next: Phase }>> = {
+  tutA: { module: 'A', next: 'moduleA' },
+  tutB: { module: 'B', next: 'moduleB' },
+  tutC: { module: 'C', next: 'moduleC' },
+  tutD: { module: 'D', next: 'moduleD' },
+};
+
+/**
+ * Station 1 · GOAT ANC.
+ * Flow: [launch countdown] → opening → tutorial A → Module A → story 1 → tutorial B → Module B → story 2 → tutorial C → Module C →
+ * bonus offer → (story 3 → tutorial D → Module D) → ending → debrief. The shift clock runs only inside Modules A–D.
+ */
 export default function GoatAnc({ onComplete, onOpenStationChooser }: HostProps) {
   const [run, setRun] = useState(0);
   return <Session key={run} onComplete={onComplete} onRestart={onOpenStationChooser ?? (() => setRun((n) => n + 1))} />;
@@ -37,24 +57,24 @@ function Session({ onComplete, onRestart }: HostProps & { onRestart: () => void 
     session && /^\d{6}$/.test(session.p1_id ?? '') && /^\d{6}$/.test(session.p2_id ?? '')
       ? [session.p1_id as string, session.p2_id as string]
       : null;
-  const [phase, setPhase] = useState<Phase>('launcher');
-  const [operators, setOperators] = useState<[string, string]>(['', '']);
-  const [questions, setQuestions] = useState<McqQuestion[]>([]);
+  // With both IDs already verified by the arcade launcher, Station 1's own ID screen is skipped; it stays only as a standalone fallback.
+  const [phase, setPhase] = useState<Phase>(preset ? 'opening' : 'launcher');
+  const [operators, setOperators] = useState<[string, string]>(preset ?? ['', '']);
+  const [questions, setQuestions] = useState<McqQuestion[]>(() => (preset ? pickRandom(QUESTION_BANK, SCORING.moduleA.questionCount) : []));
   const [a, setA] = useState<QuestionResult[]>([]);
   const [b, setB] = useState<StepResult[]>([]);
   const [c, setC] = useState<RoundResult[]>([]);
-  const [hull, setHull] = useState(SCORING.moduleC.hullPips);
+  const [cCleared, setCCleared] = useState(false);
   const [result, setResult] = useState<Station1Result | null>(null);
   const [seed] = useState(() => (Math.random() * 4294967296) >>> 0);
-  const [dDeadline, setDDeadline] = useState(0);
   const { ref, shake } = useScreenShake();
 
   const phaseRef = useRef<Phase>(phase);
   /** Fixed the moment Module C ends: the speed bonus and time left do not change while Module D is played. */
-  const frozen = useRef<{ endReason: EndReason; hull: number; seconds: number } | null>(null);
+  const frozen = useRef<{ seconds: number } | null>(null);
   const emitted = useRef(false);
   const times = useRef({ A: 0, B: 0, C: 0, D: 0 });
-  const mark = useRef<{ p: Phase; at: number }>({ p: 'launcher', at: Date.now() });
+  const mark = useRef<{ p: Phase; at: number }>({ p: phase, at: Date.now() });
   const MODULE_OF: Partial<Record<Phase, 'A' | 'B' | 'C' | 'D'>> = { moduleA: 'A', moduleB: 'B', moduleC: 'C', moduleD: 'D' };
 
   /** Every phase change goes through here so the debrief can show the time spent in each module. */
@@ -66,22 +86,25 @@ function Session({ onComplete, onRestart }: HostProps & { onRestart: () => void 
     setPhase(next);
   };
 
-  const clockRunning = phase === 'moduleA' || phase === 'moduleB' || phase === 'mapC' || phase === 'moduleC' || phase === 'moduleD';
-  // Module D ends itself at its own deadline (never later than the shift clock), so the shift clock's expiry must not end the run there.
+  // The shared clock runs ONLY while a module is actually being played: never on story, tutorial or bonus-offer screens,
+  // and not once the last Module C target is down (the speed bonus is frozen there).
+  const clockRunning = phase === 'moduleA' || phase === 'moduleB' || (phase === 'moduleC' && !cCleared) || phase === 'moduleD';
   const seconds = useCountdown(SCORING.totalSeconds, clockRunning, () => {
-    if (phaseRef.current !== 'moduleD') finish('TIME_EXPIRED', hull);
+    // Module D ends itself when it sees the clock at 0 (points already earned stay); A, B and C end the run as a failure.
+    const p = phaseRef.current;
+    if (p === 'moduleA' || p === 'moduleB' || p === 'moduleC') emit('TIME_EXPIRED', 0);
   });
 
-  // Red emergency lighting when the clock is nearly out or the hull is down to its last pip
-  const alarm = clockRunning && (seconds <= 120 || hull <= 1);
+  // Red emergency lighting when the clock is nearly out
+  const alarm = clockRunning && seconds <= 120;
 
-  /** Builds the result and hands it to the host exactly once. */
-  function emit(endReason: EndReason, hullLeft: number, secondsRemaining: number, d: HandshakeResult[] = [], ending: 'success' | 'fail' | null = null) {
+  /** Builds the result and hands it to the host exactly once, then shows the ending. */
+  function emit(endReason: EndReason, secondsRemaining: number, d: HandshakeResult[] = [], ending: 'success' | 'fail' | null = null) {
     if (emitted.current) return;
     emitted.current = true;
     const m = MODULE_OF[mark.current.p];
     if (m) times.current[m] += Math.round((Date.now() - mark.current.at) / 1000);
-    mark.current = { p: 'summary', at: Date.now() };
+    mark.current = { p: 'ending', at: Date.now() };
     const scoreA = sum(a);
     const scoreB = sum(b);
     const scoreC = sum(c);
@@ -90,7 +113,6 @@ function Session({ onComplete, onRestart }: HostProps & { onRestart: () => void 
       operators,
       endReason,
       secondsRemaining,
-      hullPips: hullLeft,
       moduleA: a,
       moduleB: b,
       moduleC: c,
@@ -105,49 +127,49 @@ function Session({ onComplete, onRestart }: HostProps & { onRestart: () => void 
       total: scoreA + scoreB + scoreC,
       maxTotal: maxTotals(SCORING).total,
     };
-    setHull(hullLeft);
     setResult(final);
-    phaseRef.current = 'summary';
-    setPhase('summary');
+    phaseRef.current = 'ending';
+    setPhase('ending');
     onComplete?.(final);
   }
 
-  /**
-   * The run is over, or Module C just ended. A completed Module C with shift time left is NOT emitted yet: the speed bonus and
-   * time left are frozen here and the bonus is offered first. Everything else ends exactly as before.
-   */
-  function finish(endReason: EndReason, hullLeft: number) {
-    if (result || emitted.current || frozen.current) return;
-    const left = endReason === 'TIME_EXPIRED' ? 0 : seconds;
-    if (endReason === 'COMPLETE' && left > 0) {
-      frozen.current = { endReason, hull: hullLeft, seconds: left };
-      setHull(hullLeft);
-      go('offer');
-      return;
-    }
-    emit(endReason, hullLeft, left);
-  }
+  /** The last Module C target is down: freeze the time left (and with it the speed bonus) and stop the clock. */
+  const clearedC = () => {
+    if (frozen.current) return;
+    frozen.current = { seconds };
+    setCCleared(true);
+  };
+
+  /** Module C is finished. Offer the bonus only with at least 90 s of shift time left, otherwise go straight to the ending. */
+  const finishC = () => {
+    const f = frozen.current;
+    if (!f || phaseRef.current !== 'moduleC') return;
+    if (f.seconds >= SCORING.moduleD.offerMinSeconds) go('offer');
+    else emit('COMPLETE', f.seconds);
+  };
 
   const skipD = () => {
     const f = frozen.current;
-    if (f && phaseRef.current === 'offer') emit(f.endReason, f.hull, f.seconds);
+    if (f && phaseRef.current === 'offer') emit('COMPLETE', f.seconds);
   };
   const playD = () => {
-    const f = frozen.current;
-    if (!f || phaseRef.current !== 'offer') return;
-    setDDeadline(Date.now() + Math.min(SCORING.moduleD.maxSeconds, f.seconds) * 1000);
-    go('moduleD');
+    if (phaseRef.current === 'offer') go('story3');
   };
   const doneD = (results: HandshakeResult[], _total: number, ending: 'success' | 'fail') => {
     const f = frozen.current;
-    if (f && phaseRef.current === 'moduleD') emit(f.endReason, f.hull, f.seconds, results, ending);
+    if (f && phaseRef.current === 'moduleD') emit('COMPLETE', f.seconds, results, ending);
   };
 
   const launch = (ops: [string, string]) => {
     setOperators(ops);
     setQuestions(pickRandom(QUESTION_BANK, SCORING.moduleA.questionCount));
-    go('moduleA');
+    go('opening');
   };
+
+  const story = STORY_PHASES[phase];
+  const tutorial = TUTORIAL_PHASES[phase];
+  const endingBeat: StoryBeat | null = phase === 'ending' && result ? (result.endReason === 'COMPLETE' ? BEATS.success : BEATS.fail) : null;
+  const endingExtra = result && result.endReason === 'COMPLETE' && result.dPlayed ? [D_ENDING_LINE[result.dEnding === 'success' ? 'success' : 'fail']] : undefined;
 
   return (
     <ShakeContext.Provider value={shake}>
@@ -155,18 +177,20 @@ function Session({ onComplete, onRestart }: HostProps & { onRestart: () => void 
         <CockpitBackdrop />
         <TimerBadge seconds={seconds} total={SCORING.totalSeconds} armed={clockRunning} />
         {phase === 'launcher' && <Launcher onLaunch={launch} preset={preset} />}
+        {story && <StoryScreen key={phase} beat={BEATS[story.beat]} onContinue={() => go(story.next)} />}
+        {tutorial && <TutorialScreen key={phase} module={tutorial.module} onContinue={() => go(tutorial.next)} />}
         {phase === 'moduleA' && (
-          <ModuleA questions={questions} operators={operators} onRecord={(r) => setA((x) => [...x, r])} onComplete={() => go('moduleB')} />
+          <ModuleA questions={questions} operators={operators} onRecord={(r) => setA((x) => [...x, r])} onComplete={() => go('story1')} />
         )}
         {phase === 'moduleB' && (
-          <ModuleB operators={operators} onRecord={(r) => setB((x) => [...x, r])} onComplete={() => go('mapC')} />
+          <ModuleB operators={operators} onRecord={(r) => setB((x) => [...x, r])} onComplete={() => go('story2')} />
         )}
-        {phase === 'mapC' && <ColorMapCard operators={operators} onContinue={() => go('moduleC')} />}
         {phase === 'moduleC' && (
-          <ModuleC operators={operators} onRecord={(r) => setC((x) => [...x, r])} onHullChange={setHull} onFinish={finish} />
+          <ModuleC operators={operators} onRecord={(r) => setC((x) => [...x, r])} onCleared={clearedC} onFinish={finishC} />
         )}
         {phase === 'offer' && <BonusOffer secondsLeft={frozen.current?.seconds ?? 0} onPlay={playD} onSkip={skipD} />}
-        {phase === 'moduleD' && <ModuleD seed={seed} operators={operators} deadline={dDeadline} onDone={doneD} />}
+        {phase === 'moduleD' && <ModuleD seed={seed} operators={operators} secondsLeft={seconds} onDone={doneD} />}
+        {endingBeat && <StoryScreen key="ending" beat={endingBeat} extra={endingExtra} onContinue={() => go('summary')} />}
         {phase === 'summary' && result && <SummaryScreen result={result} onRestart={onRestart} />}
       </div>
     </ShakeContext.Provider>

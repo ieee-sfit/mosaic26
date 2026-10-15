@@ -7,13 +7,12 @@ const PAR = { A: 120, B: 240, C: 300, D: 150 }
 const TIPS = {
   A: 'Work the gate out from its truth table, then answer.',
   B: 'Read the TARGET table first, then pick the chip, then power and wires.',
-  C: 'Trace back from the door. Watch the phase clock.',
-  D: 'Probe before you swap. Swap only what the probes blame.',
+  C: 'Trace back from the door. Green is 1, red is 0: flip an input or swap a gate.',
+  D: 'Start from the single contacts: they fix a bit. Then rule out the rest, one rung at a time.',
 }
 const HEAD = {
   complete: ['QUARANTINE HELD', 'mz-green', 'ALL MODULES CLEARED'],
   timeout: ['CONTAINMENT LOST', 'mz-red', 'TIME EXPIRED'],
-  forfeit: ['SEALS BREACHED', 'mz-red', 'ALL SEALS BROKEN'],
 }
 
 export default function EndScreen({ result, summary, diag, onRestart }) {
@@ -28,7 +27,7 @@ export default function EndScreen({ result, summary, diag, onRestart }) {
     { id: 'A', label: 'MODULE A', score: a, max: cfg.moduleA },
     { id: 'B', label: 'MODULE B', score: b, max: cfg.moduleB },
     { id: 'C', label: 'MODULE C', score: c, max: cfg.moduleC },
-    ...(dPlayed ? [{ id: 'D', label: 'FINAL ESCAPE', score: d, max: cfg.moduleD }] : []),
+    ...(dPlayed ? [{ id: 'D', label: 'CODE BREAKER', score: d, max: cfg.moduleD }] : []),
   ]
   const stats = rows.map((r) => ({
     ...r,
@@ -46,7 +45,7 @@ export default function EndScreen({ result, summary, diag, onRestart }) {
         <h1 className={`mz-end2-head ${head[1]}`}>{head[0]}</h1>
         <p className="mz-end2-line">&gt; {head[2]}</p>
         <p className="mz-end2-line">&gt; BASE {Math.round(base)}/100 · SPEED BONUS +{bonus}/{cfg.speedBonusMax}</p>
-        {dPlayed && <p className="mz-end2-line">&gt; FINAL ESCAPE +{Math.round(d * 10) / 10} / {SCORING.bonusModuleMax}</p>}
+        {dPlayed && <p className="mz-end2-line">&gt; CODE BREAKER +{Math.round(d * 10) / 10} / {SCORING.bonusModuleMax}</p>}
         <div className="mz-end2-score">
           <div>
             <small>TOTAL_SCORE</small>

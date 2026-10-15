@@ -27,7 +27,7 @@ const holeXY = (id) => {
   return [CHIP_C[0] + dx, CHIP_C[1] + dy]
 }
 const abs = (i, id) => { const [x, y] = holeXY(id); return [bayX(i) + x, y] }
-const TRAY_XY = Object.fromEntries(TRAY_ORDER.map((t, i) => [t, [70 + i * 125, TRAY_Y + 76]]))
+const TRAY_XY = Object.fromEntries(TRAY_ORDER.map((t, i) => [t, [100 + i * 150, TRAY_Y + 76]]))
 const SNAP_R = 30
 const SEAT_R = 90
 
@@ -71,8 +71,6 @@ export default function ModuleB({ onScore, onDone, fx, log, track }) {
   const [smoke, setSmoke] = useState(null)
   const [fin, setFin] = useState(false)
   const finRef = useRef(false)
-  // a chip may arrive wrong way round in bays 2 and 3 (decided once per run)
-  const [arrive] = useState(() => BAYS.map((b) => (b.mayArriveFlipped && Math.random() < 0.5 ? 1 : 0)))
   const auto = WIRING_MODE === 'auto'
 
   const commit = useCallback((next) => { baysRef.current = next; setBays(next) }, [])
@@ -84,7 +82,7 @@ export default function ModuleB({ onScore, onDone, fx, log, track }) {
 
   // ---------------------------------------------------------------- events
   const burn = (i, event) => {
-    const msg = event === 'SHORT' ? 'SHORT! +5V MET GND' : 'SMOKE! CHIP FRIED · WRONG WAY ROUND'
+    const msg = event === 'SHORT' ? 'SHORT! +5V MET GND' : 'SMOKE! CHIP FRIED · VCC AND GND SWAPPED'
     setSmoke((s) => ({ bay: i, kind: event, key: (s?.key ?? 0) + 1 }))
     window.setTimeout(() => setSmoke((s) => (s && s.bay === i ? null : s)), 1100)
     fx?.('strobe')
@@ -114,8 +112,7 @@ export default function ModuleB({ onScore, onDone, fx, log, track }) {
     setActive(i)
   }
 
-  const flipChip = (i) => restructure(i, (b) => ({ ...b, chip: { ...b.chip, flip: b.chip.flip ? 0 : 1 } }))
-  const seatChip = (i, type) => restructure(i, (b) => ({ ...b, chip: { type, flip: arrive[i] }, wires: auto ? [] : b.wires }))
+  const seatChip = (i, type) => restructure(i, (b) => ({ ...b, chip: { type }, wires: auto ? [] : b.wires }))
   const pullChip = (i) => restructure(i, (b) => ({ ...b, chip: null, wires: auto ? [] : b.wires }))
   const addWire = (i, a, b) => {
     if (a === b || baysRef.current[i].wires.some((w) => (w.a === a && w.b === b) || (w.a === b && w.b === a))) return
@@ -250,7 +247,6 @@ export default function ModuleB({ onScore, onDone, fx, log, track }) {
         return
       }
       // chip
-      if (d.fromBay != null && !d.moved) { flipChip(d.fromBay); return }
       if (!d.moved) return
       const over = d.over
       if (d.fromBay != null) {
@@ -286,7 +282,6 @@ export default function ModuleB({ onScore, onDone, fx, log, track }) {
 
   // ---------------------------------------------------------------- render helpers
   const hintStep = (i) => (bays[i].hint >= 1 && !bays[i].done ? nextStep(i) : null)
-  const labelsOf = (i) => (bays[i].hint >= 1 ? 'all' : BAYS[i].labels)
 
   const wirePath = (i, a, b) => {
     const [x1, y1] = holeXY(a)
@@ -316,7 +311,6 @@ export default function ModuleB({ onScore, onDone, fx, log, track }) {
     const spec = CHIPS[cfgBay.gate]
     const inputs = spec.inputs
     const target = targetTable(cfgBay.gate)
-    const labels = labelsOf(i)
     const step = hintStep(i)
     const st = statusOf(i)
     const keys = rowKeys(inputs)
@@ -332,8 +326,7 @@ export default function ModuleB({ onScore, onDone, fx, log, track }) {
     const isActive = active === i && !b.done
     const x0 = bayX(i)
     const lockedWires = auto || b.done
-    const showPins = labels === 'all'
-    const sockTag = (id) => (showPins ? { SA: 'A', SB: 'B', LED: 'LED' }[id] : undefined)
+    const sockTag = (id) => ({ SA: 'A', SB: 'B', LED: 'OUT' }[id])
     const slotOver = drag?.kind === 'chip' && drag.moved && drag.over === i
 
     return (
@@ -344,7 +337,7 @@ export default function ModuleB({ onScore, onDone, fx, log, track }) {
 
         {/* rails */}
         <line className="mz-rail mz-rail-5" x1="40" x2="420" y1="62" y2="62" />
-        <text className="mz-rail-lab p" x="40" y="48">+5V RAIL</text>
+        <text className="mz-rail-lab p" x="40" y="48">VCC · +5V RAIL</text>
         <line className="mz-rail mz-rail-0" x1="40" x2="420" y1="340" y2="340" />
         <text className="mz-rail-lab g" x="40" y="360">GND RAIL</text>
 
@@ -352,6 +345,13 @@ export default function ModuleB({ onScore, onDone, fx, log, track }) {
         <path className="mz-trace" d={`M92 135 H122${inputs === 2 ? ' M92 225 H122' : ''}`} />
         <Switch x={58} y={135} name="A" value={b.sw.A} onToggle={() => toggleSwitch(i, 'A')} dataset={{ 'data-switch': `${i}:A` }} />
         {inputs === 2 && <Switch x={58} y={225} name="B" value={b.sw.B} onToggle={() => toggleSwitch(i, 'B')} dataset={{ 'data-switch': `${i}:B` }} />}
+        {inputs === 1 && (
+          <g className="mz-unused" data-unused-b={i}>
+            <circle className="mz-unused-dot" cx="122" cy="225" r="7" />
+            <text className="mz-socklab" x="122" y="211" textAnchor="middle">B</text>
+            <text className="mz-pinoff" x="122" y="248" textAnchor="middle">not used</text>
+          </g>
+        )}
         <path className="mz-trace" d="M350 225 H381" />
         <Led x={398} y={225} lit={sim.lit} ground={340} />
 
@@ -367,10 +367,13 @@ export default function ModuleB({ onScore, onDone, fx, log, track }) {
           </g>
         ))}
 
-        {/* seated chip: click flips it, drag lifts it */}
+        {/* Hint 1: the next correct wire pulses between its two holes */}
+        {step?.kind === 'wire' && <path className="mz-bwire is-hint" d={wirePath(i, step.w.a, step.w.b)} data-hint-wire={`${step.w.a}-${step.w.b}`} />}
+
+        {/* seated chip: drag lifts it out */}
         {b.chip && !(drag?.kind === 'chip' && drag.fromBay === i && drag.moved) && (
-          <g className={`mz-seated ${b.done ? 'is-locked' : ''}`} data-act="seated" data-seated={i} data-flip={b.chip.flip} data-type={b.chip.type} onPointerDown={(e) => downSeated(e, i)}>
-            <Chip cx={CHIP_C[0]} cy={CHIP_C[1]} chip={b.chip} labels={labels !== 'none'} glow={sim.powered} />
+          <g className={`mz-seated ${b.done ? 'is-locked' : ''}`} data-act="seated" data-seated={i} data-type={b.chip.type} onPointerDown={(e) => downSeated(e, i)}>
+            <Chip cx={CHIP_C[0]} cy={CHIP_C[1]} chip={b.chip} glow={sim.powered} />
             <rect x={CHIP_C[0] - 42} y={CHIP_C[1] - 57} width="84" height="114" fill="transparent" />
           </g>
         )}
@@ -422,7 +425,7 @@ export default function ModuleB({ onScore, onDone, fx, log, track }) {
             <text className="mz-tray-title" x="16" y="22">PARTS TRAY · {doneCount}/3 BAYS</text>
             <text className="mz-tray-tip" x="810" y="30">1 · DRAG A CHIP INTO A SLOT</text>
             <text className="mz-tray-tip" x="810" y="52">2 · DRAG WIRES FROM HOLE TO HOLE</text>
-            <text className="mz-tray-tip" x="810" y="74">3 · CLICK A CHIP TO FLIP IT · A WIRE TO CUT IT</text>
+            <text className="mz-tray-tip" x="810" y="74">3 · CLICK A WIRE TO CUT IT</text>
             <text className="mz-tray-tip" x="810" y="96">4 · TRY EVERY ROW, THEN VERIFY</text>
           </g>
           {TRAY_ORDER.map((t) => {
@@ -432,7 +435,7 @@ export default function ModuleB({ onScore, onDone, fx, log, track }) {
               <g key={t} className={`mz-traychip ${gone ? 'is-gone' : ''} ${hintChipType === t ? 'is-hot' : ''}`} data-act="traychip" data-chip={t}
                 onPointerDown={(e) => !gone && downTray(e, t)}>
                 <rect x={x - 62} y={y - 62} width="124" height="124" fill="transparent" />
-                <Chip cx={x} cy={y} chip={{ type: t, flip: 0 }} labels={false} scale={0.82} dim={gone} />
+                <Chip cx={x} cy={y} chip={{ type: t }} labels={false} scale={0.82} dim={gone} />
               </g>
             )
           })}
@@ -444,7 +447,7 @@ export default function ModuleB({ onScore, onDone, fx, log, track }) {
           })()}
           {dragChip && (
             <g pointerEvents="none" className="mz-dragchip">
-              <Chip cx={dragChip.x} cy={dragChip.y} chip={{ type: dragChip.type, flip: dragChip.fromBay != null ? (bays[dragChip.fromBay]?.chip?.flip ?? 0) : 0 }} labels={false} glow />
+              <Chip cx={dragChip.x} cy={dragChip.y} chip={{ type: dragChip.type }} labels={false} glow />
             </g>
           )}
         </svg>
@@ -453,7 +456,7 @@ export default function ModuleB({ onScore, onDone, fx, log, track }) {
       <HintDock
         level={bays[active].hint}
         itemLabel={`BAY ${active + 1}`}
-        hint1Text={`${dock?.text ?? 'Bay is finished.'} ${bays[active].hint >= 1 && BAYS[active].labels !== 'all' ? 'Pin labels are on.' : ''}`.trim()}
+        hint1Text={dock?.text ?? 'Bay is finished.'}
         hint2Text={`Bay ${active + 1} was built for you. It scores 0.`}
         cost1={cfg.hint1PenaltyFraction}
         disabled={bays[active].done}

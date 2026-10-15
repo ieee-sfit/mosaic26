@@ -2,16 +2,17 @@
  * STATION 4 // AREA 51 MELTDOWN — ISOLATED CONTENT FILE
  * ---------------------------------------------------------------------------
  * Everything the event staff may want to swap lives here: the question bank,
- * the breadboard bays, the airlock circuit rounds and the Module D repair boards.
+ * the breadboard bays, the door-logic circuit rounds and the Module D Code Breaker charges.
  * Components under ./meltdown only read from this module and contain no content of their own.
  *
  * Authoring rules
  *  - Module B target tables are NOT stored: they are derived from the bay's gate (see breadboard.js).
- *  - Module D boards are stored as a faulty `start` state plus the `target` gate; the repair set is derived from the
- *    difference, and escape.js `verifyVariant` proves each variant is fair (run it after editing a board).
+ *  - Module D charges are relay circuits: `rungs` in a row (AND), each rung a list of side-by-side contacts (OR), a contact
+ *    is a signed bit number (+k conducts when Bk = 1, -k is a NOT contact). escape.js `verifyCharge` proves each variant is
+ *    fair: exactly one code, every rung and contact needed, no rung enough alone, solvable by unit logic (run it after editing).
  *  - Module C sockets reference sources by id. A source is either an input id
  *    or the id of an EARLIER socket (so circuits are always acyclic).
- *  - Every circuit round must be solvable in phase 1 (forward = 1); phase 2 is always solvable by toggling an input or swapping a gate.
+ *  - Every circuit round must be solvable in phase 1 (front door = 1); phase 2 (rear door = 0) is always solvable by flipping an input or swapping a gate.
  */
 
 export type GateType = 'AND' | 'OR' | 'NOT'
@@ -28,7 +29,7 @@ export const STATION4_CONFIG = {
     moduleA: 15, // 3 questions x 5
     moduleB: 40, // 3 breadboard bays: 13 + 13 + 14
     moduleC: 45, // 3 rounds x (8 breach + 7 seal)
-    moduleD: 20, // optional bonus: FINAL ESCAPE, 4 + 6 + 7 + 3. Not part of the base or the letter grade
+    moduleD: 20, // optional bonus: CODE BREAKER, 3 charges worth 5 + 7 + 8. Not part of the base or the letter grade
     speedBonusMax: 20, // scaled by time_left when every module is cleared, frozen when Module C ends
   },
   moduleA: {
@@ -39,25 +40,21 @@ export const STATION4_CONFIG = {
   },
   moduleB: {
     bayPoints: [13, 13, 14], // AND bay, OR bay, NOT bay
-    strikePenaltyFraction: 0.2, // per failed VERIFY and per smoke event, of that bay's points
+    strikePenaltyFraction: 0.2, // per failed VERIFY, short or smoke event, of that bay's points (floor 0, the bay is never lost)
     hint1PenaltyFraction: 0.4,
   },
   moduleD: {
-    maxSeconds: 180, // cap on the whole round (also capped by the shift time left)
     offerSeconds: 20, // auto-skip of the PLAY / SKIP offer, so an abandoned kiosk still saves its run
-    boardPoints: [4, 6, 7],
-    armingPoints: 3,
-    probes: 4, // per board
-    spareExtra: 1, // spares per board = faults + this
-    wastePenaltyFraction: 0.2, // per wasted spare, of that board's points
+    minSecondsToOffer: 90, // the bonus is only offered with at least this much shift time left
+    codePoints: [5, 7, 8], // charge 1 (3 bits), charge 2 (4 bits), charge 3 (5 bits)
+    wrongPenaltyFraction: 0.2, // per wrong ARM, of that charge's points
     hint1PenaltyFraction: 0.4,
-    detonatePenalty: 1, // points lost per rejected DETONATE
   },
   moduleC: {
-    seals: 3,
-    phaseSeconds: 90, // timing out a phase breaks one seal and re-arms the clock
     breachPoints: 8,
     sealPoints: 7,
+    wrongPenaltyFraction: 0.2, // per wrong try, of that phase's points (floor 0, the phase is never lost)
+    hint1PenaltyFraction: 0.4,
   },
 }
 
@@ -132,16 +129,13 @@ export interface BayConfig {
   gate: 'AND' | 'OR' | 'NOT'
   /** Colour of the bay border. */
   color: string
-  /** 'all' = pin labels on chip and sockets, 'chip' = on the chip only, 'none' = hidden (Hint 1 reveals them). */
-  labels: 'all' | 'chip' | 'none'
-  /** Chips seated in this bay may arrive wrong way round (picked per run). */
-  mayArriveFlipped: boolean
 }
 
+/** Every bay shows the same pin labels (VCC, GND, A, B, OUT) on its chip and sockets; chips always arrive upright. */
 export const BAYS: BayConfig[] = [
-  { id: 'bay1', gate: 'AND', color: '#22d3ee', labels: 'all', mayArriveFlipped: false },
-  { id: 'bay2', gate: 'OR', color: '#f59e0b', labels: 'chip', mayArriveFlipped: true },
-  { id: 'bay3', gate: 'NOT', color: '#e879f9', labels: 'none', mayArriveFlipped: true },
+  { id: 'bay1', gate: 'AND', color: '#22c55e' },
+  { id: 'bay2', gate: 'OR', color: '#2dd4bf' },
+  { id: 'bay3', gate: 'NOT', color: '#86efac' },
 ]
 
 // ---------------------------------------------------------------------------
@@ -228,49 +222,41 @@ export const CIRCUIT_ROUNDS: CircuitRound[] = [
 ]
 
 // ---------------------------------------------------------------------------
-// MODULE D — FINAL ESCAPE · SELF-DESTRUCT (bonus, 3 broken boards)
+// MODULE D — CODE BREAKER (bonus, 3 demolition charges)
 // ---------------------------------------------------------------------------
-export type InputFault = 'ok' | 's0' | 's1' | 'fl' // working | stuck at 0 | stuck at 1 | floating (reads 0)
-export type LedFault = 'ok' | 'dead' | 'rev' // working | dead | fitted the wrong way round (never lights)
-export type EscapeGate = 'AND' | 'OR' | 'NOT'
-
-export interface EscapeState {
-  inA: InputFault
-  inB: InputFault
-  gate: EscapeGate
-  /** A NOT stage fitted after the gate. */
-  not: boolean
-  led: LedFault
-}
-
-export interface EscapeVariant {
+export interface Charge {
   id: string
-  /** What the lock needs: the gate, optionally followed by a NOT (OR-then-NOT reads 1,0,0,0). */
-  target: { gate: 'AND' | 'OR'; not: boolean }
-  /** The board as the player finds it. Everything that differs from the target is a fault. */
-  start: EscapeState
+  /** Where the charge is planted (flavour only). */
+  site: string
+  /** Number of bit switches B1..Bn. */
+  bits: number
+  /**
+   * Relay circuit, battery to detonator. Rungs sit in a row (all must pass = AND); the contacts of one rung sit side by
+   * side (any one passes = OR). A contact is a signed bit number: +k conducts when Bk = 1, -k (a NOT contact) when Bk = 0.
+   */
+  rungs: number[][]
 }
 
 /**
- * Three boards, at least two authored variants each (picked by seed so a repeat attempt is not memorised).
- *  Board 1: one fault.   Board 2: two faults whose symptoms look like one.   Board 3: a missing NOT plus a stuck input.
- * Every variant is proved fair by escape.js `verifyVariant` (unique minimal repair, solvable by logic inside the budgets).
+ * Three charges of 3, 4 and 5 bits (worth 5, 7 and 8), at least two authored variants each, picked by seed so a repeat
+ * attempt is not memorised. Every variant is proved fair by escape.js `verifyCharge`: exactly one code, every rung and
+ * contact needed, no rung enough alone, and unit logic alone settles every bit (no guessing).
  */
-export const ESCAPE_BOARDS: EscapeVariant[][] = [
+export const CHARGES: Charge[][] = [
   [
-    { id: '1A', target: { gate: 'OR', not: false }, start: { inA: 'ok', inB: 'ok', gate: 'AND', not: false, led: 'ok' } },
-    { id: '1B', target: { gate: 'AND', not: false }, start: { inA: 'ok', inB: 'ok', gate: 'OR', not: false, led: 'ok' } },
-    { id: '1C', target: { gate: 'AND', not: false }, start: { inA: 'ok', inB: 'ok', gate: 'AND', not: true, led: 'ok' } },
+    { id: '1A', site: 'CORE STORAGE', bits: 3, rungs: [[1], [-1, 2], [-2, -3]] },
+    { id: '1B', site: 'CORE STORAGE', bits: 3, rungs: [[2], [-1, -3], [-2, 3]] },
+    { id: '1C', site: 'CORE STORAGE', bits: 3, rungs: [[-3], [1, 3], [-1, -2]] },
   ],
   [
-    { id: '2A', target: { gate: 'AND', not: false }, start: { inA: 'ok', inB: 's0', gate: 'AND', not: false, led: 'dead' } },
-    { id: '2B', target: { gate: 'AND', not: false }, start: { inA: 's1', inB: 'ok', gate: 'OR', not: false, led: 'ok' } },
-    { id: '2C', target: { gate: 'OR', not: false }, start: { inA: 'ok', inB: 'fl', gate: 'OR', not: false, led: 'rev' } },
+    { id: '2A', site: 'PATIENT ZERO LAB', bits: 4, rungs: [[4], [1, -4], [-2], [2, 3]] },
+    { id: '2B', site: 'PATIENT ZERO LAB', bits: 4, rungs: [[-3], [1, 2], [-1, 4], [-4]] },
+    { id: '2C', site: 'PATIENT ZERO LAB', bits: 4, rungs: [[1], [-2], [-1, -4], [-3, 4]] },
   ],
   [
-    { id: '3A', target: { gate: 'OR', not: true }, start: { inA: 's1', inB: 'ok', gate: 'OR', not: false, led: 'ok' } },
-    { id: '3B', target: { gate: 'OR', not: true }, start: { inA: 'ok', inB: 's0', gate: 'OR', not: false, led: 'ok' } },
-    { id: '3C', target: { gate: 'OR', not: true }, start: { inA: 'fl', inB: 'ok', gate: 'OR', not: false, led: 'ok' } },
+    { id: '3A', site: 'REACTOR HALL', bits: 5, rungs: [[1], [3, 4], [-2, -4], [-1, 5], [-3]] },
+    { id: '3B', site: 'REACTOR HALL', bits: 5, rungs: [[1], [3], [4, 5], [-2, 4], [-1, -4]] },
+    { id: '3C', site: 'REACTOR HALL', bits: 5, rungs: [[5], [2, -5], [-3, -4], [-1], [1, 4]] },
   ],
 ]
 

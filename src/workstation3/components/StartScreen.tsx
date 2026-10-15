@@ -66,7 +66,7 @@ export default function StartScreen({ onStart }: { onStart: (p1: string, p2: str
         <ul className="ws3-brief">
           <li><b>MOD_A</b> 3 forensic questions · 15 pts · hints cost points</li>
           <li><b>MOD_B</b> 4 smudged plates · 40 pts · rebuild them with the slot rule and witness clues</li>
-          <li><b>MOD_C</b> 3 suspects · 45 pts · reach {CONFIG.moduleC.passConfidence}% confidence, {CONFIG.moduleC.pips} radar pips</li>
+          <li><b>MOD_C</b> 3 suspects · 45 pts · tune four filters to {CONFIG.moduleC.passConfidence}% confidence, then lock</li>
           <li><b>BONUS</b> up to +{CONFIG.speedBonusMax} pts for time left on the {CONFIG.totalSeconds / 60}-minute clock, then an optional BLOCKADE round for up to +{CONFIG.moduleD.max}</li>
         </ul>
 

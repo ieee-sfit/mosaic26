@@ -1,193 +1,125 @@
 /**
- * Module D // pure model of the three broken boards, the repair actions and the fairness solver.
- * No React, no DOM.
+ * Module D // CODE BREAKER: pure model of the demolition charges. No React, no DOM.
  *
- * A board is  A, B --> [input faults] --> GATE --> (optional NOT) --> LED.
- * Probe nodes: 'A' and 'B' (the input nets after any fault), 'G' (gate output) and 'L' (the wire into the LED).
- * With no NOT fitted G and L carry the same level.
+ * A charge is a relay circuit between the battery and the detonator, driven by n bit switches B1..Bn.
+ *   - a RUNG is a set of side-by-side contacts: current passes the rung when ANY contact conducts (OR)
+ *   - the rungs sit one after another in a row: current reaches the detonator only when EVERY rung passes (AND)
+ *   - a contact is written as a signed bit number: +k conducts when Bk = 1, -k (a NOT contact) conducts when Bk = 0
+ * So a charge is a list of rungs, each rung a list of signed bit numbers, e.g. [[1], [-1, 2], [-2, 3]].
+ * Bit k is stored at index k - 1 of the player's code array.
  */
 
-export const ROWS = [[0, 0], [0, 1], [1, 0], [1, 1]]
-export const NODES = ['A', 'B', 'G', 'L']
+export const contactOn = (c, bits) => (c > 0 ? bits[c - 1] === 1 : bits[-c - 1] === 0)
+export const rungOn = (rung, bits) => rung.some((c) => contactOn(c, bits))
+export const rungsOn = (charge, bits) => charge.rungs.map((r) => rungOn(r, bits))
+export const conducts = (charge, bits) => rungsOn(charge, bits).every(Boolean)
 
-export const readInput = (part, v) => (part === 'ok' ? v : part === 's1' ? 1 : 0) // stuck0 and floating both read 0
-export const gateOut = (gate, a, b) => (gate === 'AND' ? a & b : gate === 'OR' ? a | b : a ? 0 : 1) // NOT ignores B
-
-/** Logic level at every probe node for switch setting (a, b). */
-export function levels(st, a, b) {
-  const A = readInput(st.inA, a)
-  const B = readInput(st.inB, b)
-  const G = gateOut(st.gate, A, B)
-  const L = st.not ? 1 - G : G
-  return { A, B, G, L }
-}
-export const ledLit = (st, a, b) => st.led === 'ok' && levels(st, a, b).L === 1
-
-/** The healthy board for a target: working parts, the target gate, NOT as the target says. */
-export const idealState = (target) => ({ inA: 'ok', inB: 'ok', gate: target.gate, not: target.not, led: 'ok' })
-/** What the lock needs at (a, b). */
-export const targetOut = (target, a, b) => (ledLit(idealState(target), a, b) ? 1 : 0)
-export const targetTable = (target) => ROWS.map(([a, b]) => ({ a, b, y: targetOut(target, a, b) }))
-
-/** Per-row pass / fail of RUN TEST. Shows which rows disagree with TARGET and nothing about why. */
-export const runTest = (st, target) => ROWS.map(([a, b]) => (ledLit(st, a, b) ? 1 : 0) === targetOut(target, a, b))
-export const passes = (st, target) => runTest(st, target).every(Boolean)
-
-/** Part types that are currently faulty (what Hint 1 names). */
-export function faultTypes(st, target) {
-  const t = idealState(target)
-  const list = []
-  if (st.inA !== 'ok' || st.inB !== 'ok') list.push('INPUT SWITCH')
-  if (st.gate !== t.gate) list.push('GATE')
-  if (st.not !== t.not) list.push('NOT STAGE')
-  if (st.led !== 'ok') list.push('LED')
-  return list
-}
-export function faultCount(st, target) {
-  const t = idealState(target)
-  return (st.inA !== 'ok') + (st.inB !== 'ok') + (st.gate !== t.gate) + (st.not !== t.not) + (st.led !== 'ok')
+/** How far the current gets: the number of leading rungs that pass (all of them = reaches the detonator). */
+export const reach = (charge, bits) => {
+  const on = rungsOn(charge, bits)
+  const open = on.indexOf(false)
+  return open < 0 ? on.length : open
 }
 
-// ---------------------------------------------------------------------------
-// Repair actions (one spare each)
-// ---------------------------------------------------------------------------
-export const ACTIONS = ['newA', 'newB', 'newLed', 'gateAND', 'gateOR', 'gateNOT', 'toggleNot']
+const allCodes = (n) => Array.from({ length: 2 ** n }, (_, m) => Array.from({ length: n }, (_, k) => (m >> (n - 1 - k)) & 1))
 
-export function applyAction(st, action) {
-  switch (action) {
-    case 'newA': return { ...st, inA: 'ok' }
-    case 'newB': return { ...st, inB: 'ok' }
-    case 'newLed': return { ...st, led: 'ok' }
-    case 'gateAND': return { ...st, gate: 'AND' }
-    case 'gateOR': return { ...st, gate: 'OR' }
-    case 'gateNOT': return { ...st, gate: 'NOT' }
-    case 'toggleNot': return { ...st, not: !st.not }
-    default: return st
-  }
-}
-/** A spare is wasted when it does not take a faulty part to its correct state (good part replaced, or a gate swapped to the wrong type). */
-export const isWasted = (st, action, target) => faultCount(applyAction(st, action), target) >= faultCount(st, target)
+/** Every code that makes the charge conduct. */
+export const solutions = (charge) => allCodes(charge.bits).filter((b) => conducts(charge, b))
+export const solutionOf = (charge) => solutions(charge)[0]
 
-/** The repair set that fixes a board (one action per fault). */
-export function intendedRepairs(st, target) {
-  const t = idealState(target)
-  const list = []
-  if (st.inA !== 'ok') list.push('newA')
-  if (st.inB !== 'ok') list.push('newB')
-  if (st.gate !== t.gate) list.push(`gate${t.gate}`)
-  if (st.not !== t.not) list.push('toggleNot')
-  if (st.led !== 'ok') list.push('newLed')
-  return list.sort()
-}
-export const applyAll = (st, actions) => actions.reduce(applyAction, st)
-
-// ---------------------------------------------------------------------------
-// Fairness solver
-// ---------------------------------------------------------------------------
-const stateKey = (st) => `${st.inA}|${st.inB}|${st.gate}|${+st.not}|${st.led}`
-
-/** Every board state with at most `maxFaults` faults against this target (the player's hypothesis space). */
-export function allStates(target, maxFaults = 2) {
-  const out = []
-  for (const inA of ['ok', 's0', 's1', 'fl']) for (const inB of ['ok', 's0', 's1', 'fl'])
-    for (const gate of ['AND', 'OR', 'NOT']) for (const not of [false, true]) for (const led of ['ok', 'dead', 'rev']) {
-      const st = { inA, inB, gate, not, led }
-      if (faultCount(st, target) <= maxFaults) out.push(st)
-    }
-  return out
-}
-
-/** Every probe the player can make: a node at a switch setting. */
-export const ALL_PROBES = NODES.flatMap((node) => ROWS.map(([a, b]) => ({ node, a, b })))
-const probeRead = (st, p) => levels(st, p.a, p.b)[p.node]
+/** The same charge with one rung removed (or one contact removed from a rung). */
+const withoutRung = (charge, i) => ({ ...charge, rungs: charge.rungs.filter((_, k) => k !== i) })
+const withoutContact = (charge, i, j) => ({ ...charge, rungs: charge.rungs.map((r, k) => (k === i ? r.filter((_, m) => m !== j) : r)) })
 
 /**
- * Proves one variant is fair:
- *  1. the intended repair set is the unique minimal one that makes the board match TARGET
- *  2. no single wrong repair accidentally passes (and a wrong repair never hides the real fault)
- *  3. a player who only takes repairs that every still-possible fault needs, re-testing after each, and spends probes to rule
- *     faults out, finishes with no wasted spare inside the probe budget (solvable by logic alone)
- *  4. the spare budget covers the repairs
- * Returns { ok, problems[], minProbes, repairs, ambiguousWithoutProbes }.
+ * Unit propagation, the only inference a player needs: a rung left with one open contact fixes that bit; a rung already
+ * passed by a fixed bit is finished; a contact already dead is crossed out. Returns the bits it settled (null = unknown).
  */
-export function verifyVariant(variant, { probes = 4, spareExtra = 1, maxLen = 3 } = {}) {
-  const { target, start } = variant
+export function propagate(charge) {
+  const val = Array(charge.bits).fill(null)
+  let moved = true
+  while (moved) {
+    moved = false
+    for (const rung of charge.rungs) {
+      if (rung.some((c) => (c > 0 ? val[c - 1] === 1 : val[-c - 1] === 0))) continue // rung already passed
+      const live = rung.filter((c) => (c > 0 ? val[c - 1] !== 0 : val[-c - 1] !== 1))
+      if (live.length === 0) return { val, contradiction: true }
+      if (live.length === 1) {
+        const c = live[0]
+        const bit = Math.abs(c) - 1
+        const want = c > 0 ? 1 : 0
+        if (val[bit] === null) { val[bit] = want; moved = true }
+      }
+    }
+  }
+  return { val, contradiction: false }
+}
+
+/**
+ * Proves one charge is fair:
+ *  1. exactly one code makes the current reach the detonator
+ *  2. every rung is needed: take any rung away and the code is no longer unique
+ *  3. every contact is needed: in the answer each rung passes through exactly one contact (take that one out and the answer
+ *     is gone); the other contacts of the rung are the decoys the player has to rule out by logic
+ *  4. no single rung is enough on its own to give the code
+ *  5. pure logic solves it: unit propagation alone settles every bit (no guessing)
+ *  6. every bit is used, the code is not all-0 or all-1, and no rung repeats a bit
+ * Returns { ok, problems[], solution }.
+ */
+export function verifyCharge(charge) {
   const problems = []
-  const repairs = intendedRepairs(start, target)
-  const f = repairs.length
-  const spares = f + spareExtra
+  const sols = solutions(charge)
+  if (sols.length !== 1) problems.push(`${sols.length} solutions (need exactly 1)`)
+  const sol = sols[0]
 
-  if (f === 0) problems.push('board has no fault')
-  if (passes(start, target)) problems.push('board already matches TARGET')
-  if (!passes(applyAll(start, repairs), target)) problems.push('intended repair does not pass')
+  charge.rungs.forEach((_, i) => {
+    const rest = withoutRung(charge, i)
+    if (solutions(rest).length === 1) problems.push(`rung ${i + 1} is not needed (answer is still unique without it)`)
+  })
+  charge.rungs.forEach((r, i) => {
+    const through = sol ? r.filter((c) => contactOn(c, sol)).length : 0
+    if (through !== 1) problems.push(`rung ${i + 1} passes through ${through} contacts in the answer (need exactly 1)`)
+    r.forEach((c, j) => {
+      if (r.length > 1 && sol && contactOn(c, sol) && solutions(withoutContact(charge, i, j)).length !== 0) {
+        problems.push(`contact ${c} in rung ${i + 1} is not needed`)
+      }
+    })
+  })
+  charge.rungs.forEach((r, i) => {
+    const alone = { ...charge, rungs: [r] }
+    const n = solutions(alone).length
+    if (n === 1) problems.push(`rung ${i + 1} alone is enough`)
+    if (new Set(r.map(Math.abs)).size !== r.length) problems.push(`rung ${i + 1} repeats a bit`)
+  })
+  const used = new Set(charge.rungs.flat().map(Math.abs))
+  for (let k = 1; k <= charge.bits; k++) if (!used.has(k)) problems.push(`bit ${k} is never used`)
+  const p = propagate(charge)
+  if (p.contradiction || p.val.some((v) => v === null)) problems.push('logic alone does not settle every bit (guessing needed)')
+  else if (sol && p.val.join('') !== sol.join('')) problems.push('propagation disagrees with the brute-force solution')
+  if (sol && (sol.every((b) => b === 0) || sol.every((b) => b === 1))) problems.push('code is all 0 or all 1')
 
-  // 1. unique minimal repair: BFS over action sequences, collect distinct final states of the shortest passing length
-  let frontier = [{ st: start, seq: [] }]
-  let minLen = -1
-  let finals = new Map()
-  for (let len = 0; len <= maxLen && minLen < 0; len++) {
-    const hits = frontier.filter((n) => passes(n.st, target))
-    if (hits.length) {
-      minLen = len
-      finals = new Map(hits.map((n) => [stateKey(n.st), n.seq]))
-      break
-    }
-    frontier = frontier.flatMap((n) => ACTIONS.map((a) => ({ st: applyAction(n.st, a), seq: [...n.seq, a] })))
-  }
-  if (minLen !== f) problems.push(`minimal repair length ${minLen} != fault count ${f}`)
-  if (finals.size !== 1) problems.push(`${finals.size} different minimal end states pass`)
-  else {
-    const only = [...finals.values()][0]
-    const key = [...new Set(only)].sort().join()
-    if (key !== repairs.join()) problems.push(`unique minimal repair ${key} != intended ${repairs.join()}`)
-  }
-
-  // 2. a single wrong repair must not pass, and repairing a good part must leave the board failing
-  for (const a of ACTIONS) {
-    if (repairs.includes(a)) continue
-    if (passes(applyAction(start, a), target)) problems.push(`single wrong repair ${a} passes`)
-  }
-
-  // 3. a strategy by logic alone. The player may take any repair that EVERY board still consistent with what they have
-  //    seen would need ("safe"), re-run the test after each one, and otherwise spends a probe to rule boards out.
-  const hyps = allStates(target, 2)
-  const sig = (st) => runTest(st, target).join()
-  const repairKey = (st) => intendedRepairs(st, target).join()
-  const pool0 = hyps.filter((h) => sig(h) === sig(start))
-  const ambiguousWithoutProbes = new Set(pool0.map(repairKey)).size
-  const plan = (truth, pool, probesLeft, used, trail) => {
-    if (passes(truth, target)) return { probesUsed: trail.filter((t) => t.startsWith('probe')).length, sparesUsed: used, trail }
-    const safe = ACTIONS.find((a) => pool.every((h) => intendedRepairs(h, target).includes(a)))
-    if (safe) {
-      const t2 = applyAction(truth, safe)
-      const p2 = pool.map((h) => applyAction(h, safe)).filter((h) => sig(h) === sig(t2))
-      return used + 1 > spares ? null : plan(t2, p2, probesLeft, used + 1, [...trail, safe])
-    }
-    if (probesLeft === 0) return null
-    for (const pr of ALL_PROBES) {
-      const r = probeRead(truth, pr)
-      const next = pool.filter((h) => probeRead(h, pr) === r)
-      if (next.length === pool.length) continue
-      const got = plan(truth, next, probesLeft - 1, used, [...trail, `probe ${pr.node}@${pr.a}${pr.b}`])
-      if (got) return got
-    }
-    return null
-  }
-  let minProbes = null
-  let probeSet = null
-  for (let limit = 0; limit <= probes && minProbes === null; limit++) {
-    const got = plan(start, pool0, limit, 0, [])
-    if (got && got.sparesUsed === f) { minProbes = got.probesUsed; probeSet = got.trail }
-  }
-  if (minProbes === null) problems.push(`no logical strategy within ${probes} probes and ${f} spares`)
-  if (spares < f) problems.push('spares do not cover the repairs')
-
-  return { ok: problems.length === 0, problems, minProbes, probeSet, repairs, spares, ambiguousWithoutProbes }
+  return { ok: problems.length === 0, problems, solution: sol }
 }
 
 // ---------------------------------------------------------------------------
-// Variant picking and the final arming
+// Scoring, hints and variant picking
 // ---------------------------------------------------------------------------
+const round2 = (n) => Math.round(n * 100) / 100
+
+/** Points a charge is worth: each wrong ARM costs 20% of its points, Hint 1 costs 40%, Hint 2 leaves 0. Never below 0. */
+export function chargePoints(base, { wrong, hint }, cfg) {
+  if (hint >= 2) return 0
+  const frac = wrong * cfg.wrongPenaltyFraction + (hint >= 1 ? cfg.hint1PenaltyFraction : 0)
+  return round2(base * Math.max(0, 1 - frac))
+}
+
+/** Hint 1: the next bit the player has not set correctly yet (lowest number first), or null when the code is already right. */
+export function nextWrongBit(charge, bits, revealed = []) {
+  const sol = solutionOf(charge)
+  const i = sol.findIndex((v, k) => bits[k] !== v && !revealed.includes(k))
+  return i < 0 ? null : i
+}
+
 /** Small deterministic PRNG so a seed picks the same variants every time. */
 export function mulberry32(seed) {
   let t = seed >>> 0
@@ -202,9 +134,3 @@ export function pickVariants(boards, seed) {
   const rnd = mulberry32(seed)
   return boards.map((list) => list[Math.floor(rnd() * list.length)])
 }
-
-/** DETONATE: the three LEDs feed one AND. `settings` = [[a, b], ...] per board, `states` = repaired board states. */
-export function detonatorLeds(states, settings) {
-  return states.map((st, i) => ledLit(st, settings[i][0], settings[i][1]))
-}
-export const detonatorFires = (states, settings) => detonatorLeds(states, settings).every(Boolean)

@@ -16,10 +16,10 @@ import type { Lane } from './RaceCar';
 import type { Track } from '../Station2';
 
 interface Props {
-  /** Epoch ms at which the round must end: min(180 s, shift time left). */
+  /** Epoch ms at which the shift clock reaches 0. Module D has no cap of its own: it uses whatever shift time is left. */
   deadline: number;
   onScore: (total: number) => void;
-  /** Called once, with the points earned so far, when the three stages end or the deadline hits. */
+  /** Called once, with the points earned so far, when the three stages end or the shift clock reaches 0. */
   onDone: (total: number) => void;
   onShake: () => void;
   track: Track;
@@ -57,7 +57,7 @@ export default function ModuleD({ deadline, onScore, onDone, onShake, track }: P
     live.current.onDone(Math.round(totalRef.current * 100) / 100);
   }, []);
 
-  // the round has its own deadline: timestamp-driven, points already earned stay
+  // the round ends when the shift clock reaches 0: timestamp-driven, points already earned stay
   useEffect(() => {
     const t = window.setInterval(() => {
       const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));

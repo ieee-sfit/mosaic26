@@ -3,16 +3,40 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import './station3.css';
 import { useSession } from '../session/sessionContext';
 import { CONFIG, caseFor } from './mockStation3Data';
-import { clamp, type Fx, type Station3Summary } from './utils';
+import { clamp, fmtClock, type Fx, type Station3Summary } from './utils';
 import { StationHeader, StationTimer } from './components/Hud';
 import StartScreen from './components/StartScreen';
 import ModuleA from './components/ModuleA';
 import ModuleB from './components/ModuleB';
 import ModuleC from './components/ModuleC';
 import ModuleD from './components/ModuleD';
-import SummaryScreen, { type Breakdown, type Outcome } from './components/SummaryScreen';
+import SummaryScreen, { type Breakdown, type ModId, type ModStat, type Outcome } from './components/SummaryScreen';
+import StoryScreen from './story/StoryScreen';
+import TutorialScreen from './story/TutorialScreen';
+import { BEATS, D_LOST, D_STOPPED } from './story/story';
 
-type Phase = 'start' | 'A' | 'B' | 'C' | 'offer' | 'D' | 'done';
+/**
+ * Flow: [start login, standalone only] -> opening -> tutorial A -> A -> story 1 -> tutorial B -> B -> story 2 -> tutorial C -> C
+ *       -> bonus offer -> (PLAY) story 3 -> tutorial D -> D -> ending (story) -> debrief.
+ * The shift clock runs ONLY in A, B, C and D. It is paused on every story, tutorial and the bonus offer.
+ */
+type Phase =
+  | 'start'
+  | 'story-opening'
+  | 'tut-A'
+  | 'A'
+  | 'story-1'
+  | 'tut-B'
+  | 'B'
+  | 'story-2'
+  | 'tut-C'
+  | 'C'
+  | 'offer'
+  | 'story-3'
+  | 'tut-D'
+  | 'D'
+  | 'ending'
+  | 'done';
 interface Scores {
   a: number;
   b: number;
@@ -22,6 +46,13 @@ interface Scores {
 
 const CAPS: Scores = { a: 15, b: 40, c: 45, d: CONFIG.moduleD.max };
 const NO_SCORES: Scores = { a: 0, b: 0, c: 0, d: 0 };
+const noStats = (): Record<ModId, ModStat> => ({
+  A: { seconds: 0, wrong: 0, hints: 0 },
+  B: { seconds: 0, wrong: 0, hints: 0 },
+  C: { seconds: 0, wrong: 0, hints: 0 },
+  D: { seconds: 0, wrong: 0, hints: 0 },
+});
+const PLAYING: Phase[] = ['A', 'B', 'C', 'D'];
 
 /** Everything fixed at the moment Module C ends: the speed bonus and time_left do not change while D is played. */
 interface Frozen {
@@ -54,13 +85,12 @@ export default function Station3({ onOpenStationChooser, onComplete }: Station3P
       ? { p1: session.p1_id as string, p2: session.p2_id as string }
       : null;
 
-  const [phase, setPhase] = useState<Phase>(sessionIds ? 'A' : 'start');
+  const [phase, setPhase] = useState<Phase>(sessionIds ? 'story-opening' : 'start');
   const [ids, setIds] = useState(sessionIds ?? { p1: '', p2: '' });
   const [timeLeft, setTimeLeft] = useState<number>(CONFIG.totalSeconds);
   const [scores, setScores] = useState<Scores>(NO_SCORES);
   const [seed] = useState(() => (Math.random() * 4294967296) >>> 0);
   const cas = caseFor(seed);
-  const [dDeadline, setDDeadline] = useState(0);
   const [result, setResult] = useState<Breakdown | null>(null);
   const [shake, setShake] = useState(false);
   const [flashKey, setFlashKey] = useState(0);
@@ -70,6 +100,7 @@ export default function Station3({ onOpenStationChooser, onComplete }: Station3P
   const frozenRef = useRef<Frozen | null>(null);
   const idsRef = useRef(ids);
   const emittedRef = useRef(false);
+  const statsRef = useRef<Record<ModId, ModStat>>(noStats());
   const shakeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const onCompleteRef = useRef(onComplete);
   useEffect(() => {
@@ -102,8 +133,11 @@ export default function Station3({ onOpenStationChooser, onComplete }: Station3P
     scoresRef.current = s;
     setScores(s);
     setTimeLeft(f.left);
-    setResult({ a: s.a, b: s.b, c: s.c, d, dPlayed, dSuccess, base: f.base, bonus: f.bonus, timeLeft: f.left, outcome, p1, p2 });
-    setPhase('done');
+    setResult({
+      a: s.a, b: s.b, c: s.c, d, dPlayed, dSuccess, base: f.base, bonus: f.bonus, timeLeft: f.left, outcome, p1, p2,
+      stats: { A: { ...statsRef.current.A }, B: { ...statsRef.current.B }, C: { ...statsRef.current.C }, D: { ...statsRef.current.D } },
+    });
+    setPhase('ending');
 
     const summary: Station3Summary = { p1_id: p1, p2_id: p2, game_id: 'station3', raw_score: f.base + f.bonus + d, time_left: f.left };
     try {
@@ -115,10 +149,9 @@ export default function Station3({ onOpenStationChooser, onComplete }: Station3P
     onCompleteRef.current?.(summary);
   };
 
-  /** The run ended without a bonus round: time ran out, or all pursuit pips were burned. */
+  /** The run ended without finishing Module C: the shift clock reached 0 in A, B or C. */
   const finish = (outcome: Outcome) => {
     if (emittedRef.current) return;
-    if (outcome === 'forfeit') scoresRef.current = { ...scoresRef.current, c: 0 };
     const s = { ...scoresRef.current, d: 0 };
     const left = outcome === 'timeout' ? 0 : timeRef.current;
     const base = s.a + s.b + s.c;
@@ -133,7 +166,8 @@ export default function Station3({ onOpenStationChooser, onComplete }: Station3P
     const base = s.a + s.b + s.c;
     const f: Frozen = { scores: s, base, bonus: speedBonus(left, true, base), left };
     frozenRef.current = f;
-    if (left > 0) {
+    // the bonus is only offered when enough shift time is left; otherwise the run goes straight to the ending
+    if (left >= CONFIG.moduleD.minSecondsToOffer) {
       setTimeLeft(left);
       setPhase('offer');
     } else {
@@ -147,10 +181,9 @@ export default function Station3({ onOpenStationChooser, onComplete }: Station3P
   const playD = () => {
     const f = frozenRef.current;
     if (!f || phase !== 'offer') return;
-    // the shift clock picks up where Module C left it and keeps running while D is played
+    // the shift clock picks up where Module C left it once Module D starts (it stays paused on the story and tutorial)
     timeRef.current = f.left;
-    setDDeadline(Date.now() + Math.min(CONFIG.moduleD.maxSeconds, f.left) * 1000);
-    setPhase('D');
+    setPhase('story-3');
   };
   const doneD = (d: number, success: boolean) => {
     const f = frozenRef.current;
@@ -161,30 +194,27 @@ export default function Station3({ onOpenStationChooser, onComplete }: Station3P
     finishRef.current = finish;
   });
 
-  // unified 12-minute countdown — runs across all three modules
-  const running = phase === 'A' || phase === 'B' || phase === 'C';
+  // the unified 12-minute shift clock runs only while Module A, B, C or D is being played
+  const running = PLAYING.includes(phase);
   useEffect(() => {
-    if (!running) return;
+    if (!running) return undefined;
+    const mod = phase as ModId;
     const id = setInterval(() => {
       timeRef.current = Math.max(0, timeRef.current - 1);
+      statsRef.current[mod].seconds += 1;
       setTimeLeft(timeRef.current);
       if (timeRef.current <= 0) {
         clearInterval(id);
-        finishRef.current('timeout');
+        // in A, B or C this is a failed mission; in D the module itself ends and the run is still a success
+        if (mod !== 'D') finishRef.current('timeout');
       }
     }, 1000);
     return () => clearInterval(id);
-  }, [running]);
+  }, [running, phase]);
 
-  // the shift clock keeps running during D (D ends itself at its own deadline; the frozen bonus and time_left never change)
-  useEffect(() => {
-    if (phase !== 'D') return undefined;
-    const id = setInterval(() => {
-      timeRef.current = Math.max(0, timeRef.current - 1);
-      setTimeLeft(timeRef.current);
-    }, 1000);
-    return () => clearInterval(id);
-  }, [phase]);
+  const bump = (mod: ModId, kind: 'wrong' | 'hint') => {
+    statsRef.current[mod][kind === 'wrong' ? 'wrong' : 'hints'] += 1;
+  };
 
   // an unanswered BONUS card auto-skips so an idle kiosk still saves the run
   const skipRef = useRef(skipD);
@@ -201,7 +231,7 @@ export default function Station3({ onOpenStationChooser, onComplete }: Station3P
     const next = { p1, p2 };
     idsRef.current = next;
     setIds(next);
-    setPhase('A');
+    setPhase('story-opening');
   };
 
   const restart = () => {
@@ -214,76 +244,84 @@ export default function Station3({ onOpenStationChooser, onComplete }: Station3P
     timeRef.current = CONFIG.totalSeconds;
     scoresRef.current = NO_SCORES;
     frozenRef.current = null;
+    statsRef.current = noStats();
     setTimeLeft(CONFIG.totalSeconds);
     setScores(NO_SCORES);
     setResult(null);
     const next = sessionIds ?? { p1: '', p2: '' };
     setIds(next);
     idsRef.current = next;
-    setPhase(sessionIds ? 'A' : 'start');
+    setPhase(sessionIds ? 'story-opening' : 'start');
   };
 
   const total = scores.a + scores.b + scores.c + scores.d;
-  const inD = phase === 'offer' || phase === 'D';
+  const inD = phase === 'offer' || phase === 'story-3' || phase === 'tut-D' || phase === 'D' || (phase === 'done' && !!result?.dPlayed);
+  const modOf = (p: Phase): 'A' | 'B' | 'C' | 'D' | null => {
+    const m = p.startsWith('tut-') ? p.slice(4) : p;
+    return m === 'A' || m === 'B' || m === 'C' || m === 'D' ? m : null;
+  };
+  const endBeat = result?.outcome === 'timeout' ? BEATS.fail : BEATS.success;
+  const endExtra = result?.outcome === 'complete' && result.dPlayed ? [result.dSuccess ? D_STOPPED : D_LOST] : undefined;
 
   return (
     <div className={`ws3-shell ${shake ? 'is-shaking' : ''}`}>
       <div className="ws3-bg" aria-hidden="true" />
-      <StationTimer timeLeft={timeLeft} />
-      <StationHeader
-        active={phase === 'A' || phase === 'B' || phase === 'C' || phase === 'D' ? phase : null}
-        showD={inD}
-        score={total}
-        onOpenStationChooser={onOpenStationChooser}
-      />
+      <StationTimer timeLeft={timeLeft} paused={!running} />
+      <StationHeader active={modOf(phase)} showD={inD} score={total} onOpenStationChooser={onOpenStationChooser} />
 
       {phase === 'start' && <StartScreen onStart={start} />}
-      {phase === 'A' && <ModuleA fx={fx} onScore={(d) => addScore('a', d)} onDone={() => setPhase('B')} />}
-      {phase === 'B' && <ModuleB cas={cas} seed={seed} fx={fx} onScore={(d) => addScore('b', d)} onDone={() => setPhase('C')} />}
-      {phase === 'C' && (
-        <ModuleC
-          cas={cas}
-          fx={fx}
-          onScore={(d) => addScore('c', d)}
-          onDone={completeC}
-          onForfeit={() => finish('forfeit')}
-        />
-      )}
+
+      {phase === 'story-opening' && <StoryScreen key="opening" beat={BEATS.opening} onContinue={() => setPhase('tut-A')} />}
+      {phase === 'tut-A' && <TutorialScreen module="A" onContinue={() => setPhase('A')} />}
+      {phase === 'A' && <ModuleA fx={fx} onScore={(d) => addScore('a', d)} onStat={(k) => bump('A', k)} onDone={() => setPhase('story-1')} />}
+
+      {phase === 'story-1' && <StoryScreen key="story1" beat={BEATS.story1} onContinue={() => setPhase('tut-B')} />}
+      {phase === 'tut-B' && <TutorialScreen module="B" onContinue={() => setPhase('B')} />}
+      {phase === 'B' && <ModuleB cas={cas} seed={seed} fx={fx} onScore={(d) => addScore('b', d)} onStat={(k) => bump('B', k)} onDone={() => setPhase('story-2')} />}
+
+      {phase === 'story-2' && <StoryScreen key="story2" beat={BEATS.story2} onContinue={() => setPhase('tut-C')} />}
+      {phase === 'tut-C' && <TutorialScreen module="C" onContinue={() => setPhase('C')} />}
+      {phase === 'C' && <ModuleC cas={cas} seed={seed} fx={fx} onScore={(d) => addScore('c', d)} onStat={(k) => bump('C', k)} onDone={completeC} />}
+
       {phase === 'offer' && (
         <main className="ws3-main ws3-start">
           <section className="ws3-panel ws3-start-card ws3-offer" role="dialog" aria-label="Bonus round offer">
-            <div className="ws3-panel-tag">BONUS // FINAL PUSH</div>
+            <div className="ws3-panel-tag">BONUS // FINAL PUSH · CLOCK PAUSED</div>
             <h2 className="ws3-start-title">BLOCKADE <span>+{CONFIG.moduleD.max}</span></h2>
             <p className="ws3-start-lede">
-              Two suspects left. Find the offender and close its exit. Up to {Math.min(CONFIG.moduleD.maxSeconds, timeLeft)} s. Your speed bonus is already locked in.
+              Two silver coupes, one offender. Follow them through three cameras and close the right exit. You have {fmtClock(timeLeft)} of shift time left, and the
+              bonus ends when it reaches 00:00. Your speed bonus is already locked in.
             </p>
-            <div className="ws3-summary-actions">
-              <button type="button" className="ws3-btn ws3-btn--primary" onClick={playD} autoFocus>
+            <div className="ws3-offer-actions">
+              <button type="button" className="ws3-btn ws3-btn--primary ws3-btn--big" onClick={playD} autoFocus>
                 [PLAY]
               </button>
-              <button type="button" className="ws3-btn ws3-btn--ghost" onClick={skipD}>
+              <button type="button" className="ws3-btn ws3-btn--ghost ws3-btn--big" onClick={skipD}>
                 [SKIP]
               </button>
             </div>
           </section>
         </main>
       )}
+      {phase === 'story-3' && <StoryScreen key="story3" beat={BEATS.story3} onContinue={() => setPhase('tut-D')} />}
+      {phase === 'tut-D' && <TutorialScreen module="D" onContinue={() => setPhase('D')} />}
       {phase === 'D' && (
         <ModuleD
           cas={cas}
           seed={seed}
           fx={fx}
-          deadline={dDeadline}
+          timeLeft={timeLeft}
           onScore={(d) => {
             scoresRef.current = { ...scoresRef.current, d };
             setScores((x) => ({ ...x, d }));
           }}
+          onStat={(k) => bump('D', k)}
           onDone={doneD}
         />
       )}
-      {phase === 'done' && result && (
-        <SummaryScreen result={result} onRestart={restart} onOpenStationChooser={onOpenStationChooser} />
-      )}
+
+      {phase === 'ending' && result && <StoryScreen key={`end-${endBeat.id}`} beat={endBeat} extra={endExtra} onContinue={() => setPhase('done')} />}
+      {phase === 'done' && result && <SummaryScreen result={result} twins={result.outcome === 'complete' ? cas.twins : undefined} onRestart={restart} />}
 
       {flashKey > 0 && <div key={flashKey} className="ws3-flash" aria-hidden="true" />}
     </div>

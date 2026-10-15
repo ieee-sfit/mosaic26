@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { WaveCalibration, WaveProfile } from '../types';
-import { SCOPE_SAMPLES, antiAt, noiseAt, type Controls } from '../utils/waves';
+import { SCOPE_SAMPLES, antiAtC, noiseAtC, type Controls } from '../utils/waves';
 
 interface Props {
   profile: WaveProfile;
@@ -9,7 +9,10 @@ interface Props {
   locked: boolean;
 }
 
-/** Oscilloscope: incoming noise (cyan), anti-noise (gold), residual sum (white → razor-flat green on lock). */
+/**
+ * Oscilloscope: incoming noise (cyan, completely still), anti-noise (gold; amplitude = height, phase = sideways shift,
+ * frequency = squeeze) and the residual sum (white → razor-flat green on lock). Nothing scrolls.
+ */
 export function WaveScope({ profile, cal, controls, locked }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const live = useRef({ profile, cal, controls, locked });
@@ -24,7 +27,6 @@ export function WaveScope({ profile, cal, controls, locked }: Props) {
     if (!canvas || !ctx) return;
     let raf = 0;
     let ease = 0; // 0 = raw residual, 1 = flat
-    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
     const fit = () => {
       const dpr = window.devicePixelRatio || 1;
@@ -57,17 +59,16 @@ export function WaveScope({ profile, cal, controls, locked }: Props) {
       ctx.shadowBlur = 0;
     };
 
-    const frame = (t: number) => {
+    const frame = () => {
       const { profile: p, cal: c, controls: ctl, locked: isLocked } = live.current;
       const w = canvas.clientWidth;
       const h = canvas.clientHeight;
       ease += ((isLocked ? 1 : 0) - ease) * 0.14;
-      const scroll = reduced ? 0 : (t / 1000) * 2.6;
 
       ctx.clearRect(0, 0, w, h);
       // graticule
       ctx.lineWidth = 1;
-      ctx.strokeStyle = 'rgba(0,242,254,0.10)';
+      ctx.strokeStyle = 'rgba(0,242,254,0.12)';
       ctx.beginPath();
       for (let gx = 0; gx <= 10; gx++) {
         ctx.moveTo((gx / 10) * w, 0);
@@ -84,11 +85,11 @@ export function WaveScope({ profile, cal, controls, locked }: Props) {
       ctx.lineTo(w, h / 2);
       ctx.stroke();
 
-      trace((x) => noiseAt(p, x, scroll), 'rgba(0,242,254,0.85)', 1.6, 6);
-      trace((x) => antiAt(c, ctl, x, scroll), 'rgba(245,158,11,0.9)', 1.6, 6);
+      trace((x) => noiseAtC(p, x), 'rgba(0,242,254,0.9)', 4, 8);
+      trace((x) => antiAtC(c, ctl, x), 'rgba(245,158,11,0.95)', 4, 8);
       const flat = 1 - ease;
       const sumColor = ease > 0.5 ? '#39ff88' : '#ffffff';
-      trace((x) => (noiseAt(p, x, scroll) + antiAt(c, ctl, x, scroll)) * flat, sumColor, ease > 0.5 ? 2.4 : 2, ease > 0.5 ? 16 : 4);
+      trace((x) => (noiseAtC(p, x) + antiAtC(c, ctl, x)) * flat, sumColor, ease > 0.5 ? 6 : 4.5, ease > 0.5 ? 18 : 6);
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);

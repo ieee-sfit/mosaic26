@@ -62,9 +62,14 @@ export default function LaunchScreen({ ids, onGo, onBack }: Props) {
         </div>
 
         <div className={`ws2-gantry ${green ? 'is-green' : ''}`} data-lit={lit} aria-hidden>
-          {Array.from({ length: LIGHTS }, (_, i) => (
-            <i key={i} className={green ? 'go' : lit > i ? 'red' : ''} />
-          ))}
+          <div className="ws2-gantry__housing">
+            {Array.from({ length: LIGHTS }, (_, i) => (
+              <span key={i} className={`ws2-lamp ${green ? 'go' : lit > i ? 'red' : ''}`}>
+                <i className="ws2-lamp__glow" />
+                <i className="ws2-lamp__lens" />
+              </span>
+            ))}
+          </div>
           <b className="ws2-gantry__go">GO</b>
         </div>
         <p className="ws2-sr" role="status">{green ? 'Go' : starting ? 'Stand by' : ''}</p>
