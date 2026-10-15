@@ -1,9 +1,8 @@
 /* ════════════════════════════════════════════════════════════════════
    STATION 1 · GOAT ANC — MOCK DATASETS
    Every question, wave profile, diagnosis waveform and handshake rule the station uses lives in
-   this one file. Swap the contents for real material; component and
+   this one file. Edit the contents freely; component and
    logic code only depends on the shapes exported from ./types.
-   All content below is PLACEHOLDER.
    ════════════════════════════════════════════════════════════════════ */
 import type { DiagWaveDef, HandshakeRoundDef, McqQuestion, ScoringConfig, WaveCalibration, WaveProfile } from './types';
 
@@ -33,10 +32,10 @@ export const SCORING: ScoringConfig = {
   },
 };
 
-/* ── Module A · 15-question placeholder bank (3 drawn per run) ───── */
+/* ── Module A · 30-question bank (3 drawn per run) ───────────────── */
 export const QUESTION_BANK: McqQuestion[] = [
   {
-    id: 'Q-MOCK-01',
+    id: 'Q-ANC-01',
     prompt: 'For ideal cancellation, the anti-noise signal must be shifted by how much relative to the incoming noise?',
     options: ['0°', '90°', '180°', '270°'],
     correctIndex: 2,
@@ -52,7 +51,7 @@ export const QUESTION_BANK: McqQuestion[] = [
     },
   },
   {
-    id: 'Q-MOCK-02',
+    id: 'Q-ANC-02',
     prompt: 'Active noise cancellation is most effective against which kind of noise?',
     options: ['Sharp high-frequency hiss', 'Steady low-frequency drone', 'Random impulse clicks', 'Ultrasonic whine'],
     correctIndex: 1,
@@ -68,7 +67,7 @@ export const QUESTION_BANK: McqQuestion[] = [
     },
   },
   {
-    id: 'Q-MOCK-03',
+    id: 'Q-ANC-03',
     prompt: 'A feedforward ANC system places its reference microphone where?',
     options: ['Inside the ear cup, next to the ear', 'Outside, to hear noise before it arrives', 'On the speaker cone', 'Inside the battery pack'],
     correctIndex: 1,
@@ -84,7 +83,7 @@ export const QUESTION_BANK: McqQuestion[] = [
     },
   },
   {
-    id: 'Q-MOCK-04',
+    id: 'Q-ANC-04',
     prompt: 'A feedback ANC system uses an error microphone located…',
     options: ['Far from the listener', 'Inside the cup, near the ear canal', 'Outside the hull', 'Behind the amplifier'],
     correctIndex: 1,
@@ -100,7 +99,7 @@ export const QUESTION_BANK: McqQuestion[] = [
     },
   },
   {
-    id: 'Q-MOCK-05',
+    id: 'Q-ANC-05',
     prompt: 'Two equal-amplitude waves meet exactly out of phase. The resulting amplitude is…',
     options: ['Doubled', 'Unchanged', 'Halved', 'Zero'],
     correctIndex: 3,
@@ -116,7 +115,7 @@ export const QUESTION_BANK: McqQuestion[] = [
     },
   },
   {
-    id: 'Q-MOCK-06',
+    id: 'Q-ANC-06',
     prompt: 'Perfect phase inversion, but the anti-noise amplitude is only half of the noise. Residual level change?',
     options: ['About −6 dB', 'About −3 dB', 'About −12 dB', 'No change'],
     correctIndex: 0,
@@ -132,7 +131,7 @@ export const QUESTION_BANK: McqQuestion[] = [
     },
   },
   {
-    id: 'Q-MOCK-07',
+    id: 'Q-ANC-07',
     prompt: 'Minimum sample rate needed to capture a 4 kHz tone without aliasing?',
     options: ['2 kHz', '4 kHz', '8 kHz', '16 kHz'],
     correctIndex: 2,
@@ -148,7 +147,7 @@ export const QUESTION_BANK: McqQuestion[] = [
     },
   },
   {
-    id: 'Q-MOCK-08',
+    id: 'Q-ANC-08',
     prompt: 'A 20 dB rise in sound pressure level corresponds to what change in pressure amplitude?',
     options: ['×2', '×10', '×20', '×100'],
     correctIndex: 1,
@@ -164,7 +163,7 @@ export const QUESTION_BANK: McqQuestion[] = [
     },
   },
   {
-    id: 'Q-MOCK-09',
+    id: 'Q-ANC-09',
     prompt: 'Which problem does excessive processing latency cause in an ANC loop?',
     options: ['Anti-noise arrives with the wrong phase', 'The battery drains faster', 'The microphone gain drops', 'Noise becomes quieter overall'],
     correctIndex: 0,
@@ -180,7 +179,7 @@ export const QUESTION_BANK: McqQuestion[] = [
     },
   },
   {
-    id: 'Q-MOCK-10',
+    id: 'Q-ANC-10',
     prompt: 'Which adaptive algorithm family is the workhorse of practical ANC filters?',
     options: ['Bubble sort', 'LMS / FxLMS', 'Run-length coding', 'Huffman coding'],
     correctIndex: 1,
@@ -196,7 +195,7 @@ export const QUESTION_BANK: McqQuestion[] = [
     },
   },
   {
-    id: 'Q-MOCK-11',
+    id: 'Q-ANC-11',
     prompt: 'Passive isolation (foam, seals) works best against which part of the spectrum?',
     options: ['High frequencies', 'Very low frequencies', 'Only DC', 'Every frequency equally'],
     correctIndex: 0,
@@ -212,7 +211,7 @@ export const QUESTION_BANK: McqQuestion[] = [
     },
   },
   {
-    id: 'Q-MOCK-12',
+    id: 'Q-ANC-12',
     prompt: 'Two equal in-phase waves are summed. The level rises by roughly…',
     options: ['+3 dB', '+6 dB', '+12 dB', '+20 dB'],
     correctIndex: 1,
@@ -228,7 +227,7 @@ export const QUESTION_BANK: McqQuestion[] = [
     },
   },
   {
-    id: 'Q-MOCK-13',
+    id: 'Q-ANC-13',
     prompt: 'What is the period of a 250 Hz tone?',
     options: ['2 ms', '4 ms', '8 ms', '25 ms'],
     correctIndex: 1,
@@ -244,7 +243,7 @@ export const QUESTION_BANK: McqQuestion[] = [
     },
   },
   {
-    id: 'Q-MOCK-14',
+    id: 'Q-ANC-14',
     prompt: 'Speed of sound is about 343 m/s. What is the wavelength of a 343 Hz tone?',
     options: ['0.5 m', '1 m', '2 m', '343 m'],
     correctIndex: 1,
@@ -260,7 +259,7 @@ export const QUESTION_BANK: McqQuestion[] = [
     },
   },
   {
-    id: 'Q-MOCK-15',
+    id: 'Q-ANC-15',
     prompt: 'At 100 Hz, a 90° phase shift equals what time delay?',
     options: ['1.0 ms', '2.5 ms', '5.0 ms', '10 ms'],
     correctIndex: 1,
@@ -272,6 +271,246 @@ export const QUESTION_BANK: McqQuestion[] = [
         { label: 'PHASE', value: '90°' },
         { label: 'TONE_HZ', value: '100' },
         { label: 'ITER_ZONE', value: 'CORE-MK9' },
+      ],
+    },
+  },
+  {
+    id: 'Q-ANC-16',
+    prompt: 'Ideal cancellation: a 100 Hz tone and an inverted copy at the same amplitude play together. What remains?',
+    options: ['A 200 Hz tone', 'Silence (ideal cancellation)', 'A 50 Hz tone', 'A tone of double amplitude'],
+    correctIndex: 1,
+    anomaly: {
+      zone: 'PORT_WING',
+      severity: 'caution',
+      code: 'ANOM-0116',
+      telemetry: [
+        { label: 'ANTI_PH', value: '180°' },
+        { label: 'RESIDUE', value: '0.00' },
+        { label: 'ITER_ZONE', value: 'PORT-MK1' },
+      ],
+    },
+  },
+  {
+    id: 'Q-ANC-17',
+    prompt: 'What is the wavelength of a 686 Hz tone if sound travels at 343 m/s?',
+    options: ['0.5 m', '0.25 m', '1 m', '2 m'],
+    correctIndex: 0,
+    anomaly: {
+      zone: 'BOW',
+      severity: 'caution',
+      code: 'ANOM-0117',
+      telemetry: [
+        { label: 'TONE_HZ', value: '686' },
+        { label: 'C_AIR', value: '343 m/s' },
+        { label: 'ITER_ZONE', value: 'BOW-MK5' },
+      ],
+    },
+  },
+  {
+    id: 'Q-ANC-18',
+    prompt: 'If a signal\'s frequency doubles, its period…',
+    options: ['Doubles', 'Stays the same', 'Quadruples', 'Halves'],
+    correctIndex: 3,
+    anomaly: {
+      zone: 'CORE',
+      severity: 'caution',
+      code: 'ANOM-0118',
+      telemetry: [
+        { label: 'FREQ_X', value: '×2' },
+        { label: 'PERIOD', value: '?' },
+        { label: 'ITER_ZONE', value: 'CORE-MK4' },
+      ],
+    },
+  },
+  {
+    id: 'Q-ANC-19',
+    prompt: 'Which control sets how loud the anti-noise wave is?',
+    options: ['Phase', 'Frequency', 'Amplitude', 'Sample rate'],
+    correctIndex: 2,
+    anomaly: {
+      zone: 'STBD_WING',
+      severity: 'caution',
+      code: 'ANOM-0119',
+      telemetry: [
+        { label: 'ANTI_AMP', value: '0.31' },
+        { label: 'NOISE_AMP', value: '0.80' },
+        { label: 'ITER_ZONE', value: 'STBD-MK2' },
+      ],
+    },
+  },
+  {
+    id: 'Q-ANC-20',
+    prompt: 'Pitch and loudness match, but the anti-noise is 30° away from the ideal 180° shift. The result is…',
+    options: ['Perfect silence', 'Partial cancellation: reduced, not gone', 'The noise doubles', 'The noise is unchanged'],
+    correctIndex: 1,
+    anomaly: {
+      zone: 'PORT_ENGINE',
+      severity: 'critical',
+      code: 'ANOM-0120',
+      telemetry: [
+        { label: 'PHASE_ERR', value: '30°' },
+        { label: 'RESIDUE', value: '0.52' },
+        { label: 'ITER_ZONE', value: 'AFT-MK5' },
+      ],
+    },
+  },
+  {
+    id: 'Q-ANC-21',
+    prompt: 'Why does ANC struggle with a sudden sharp clap?',
+    options: ['It changes too fast to predict and cancel in time', 'It has too much low-frequency energy', 'It is always in phase with the anti-noise', 'It has no amplitude'],
+    correctIndex: 0,
+    anomaly: {
+      zone: 'STBD_ENGINE',
+      severity: 'caution',
+      code: 'ANOM-0121',
+      telemetry: [
+        { label: 'EVENT', value: 'IMPULSE' },
+        { label: 'RISE_T', value: '0.2 ms' },
+        { label: 'ITER_ZONE', value: 'AFT-MK6' },
+      ],
+    },
+  },
+  {
+    id: 'Q-ANC-22',
+    prompt: 'Doubling the sound-pressure amplitude raises the level by about…',
+    options: ['+3 dB', '+10 dB', '+20 dB', '+6 dB'],
+    correctIndex: 3,
+    anomaly: {
+      zone: 'CORE',
+      severity: 'caution',
+      code: 'ANOM-0122',
+      telemetry: [
+        { label: 'AMP_X', value: '×2' },
+        { label: 'DELTA_SPL', value: '?' },
+        { label: 'ITER_ZONE', value: 'CORE-MK5' },
+      ],
+    },
+  },
+  {
+    id: 'Q-ANC-23',
+    prompt: 'The Nyquist rule says you must sample at…',
+    options: ['Exactly the signal frequency', 'Half the signal frequency', 'At least twice the highest frequency present', 'Once per second'],
+    correctIndex: 2,
+    anomaly: {
+      zone: 'BOW',
+      severity: 'critical',
+      code: 'ANOM-0123',
+      telemetry: [
+        { label: 'ADC_RATE', value: '5 kHz' },
+        { label: 'TONE_HZ', value: '4 kHz' },
+        { label: 'ITER_ZONE', value: 'BOW-MK4' },
+      ],
+    },
+  },
+  {
+    id: 'Q-ANC-24',
+    prompt: 'What is the period of a 1 kHz tone?',
+    options: ['0.1 ms', '1 ms', '10 ms', '1 s'],
+    correctIndex: 1,
+    anomaly: {
+      zone: 'PORT_WING',
+      severity: 'caution',
+      code: 'ANOM-0124',
+      telemetry: [
+        { label: 'TONE_HZ', value: '1000' },
+        { label: 'PERIOD', value: '?' },
+        { label: 'ITER_ZONE', value: 'PORT-MK3' },
+      ],
+    },
+  },
+  {
+    id: 'Q-ANC-25',
+    prompt: 'What does the adaptive filter in an ANC system try to drive toward zero?',
+    options: ['The error-microphone signal', 'The battery voltage', 'The reference-mic gain', 'The speaker size'],
+    correctIndex: 0,
+    anomaly: {
+      zone: 'STBD_WING',
+      severity: 'caution',
+      code: 'ANOM-0125',
+      telemetry: [
+        { label: 'ERR_MIC', value: '0.18' },
+        { label: 'FILTER', value: 'ADAPTING' },
+        { label: 'ITER_ZONE', value: 'STBD-MK3' },
+      ],
+    },
+  },
+  {
+    id: 'Q-ANC-26',
+    prompt: 'A feedforward reference mic hears the noise 0.5 ms before it reaches the ear. What does that buy you?',
+    options: ['Longer battery life', 'Louder music', 'A lower sample rate than Nyquist', 'Time to compute and generate the anti-noise'],
+    correctIndex: 3,
+    anomaly: {
+      zone: 'BOW',
+      severity: 'caution',
+      code: 'ANOM-0126',
+      telemetry: [
+        { label: 'REF_LEAD', value: '0.5 ms' },
+        { label: 'LOOP_LAT', value: '0.3 ms' },
+        { label: 'ITER_ZONE', value: 'BOW-MK6' },
+      ],
+    },
+  },
+  {
+    id: 'Q-ANC-27',
+    prompt: 'Which wave property is measured in degrees on the phase dial?',
+    options: ['Amplitude', 'Frequency', 'Phase', 'Period'],
+    correctIndex: 2,
+    anomaly: {
+      zone: 'CORE',
+      severity: 'caution',
+      code: 'ANOM-0127',
+      telemetry: [
+        { label: 'DIAL', value: 'PHASE' },
+        { label: 'UNIT', value: 'DEG' },
+        { label: 'ITER_ZONE', value: 'CORE-MK6' },
+      ],
+    },
+  },
+  {
+    id: 'Q-ANC-28',
+    prompt: 'Two exactly out-of-phase waves of amplitude 1.0 and 0.4 are added. The leftover amplitude is…',
+    options: ['0.4', '0.6', '1.0', '1.4'],
+    correctIndex: 1,
+    anomaly: {
+      zone: 'STBD_ENGINE',
+      severity: 'critical',
+      code: 'ANOM-0128',
+      telemetry: [
+        { label: 'WAVE_1', value: '1.0' },
+        { label: 'WAVE_2', value: '0.4 INV' },
+        { label: 'ITER_ZONE', value: 'AFT-MK7' },
+      ],
+    },
+  },
+  {
+    id: 'Q-ANC-29',
+    prompt: 'Which noise does passive isolation handle poorly, leaving it to active cancellation?',
+    options: ['Low-frequency drones', 'High-pitched hiss', 'Ultrasound', 'Clicks above 10 kHz'],
+    correctIndex: 0,
+    anomaly: {
+      zone: 'PORT_ENGINE',
+      severity: 'caution',
+      code: 'ANOM-0129',
+      telemetry: [
+        { label: 'DRONE_HZ', value: '90' },
+        { label: 'SEAL_INT', value: '88%' },
+        { label: 'ITER_ZONE', value: 'AFT-MK8' },
+      ],
+    },
+  },
+  {
+    id: 'Q-ANC-30',
+    prompt: '−6 dB corresponds roughly to what amplitude ratio?',
+    options: ['×0.25', '×0.1', '×2', '×0.5'],
+    correctIndex: 3,
+    anomaly: {
+      zone: 'PORT_WING',
+      severity: 'caution',
+      code: 'ANOM-0130',
+      telemetry: [
+        { label: 'DELTA_SPL', value: '−6 dB' },
+        { label: 'AMP_RATIO', value: '?' },
+        { label: 'ITER_ZONE', value: 'PORT-MK5' },
       ],
     },
   },

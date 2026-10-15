@@ -59,7 +59,7 @@ export const STATION4_CONFIG = {
 }
 
 // ---------------------------------------------------------------------------
-// MODULE A — 15 QUESTION BANK (3 drawn at random per run)
+// MODULE A — 30 QUESTION BANK (3 drawn at random per run)
 // ---------------------------------------------------------------------------
 export interface ProtocolQuestion {
   id: string
@@ -115,6 +115,51 @@ export const QUESTION_BANK: ProtocolQuestion[] = [
   { id: 'q15', gate: 'MIXED',
     prompt: 'Which single input pair makes (A OR B) AND (NOT A) output 1?',
     options: ['A=0, B=1', 'A=1, B=0', 'A=1, B=1', 'A=0, B=0'], correct: 0 },
+  { id: 'q16', gate: 'AND',
+    prompt: 'Y = A AND B with A = 1 and B = 1. What is Y?',
+    options: ['0', '1', 'Floating', '2'], correct: 1 },
+  { id: 'q17', gate: 'AND',
+    prompt: 'How many input combinations of a 3-input AND gate output 1?',
+    options: ['Exactly one (all inputs 1)', 'Two', 'Four', 'Seven'], correct: 0 },
+  { id: 'q18', gate: 'AND',
+    prompt: 'A door seal needs power AND key. Power = 1, key = 0. Does the seal engage?',
+    options: ['Yes: the output is 1', 'Yes: power alone is enough', 'Unknown: the output floats', 'No: the AND output is 0'], correct: 3 },
+  { id: 'q19', gate: 'AND',
+    prompt: 'Four sensors feed an AND gate. Three read 1 and one fails to 0. The output is:',
+    options: ['1', 'Floating', '0', 'Undefined'], correct: 2 },
+  { id: 'q20', gate: 'OR',
+    prompt: 'A 2-input OR gate has A = 1 and B = 1. What is the output?',
+    options: ['0', '1', 'Floating', '2'], correct: 1 },
+  { id: 'q21', gate: 'OR',
+    prompt: 'Alarm = door OR window. Door = 0 and window = 0. Is the alarm on?',
+    options: ['No: the output is 0', 'Yes: the output is 1', 'Only at night', 'Unknown'], correct: 0 },
+  { id: 'q22', gate: 'OR',
+    prompt: 'How many rows of a 3-input OR truth table output 0?',
+    options: ['Two', 'Four', 'Seven', 'Exactly one (all inputs 0)'], correct: 3 },
+  { id: 'q23', gate: 'OR',
+    prompt: 'Which statement is true for every OR gate?',
+    options: ['If any input is 0, the output is 0', 'The output always equals the first input', 'If any input is 1, the output is 1', 'The output is always the inverse of the last input'], correct: 2 },
+  { id: 'q24', gate: 'NOT',
+    prompt: 'Three NOT gates are chained: A -> NOT -> NOT -> NOT -> Y with A = 1. What is Y?',
+    options: ['1', '0', 'Floating', 'Cannot be determined'], correct: 1 },
+  { id: 'q25', gate: 'NOT',
+    prompt: 'What is the output of NOT 0?',
+    options: ['1', '0', 'Floating', '2'], correct: 0 },
+  { id: 'q26', gate: 'NOT',
+    prompt: 'Another common name for a NOT gate is a(n):',
+    options: ['Buffer', 'Latch', 'Amplifier', 'Inverter'], correct: 3 },
+  { id: 'q27', gate: 'MIXED',
+    prompt: 'Y = (A AND B) OR C with A = 0, B = 1, C = 1. What is Y?',
+    options: ['0', 'Floating', '1', 'Same as A'], correct: 2 },
+  { id: 'q28', gate: 'MIXED',
+    prompt: 'Y = NOT (A AND B) with A = 0 and B = 1. What is Y?',
+    options: ['0', '1', 'Floating', 'Same as B'], correct: 1 },
+  { id: 'q29', gate: 'MIXED',
+    prompt: 'Y = A AND (NOT A). What is Y for any A?',
+    options: ['Always 0', 'Always 1', 'Same as A', 'Floating'], correct: 0 },
+  { id: 'q30', gate: 'MIXED',
+    prompt: 'Y = A OR (NOT A). What is Y for any A?',
+    options: ['Always 0', 'Same as A', 'Floating', 'Always 1'], correct: 3 },
 ]
 
 // ---------------------------------------------------------------------------

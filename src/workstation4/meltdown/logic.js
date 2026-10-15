@@ -11,6 +11,16 @@ export function pickQuestions(bank, count, rng = Math.random) {
   return pool.slice(0, count)
 }
 
+/** The same question with its options in a random order and `correct` following the right answer. */
+export function shuffleOptions(q, rng = Math.random) {
+  const order = [0, 1, 2, 3]
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1))
+    ;[order[i], order[j]] = [order[j], order[i]]
+  }
+  return { ...q, options: order.map((i) => q.options[i]), correct: order.indexOf(q.correct) }
+}
+
 /** A random element (kept out of the components so they stay pure). */
 export const pickOne = (list) => list[Math.floor(Math.random() * list.length)]
 

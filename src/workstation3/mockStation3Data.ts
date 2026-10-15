@@ -29,7 +29,7 @@ export const CONFIG = {
 
 export const MAX_BASE_SCORE = 100;
 
-/* ---------- Module A · 15-question bank ---------------------------------- */
+/* ---------- Module A · 30-question bank ---------------------------------- */
 export type Topic = 'exposure' | 'binarization' | 'confidence' | 'syntax';
 
 export interface ForensicQuestion {
@@ -134,6 +134,96 @@ export const QUESTION_BANK: ForensicQuestion[] = [
     prompt: 'In MH 02 XX 0000, the "XX" block is the…',
     options: ['State code', 'Checksum digits', 'Series letters', 'Fine tier'],
     correct: 2,
+  },
+  {
+    id: 'Q16', topic: 'exposure',
+    prompt: 'A daytime plate is washed out by strong sunlight. Which setting helps most?',
+    options: ['Raise the gain', 'Shorten the exposure / shutter time', 'Switch on infrared illumination', 'Increase the resolution'],
+    correct: 1,
+  },
+  {
+    id: 'Q17', topic: 'exposure',
+    prompt: 'Why is infrared illumination used for night ANPR?',
+    options: ['Retro-reflective plates return it strongly without dazzling drivers', 'It makes the plate colours accurate', 'It removes rain streaks', 'It raises the binarization threshold'],
+    correct: 0,
+  },
+  {
+    id: 'Q18', topic: 'exposure',
+    prompt: 'Raising sensor gain in the dark brightens the image, but it also…',
+    options: ['Shortens the shutter time', 'Fixes glare', 'Increases the resolution', 'Amplifies noise'],
+    correct: 3,
+  },
+  {
+    id: 'Q19', topic: 'exposure',
+    prompt: 'A fast car produces a smeared plate. Which camera change helps most?',
+    options: ['A longer exposure', 'A lower frame rate', 'A shorter shutter time (with more light)', 'A slower shutter with a wider aperture'],
+    correct: 2,
+  },
+  {
+    id: 'Q20', topic: 'binarization',
+    prompt: 'Otsu\'s method picks a binarization threshold by…',
+    options: ['Averaging all the RGB channels', 'Maximising the separation between foreground and background pixel groups', 'Picking the brightest pixel', 'Reading the state code'],
+    correct: 1,
+  },
+  {
+    id: 'Q21', topic: 'binarization',
+    prompt: 'Why is a denoise step often applied before thresholding?',
+    options: ['Speckle would otherwise become false black or white dots', 'It raises the resolution', 'It rotates the plate', 'It validates the syntax'],
+    correct: 0,
+  },
+  {
+    id: 'Q22', topic: 'binarization',
+    prompt: 'After binarization, which step isolates each character for recognition?',
+    options: ['Challan issuing', 'Radar speed gating', 'IR illumination', 'Character segmentation'],
+    correct: 3,
+  },
+  {
+    id: 'Q23', topic: 'binarization',
+    prompt: 'Which of these is a typical OCR input after preprocessing?',
+    options: ['A colour video stream', 'The raw radar log', 'A clean black-and-white image of one character', 'The vehicle registry'],
+    correct: 2,
+  },
+  {
+    id: 'Q24', topic: 'confidence',
+    prompt: 'An OCR read has 79.9% confidence. What happens on this terminal?',
+    options: ['It is accepted for a challan', 'It is below the 80% pass mark, so re-enhance and rescan', 'It is rounded up to 80%', 'It is accepted if the vehicle was fast'],
+    correct: 1,
+  },
+  {
+    id: 'Q25', topic: 'confidence',
+    prompt: 'Which plate character is MOST likely to get a low confidence score?',
+    options: ['A smudged 8 that looks like a B', 'A crisp, high-contrast 7', 'A well-lit L', 'A large, clean A'],
+    correct: 0,
+  },
+  {
+    id: 'Q26', topic: 'confidence',
+    prompt: 'Why must a low-confidence read be re-checked before a challan is issued?',
+    options: ['Challans are cheaper that way', 'The radar needs more time', 'Plates are optional on challans', 'A wrong plate would fine an innocent owner'],
+    correct: 3,
+  },
+  {
+    id: 'Q27', topic: 'syntax',
+    prompt: 'How many characters does a plate in the SS DD LL DDDD format have (ignoring spaces)?',
+    options: ['8', '9', '10', '12'],
+    correct: 2,
+  },
+  {
+    id: 'Q28', topic: 'syntax',
+    prompt: 'In KA 05 HM 3814, which block is the series?',
+    options: ['KA', 'HM', '05', '3814'],
+    correct: 1,
+  },
+  {
+    id: 'Q29', topic: 'syntax',
+    prompt: 'A read of MH 02 CN 49O1 has a letter O where a digit belongs. What does syntax checking conclude?',
+    options: ['The serial must be digits only, so the O should be a 0', 'The plate is perfect', 'The state code is wrong', 'The series is wrong'],
+    correct: 0,
+  },
+  {
+    id: 'Q30', topic: 'syntax',
+    prompt: 'Which block of MH 02 CN 4901 is four digits long?',
+    options: ['The state code', 'The RTO code', 'The series letters', 'The serial number 4901'],
+    correct: 3,
   },
 ];
 

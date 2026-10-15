@@ -5,7 +5,7 @@ import './goatAnc.css';
 import { DIAG_BANK_GUIDED, DIAG_BANK_OPEN, QUESTION_BANK, SCORING, WAVE_PROFILE_BANK } from './mockStation1Data';
 import { ShakeContext, useScreenShake } from './hooks/useScreenShake';
 import { useCountdown } from './hooks/useCountdown';
-import { pickRandom } from './utils/pick';
+import { pickRandom, shuffleOptions } from './utils/pick';
 import { mulberry32 } from './utils/handshake';
 import { maxTotals, sum } from './utils/scoring';
 import type { DiagWaveDef, EndReason, HandshakeResult, McqQuestion, Phase, QuestionResult, RoundResult, Station1Result, StepResult, WaveProfile } from './types';
@@ -60,7 +60,10 @@ function Session({ onComplete, onRestart }: HostProps & { onRestart: () => void 
   const [phase, setPhase] = useState<Phase>('opening');
   // Versus lobby: every player gets the same seed, hence the same Module A questions and Module D handshakes.
   const [seed] = useState(() => session?.seed ?? (Math.random() * 4294967296) >>> 0);
-  const [questions] = useState<McqQuestion[]>(() => pickRandom(QUESTION_BANK, SCORING.moduleA.questionCount, session?.seed != null ? mulberry32(seed ^ 0xa5a5a5) : Math.random));
+  const [questions] = useState<McqQuestion[]>(() => {
+    const rng = session?.seed != null ? mulberry32(seed ^ 0xa5a5a5) : Math.random;
+    return pickRandom(QUESTION_BANK, SCORING.moduleA.questionCount, rng).map((q) => shuffleOptions(q, rng));
+  });
   // Module B: one guided + one open waveform; Module C: three scout profiles. Seeded like the questions, so a versus lobby shares them.
   const [diagWaves] = useState<[DiagWaveDef, DiagWaveDef]>(() => {
     const rng = session?.seed != null ? mulberry32(seed ^ 0x5b5b5b) : Math.random;
