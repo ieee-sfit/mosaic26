@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 // Resolved at build time: the public board build never contains the launcher, the games or their answers.
 // eslint-disable-next-line react-refresh/only-export-components
 const Root = import.meta.env.VITE_TARGET === 'board'
-  ? lazy(() => import('./launcher/Leaderboard'))
+  ? lazy(() => import('./board/BoardApp'))
   : lazy(() => import('./App.jsx'))
 
 class ErrorBoundary extends Component {
