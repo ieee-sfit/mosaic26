@@ -16,8 +16,7 @@ const TIPS: Record<string, string> = {
 
 const REASON: Record<EndReason, { label: string; tone: Tone; line: string }> = {
   COMPLETE: { label: 'MISSION COMPLETE', tone: 'lock', line: 'ALL THREE MODULES CLEARED' },
-  TIME_EXPIRED: { label: 'CLOCK EXPIRED', tone: 'gold', line: 'MISSION TIMER REACHED 00:00 — PARTIAL SCORE LOGGED' },
-  HULL_BREACH: { label: 'HULL BREACH', tone: 'crimson', line: 'ARMOUR EXHAUSTED IN MODULE C — PARTIAL SCORE LOGGED' },
+  TIME_EXPIRED: { label: 'MISSION FAILED', tone: 'crimson', line: 'THE CLOCK REACHED 00:00 — PARTIAL SCORE LOGGED' },
 };
 
 interface Row {
@@ -57,7 +56,7 @@ export function SummaryScreen({ result, onRestart }: { result: Station1Result; o
   const rows: Row[] = [
     { code: 'A', name: 'FLIGHT TELEMETRY', score: result.scoreA, max: SCORING.moduleA.questionCount * SCORING.moduleA.pointsPerQuestion, detail: `${result.moduleA.length}/${SCORING.moduleA.questionCount} SOLVED · ${aHints} HINTS`, tone: 'cyan' },
     { code: 'B', name: 'DIAGNOSE THE LEFTOVER', score: result.scoreB, max: bMax, detail: `${result.moduleB.length}/${SCORING.moduleB.waves * 3} STEPS · ${bWrong} WRONG DIAGNOSES · ${bHints} HINTS`, tone: 'plasma' },
-    { code: 'C', name: 'WAVE INTERCEPTION', score: result.scoreC, max: 3 * SCORING.moduleC.pointsPerRound, detail: `${result.moduleC.filter((x) => x.destroyed).length}/3 TARGETS · ${cMiss} MISSES · ${cHints} HINTS · HULL ${Math.round((result.hullPips / SCORING.moduleC.hullPips) * 100)}%`, tone: 'gold' },
+    { code: 'C', name: 'WAVE INTERCEPTION', score: result.scoreC, max: 3 * SCORING.moduleC.pointsPerRound, detail: `${result.moduleC.filter((x) => x.destroyed).length}/3 TARGETS · ${cMiss} NO-LOCK SHOTS · ${cHints} HINTS`, tone: 'gold' },
     ...(result.dPlayed
       ? [{ code: 'D', name: 'SECRET HANDSHAKE · BONUS', score: result.scoreD, max: SCORING.moduleD.maxPoints, detail: `${dLocks}/${dHops} HOPS LOCKED · ${dMiss} MISSES · ${dHints} HINTS`, tone: 'gold' as Tone }]
       : []),

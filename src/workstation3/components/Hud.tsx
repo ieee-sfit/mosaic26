@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
 import { fmtClock } from '../utils';
 
-export function StationTimer({ timeLeft }: { timeLeft: number }) {
-  const cls = timeLeft <= 60 ? 'ws3-timer--crit' : timeLeft <= 120 ? 'ws3-timer--warn' : '';
+export function StationTimer({ timeLeft, paused = false }: { timeLeft: number; paused?: boolean }) {
+  const cls = paused ? 'is-paused' : timeLeft <= 60 ? 'ws3-timer--crit' : timeLeft <= 120 ? 'ws3-timer--warn' : '';
   return (
-    <div className={`ws3-timer ${cls}`} role="timer" aria-label={`Time remaining ${fmtClock(timeLeft)}`}>
-      <span className="ws3-timer-label">MISSION_CLOCK</span>
+    <div className={`ws3-timer ${cls}`} role="timer" aria-label={`Time remaining ${fmtClock(timeLeft)}${paused ? ', paused' : ''}`}>
+      <span className="ws3-timer-label">{paused ? 'CLOCK · PAUSED' : 'MISSION_CLOCK'}</span>
       <span className="ws3-timer-digits">{fmtClock(timeLeft)}</span>
     </div>
   );

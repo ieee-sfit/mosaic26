@@ -84,3 +84,60 @@ export function bayPoints(base, { strikes, hint }) {
   const frac = strikes * cfg.strikePenaltyFraction + (hint >= 1 ? cfg.hint1PenaltyFraction : 0)
   return Math.max(0, Math.round(base * (1 - Math.min(1, frac)) * 100) / 100)
 }
+
+// ---------- Module C scoring ----------
+/** Points a door-logic phase is worth: each wrong try costs 20%, Hint 1 costs 40%, Hint 2 leaves 0. Never below 0, never lost. */
+export function phasePoints(base, { wrong, hint }) {
+  const cfg = STATION4_CONFIG.moduleC
+  if (hint >= 2) return 0
+  const frac = wrong * cfg.wrongPenaltyFraction + (hint >= 1 ? cfg.hint1PenaltyFraction : 0)
+  return Math.max(0, Math.round(base * (1 - Math.min(1, frac)) * 100) / 100)
+}
+
+/** Every socket (and its feeder sockets, recursively) that decides `target` in a round, for the highlight on the screen. */
+export function feeders(round, target) {
+  const sockets = new Set()
+  const inputs = new Set()
+  const walk = (id) => {
+    const s = round.sockets.find((x) => x.id === id)
+    if (!s) { inputs.add(id); return }
+    if (sockets.has(id)) return
+    sockets.add(id)
+    s.srcs.forEach(walk)
+  }
+  walk(target)
+  return { sockets, inputs }
+}
+
+const GATES = ['AND', 'OR', 'NOT']
+/**
+ * The cheapest change (fewest flipped inputs + gates placed or swapped) that makes `check` true, or null when none exists.
+ * The circuits are tiny (3 sockets, <= 4 inputs), so every setting is tried. Used by Hint 1, Hint 2 and the fairness check.
+ */
+export function cheapestFix(round, inputs, placed, check) {
+  const ids = round.sockets.map((s) => s.id)
+  const ins = round.inputs.map((i) => i.id)
+  let best = null
+  for (let im = 0; im < 2 ** ins.length; im++) {
+    const iv = {}
+    ins.forEach((id, k) => { iv[id] = (im >> k) & 1 })
+    for (let gm = 0; gm < 3 ** ids.length; gm++) {
+      const pl = {}
+      let g = gm
+      ids.forEach((id) => { pl[id] = GATES[g % 3]; g = Math.floor(g / 3) })
+      const values = evaluateCircuit(round, iv, pl)
+      if (!check(values, iv, pl)) continue
+      const changes = ins.filter((id) => iv[id] !== inputs[id]).length + ids.filter((id) => pl[id] !== placed[id]).length
+      if (!best || changes < best.changes) best = { inputs: iv, placed: pl, changes }
+    }
+  }
+  return best
+}
+
+/** The part Hint 1 points at: of the parts the cheapest fix changes, the one nearest the door (last socket first, then inputs). */
+export function decidingPart(round, inputs, placed, fix) {
+  const socket = [...round.sockets].reverse().find((s) => fix.placed[s.id] !== placed[s.id])
+  if (socket) return { kind: 'socket', id: socket.id, empty: !placed[socket.id] }
+  const input = [...round.inputs].reverse().find((i) => fix.inputs[i.id] !== inputs[i.id])
+  return input ? { kind: 'input', id: input.id } : null
+}

@@ -72,7 +72,7 @@ export function Launcher({ onLaunch, preset }: Props) {
         <p className="mt-5 max-w-xl font-tele text-xs leading-relaxed text-goat-mute">
           &gt; MILANO BRIDGE // GUARDIANS OF THE GALAXY NOISE-CANCELLATION PROTOCOL
           <br />
-          &gt; THREE MODULES · ONE SHARED 12:00 CLOCK · NO SECOND CHANCES ON THE HULL
+          &gt; THREE MODULES · ONE SHARED 12:00 CLOCK · IT RUNS ONLY WHILE YOU PLAY
           <br />
           &gt; BOTH OPERATORS MUST AUTHENTICATE BEFORE THE CLOCK ARMS
         </p>

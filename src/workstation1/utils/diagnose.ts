@@ -20,7 +20,6 @@ export const profileOf = (w: DiagWaveDef): WaveProfile => ({
   callsign: w.label,
   noise: w.noise,
   start: w.start,
-  timeLimitSec: 0,
   ship: { x: 50, y: 50, scale: 1 },
 });
 

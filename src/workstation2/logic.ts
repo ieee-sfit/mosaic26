@@ -1,4 +1,4 @@
-import { QUALITY_PROFILES, QUESTION_BANK, STATION2_CONFIG } from './mockStation2Data';
+import { LAP_VARIANTS, QUALITY_PROFILES, QUESTION_BANK, STATION2_CONFIG } from './mockStation2Data';
 import type { Beam, QuizQuestion, Section, Stint } from './types';
 
 export function shuffle<T>(arr: T[]): T[] {
@@ -10,7 +10,7 @@ export function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-/** Pick N questions, preferring distinct cheat-sheet columns, with shuffled options. */
+/** Pick N questions, preferring distinct topic groups, with shuffled options. */
 export function pickQuestions(n = STATION2_CONFIG.questionsPerRun): QuizQuestion[] {
   const pool = shuffle(QUESTION_BANK);
   const picked: QuizQuestion[] = [];
@@ -142,14 +142,62 @@ export function simulate(stint: Stint, c: Controls) {
   return { nodes, latency, latencyOk, capacityOk, qualityOk, locked, worstUtil, worstPct: pctOf(worstUtil) };
 }
 
-/** Finds a control setting that locks the stint (Hint 2 uses it; solves for 0 points). */
+/** Small seeded generator (mulberry32), so a run's lap variants are fixed by its seed. */
+export function seeded(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** One authored variant per lap, picked by the seed (each lap draws independently). */
+export function pickStints(seed: number): Stint[] {
+  const rnd = seeded(seed);
+  return LAP_VARIANTS.map((variants) => variants[Math.floor(rnd() * variants.length)]);
+}
+
+/** Every whole split (0..100) that meets the whole contract for this quality and relay setting. */
+export function safeSplits(stint: Stint, qualityIdx: number, divert: boolean): number[] {
+  const out: number[] = [];
+  for (let split = 0; split <= 100; split++) if (simulate(stint, { split, qualityIdx, divert }).locked) out.push(split);
+  return out;
+}
+
+/** The same splits as unbroken [from, to] runs, for the green band on the LOAD SPLIT slider. */
+export function safeBands(stint: Stint, qualityIdx: number, divert: boolean): [number, number][] {
+  const runs: [number, number][] = [];
+  for (const s of safeSplits(stint, qualityIdx, divert)) {
+    const last = runs[runs.length - 1];
+    if (last && last[1] === s - 1) last[1] = s;
+    else runs.push([s, s]);
+  }
+  return runs;
+}
+
+/**
+ * Set when switching BACKUP RELAY on is what breaks a contract that would pass with it off (same split and quality).
+ * 'latency' = the +90 ms pushes latency over the limit; 'load' = the relay mast itself is over 80%.
+ */
+export function relayBreaks(stint: Stint, c: Controls): 'latency' | 'load' | null {
+  if (!c.divert) return null;
+  const on = simulate(stint, c);
+  if (on.locked || !simulate(stint, { ...c, divert: false }).locked) return null;
+  return !on.latencyOk ? 'latency' : 'load';
+}
+
+/**
+ * Finds a control setting that locks the stint (Hint 2 uses it; solves for 0 points). The relay is never needed, so it is tried
+ * last; the best quality that works wins, and the split is the middle of its safe band.
+ */
 export function solveStint(stint: Stint): Controls | null {
   for (const divert of [false, true]) {
     for (let qualityIdx = 0; qualityIdx < QUALITY_PROFILES.length; qualityIdx++) {
-      for (let split = 0; split <= 100; split++) {
-        const c = { split, qualityIdx, divert };
-        if (simulate(stint, c).locked) return c;
-      }
+      const ok = safeSplits(stint, qualityIdx, divert);
+      if (ok.length) return { split: ok[Math.floor(ok.length / 2)], qualityIdx, divert };
     }
   }
   return null;

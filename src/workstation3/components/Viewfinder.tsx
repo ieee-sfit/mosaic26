@@ -1,13 +1,15 @@
-import { FILTER_KEYS, formatPlate, type FilterLevels, type SuspectRound } from '../mockStation3Data';
+import { formatPlate, type SuspectRound } from '../mockStation3Data';
+import { FILTER_KEYS, type FilterLevels } from '../lens';
 import { clamp } from '../utils';
+import { SvgPlate } from './Glyph';
 
-export type PursuitStatus = 'live' | 'caught' | 'escaped';
+export type LockStatus = 'live' | 'caught';
 
 const W = 640;
 const H = 360;
-const PX = 190; // plate rect origin
+const PX = 150; // plate rect origin
 const PY = 150;
-const PW = 260;
+const PW = 340;
 const PH = 84;
 
 /** Deterministic rain streaks (no per-render randomness). */
@@ -68,13 +70,19 @@ export default function Viewfinder({
   levels,
   confidence,
   status,
+  target,
+  noLock,
 }: {
   round: SuspectRound;
   levels: FilterLevels;
   confidence: number;
-  status: PursuitStatus;
+  status: LockStatus;
+  /** The best position per filter; it only drives how the picture looks, it is never shown. */
+  target: FilterLevels;
+  /** Changes every time a lock fails (shows the NO LOCK banner briefly); 0 = none. */
+  noLock: number;
 }) {
-  const v = visualParams(round.target, levels);
+  const v = visualParams(target, levels);
   const tier = confidence >= 80 ? 'ok' : confidence >= 45 ? 'mid' : 'low';
   const plateText = formatPlate(round.plate);
   const locked = status === 'caught';
@@ -133,16 +141,7 @@ export default function Viewfinder({
         <g filter="url(#ws3-plate-fx)">
           <rect x={PX - 8} y={PY - 8} width={PW + 16} height={PH + 16} fill="#1b2231" />
           <rect x={PX} y={PY} width={PW} height={PH} fill="#f2efd6" stroke="#0b0f19" strokeWidth="3" />
-          <text
-            x={PX + PW / 2}
-            y={PY + PH / 2 + 15}
-            textAnchor="middle"
-            className="ws3-plate-text"
-            textLength={PW - 28}
-            lengthAdjust="spacingAndGlyphs"
-          >
-            {plateText}
-          </text>
+          <SvgPlate text={plateText} x={PX + PW / 2} y={PY + PH / 2 + 18} size={44} anchorWidth={PW - 26} className="ws3-plate-text" />
         </g>
 
         {/* environmental overlays */}
@@ -179,9 +178,9 @@ export default function Viewfinder({
         <span>FILTERS: {lit ? 'ENGAGED' : 'BYPASS'}</span>
       </div>
 
-      {status === 'escaped' && (
-        <div className="ws3-vf-banner ws3-vf-banner--red" role="alert">
-          ⚠ SUSPECT HIT NITROUS — OUT OF SENSOR RANGE
+      {noLock > 0 && (
+        <div key={noLock} className="ws3-vf-banner ws3-vf-banner--warn" role="alert">
+          ✖ NO LOCK · BELOW 80%
         </div>
       )}
       {status === 'caught' && (

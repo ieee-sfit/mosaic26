@@ -1,0 +1,189 @@
+/* ---------- MODULE D · BLOCKADE ---------- */
+.ws3-modD { grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; --tw0: #22d3ee; --tw1: #facc15; }
+.ws3-chase { display: flex; flex-direction: column; gap: 9px; padding: 14px 16px 14px; }
+.ws3-chase .ws3-btn { align-self: flex-start; }
+.ws3-modD .ws3-panel-tag { font-size: 13px; }
+.tw0-t { color: var(--tw0); } .tw1-t { color: var(--tw1); }
+
+/* step header, progress rail, WHAT TO DO banner */
+.ws3-dsteps { list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; }
+.ws3-dsteps li { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border: 1px solid var(--edge); color: var(--muted); background: #0b1424; min-width: 0; }
+.ws3-dstep-n { flex: none; display: grid; place-items: center; width: 34px; height: 34px; font: 700 18px var(--mono); border: 2px solid currentColor; border-radius: 50%; }
+.ws3-dstep-t { font: 700 clamp(15px, 1.35vw, 20px) var(--mono); letter-spacing: 0.05em; line-height: 1.15; }
+.ws3-dsteps li.is-live { color: #090d16; background: var(--y); border-color: var(--y); box-shadow: 0 0 18px rgba(250, 204, 21, 0.35); }
+.ws3-dsteps li.is-done { color: var(--cy); border-color: rgba(6, 182, 212, 0.6); background: rgba(6, 182, 212, 0.1); }
+.ws3-drail { height: 8px; background: #101a2b; border: 1px solid var(--edge); }
+.ws3-drail i { display: block; height: 100%; background: linear-gradient(90deg, var(--cy), var(--y)); transition: width 0.5s ease; }
+.ws3-dwhat { display: flex; align-items: center; gap: 16px; padding: 8px 18px; background: rgba(250, 204, 21, 0.1); border: 1px solid var(--y); border-left-width: 8px; }
+.ws3-dwhat small { flex: none; font: 700 14px var(--mono); letter-spacing: 0.18em; color: var(--y); }
+.ws3-dwhat p { margin: 0; font-size: clamp(20px, 1.9vw, 26px); font-weight: 600; line-height: 1.25; color: #fff; }
+
+.ws3-complaint { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 6px 16px; border: 1px solid var(--red); background: rgba(251, 146, 60, 0.1); font-family: var(--mono); }
+.ws3-complaint small { font-size: 14px; letter-spacing: 0.16em; color: #fed7aa; }
+.ws3-complaint b { font-size: 20px; color: #ffedd5; letter-spacing: 0.05em; }
+.ws3-complaint span { font-size: 16px; color: #cbd5e1; }
+.ws3-complaint .ws3-icon { color: var(--red); }
+.ws3-complaint--big { padding: 16px 20px; border-width: 2px; }
+.ws3-complaint--big b { font-size: 28px; }
+.ws3-complaint--big .ws3-icon { width: 44px; height: 44px; }
+.ws3-icon { width: 28px; height: 28px; flex: none; }
+
+/* feedback line */
+.ws3-fb { padding: 8px 16px; font: 700 18px var(--mono); letter-spacing: 0.03em; line-height: 1.3; border-left: 6px solid; animation: ws3-pop 0.35s ease-out; }
+.ws3-fb--ok { border-color: var(--ok); background: rgba(163, 230, 53, 0.14); color: #ecfccb; }
+.ws3-fb--bad { border-color: var(--red); background: rgba(251, 146, 60, 0.14); color: #ffedd5; }
+@keyframes ws3-pop { from { transform: translateY(-6px) scale(0.98); opacity: 0; } }
+
+/* step 1 board */
+.ws3-chain { display: grid; gap: 10px; }
+.ws3-chain-head, .ws3-chain-row { display: grid; grid-template-columns: 92px repeat(3, minmax(0, 1fr)); gap: 10px; align-items: stretch; }
+.ws3-chain-head b { font: 700 18px var(--mono); letter-spacing: 0.1em; color: #fff; text-align: center; }
+.ws3-chain-head small { display: block; font-size: 15px; font-weight: 400; color: var(--muted); letter-spacing: 0.04em; }
+.ws3-chain-row { padding: 6px; border: 2px solid var(--edge); background: rgba(11, 20, 36, 0.6); }
+.ws3-chain-row.tw0 { border-color: rgba(34, 211, 238, 0.6); }
+.ws3-chain-row.tw1 { border-color: rgba(250, 204, 21, 0.6); }
+.ws3-chain-label { align-self: center; font: 700 18px var(--mono); letter-spacing: 0.06em; line-height: 1.1; }
+.tw0 .ws3-chain-label { color: var(--tw0); } .tw1 .ws3-chain-label { color: var(--tw1); }
+.ws3-sight { display: grid; gap: 6px; padding: 8px 10px; background: #0b1424; border: 1px solid var(--edge); font-family: var(--mono); min-width: 0; text-align: left; }
+.ws3-sight.is-anchor { background: rgba(255, 255, 255, 0.04); }
+.ws3-sight.tw0 { border-color: var(--tw0); } .ws3-sight.tw1 { border-color: var(--tw1); }
+.ws3-sight-sent { font: 500 17px var(--display); line-height: 1.2; color: #cbd5e1; white-space: nowrap; }
+.ws3-sight-sent b { color: #fff; }
+.ws3-pill { display: inline-flex; width: fit-content; max-width: 100%; align-items: center; gap: 2px; padding: 4px 8px; background: #f2efd6; border: 2px solid #0b0f19; border-radius: 6px; font-size: 16px; color: #0b0f19; }
+.ws3-pill i { font-style: normal; display: grid; place-items: center; width: 14px; height: 22px; font-weight: 700; color: #9a9575; }
+.ws3-pill i.gap { margin-right: 6px; }
+.ws3-pill i.is-read { color: #0b0f19; }
+.ws3-miniroad { display: block; width: 100%; max-width: 140px; height: auto; border: 1px solid #334155; }
+.ws3-cell { appearance: none; display: grid; place-items: center; min-height: 118px; padding: 6px; background: rgba(15, 23, 42, 0.6); border: 2px dashed #3a5568; border-radius: 0; color: var(--muted); font: 16px var(--mono); line-height: 1.3; cursor: pointer; text-align: center; }
+.ws3-cell.is-filled { display: block; padding: 0; border-style: solid; background: none; text-align: left; }
+.tw0 .ws3-cell.is-filled { border-color: var(--tw0); } .tw1 .ws3-cell.is-filled { border-color: var(--tw1); }
+.ws3-cell.is-filled .ws3-sight { border: 0; }
+.ws3-cell.is-locked { box-shadow: inset 0 0 0 2px var(--cy); cursor: default; }
+.ws3-cell.is-ok { box-shadow: 0 0 16px rgba(163, 230, 53, 0.55); border-color: var(--ok) !important; }
+.ws3-cell.is-target { border-color: var(--y); background: rgba(250, 204, 21, 0.1); color: var(--y); animation: ws3-hintring 1s ease-in-out infinite; }
+.ws3-cell:hover:not(.is-locked) { border-color: var(--y); }
+.ws3-tray-label { font: 700 15px var(--mono); letter-spacing: 0.14em; color: var(--cy); margin-top: 2px; }
+.ws3-sight-tray { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; touch-action: none; }
+.ws3-sight-btn { appearance: none; padding: 0; border: 0; background: none; border-radius: 0; cursor: grab; text-align: left; touch-action: none; user-select: none; }
+.ws3-sight-btn.is-sel .ws3-sight { border-color: var(--y); background: rgba(250, 204, 21, 0.12); }
+.ws3-sight-btn.is-used { opacity: 0.2; cursor: default; }
+.ws3-sight-btn.is-drag { opacity: 0.35; }
+.ws3-sight-btn:hover:not(:disabled) .ws3-sight { border-color: var(--y); }
+.ws3-sight-ghost { position: fixed; z-index: 60; width: 240px; transform: translate(-50%, -50%); pointer-events: none; box-shadow: 0 0 22px rgba(250, 204, 21, 0.5); }
+.ws3-sight-ghost .ws3-sight { background: #101c31; }
+
+/* step 2 evidence */
+.ws3-evidence { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.ws3-ev { appearance: none; display: flex; flex-direction: column; gap: 10px; align-items: stretch; text-align: left; padding: 16px; background: #0b1424; border: 3px solid var(--edge); border-radius: 0; color: var(--text); font-family: var(--mono); cursor: pointer; }
+.ws3-ev.tw0 { border-color: var(--tw0); } .ws3-ev.tw1 { border-color: var(--tw1); }
+.ws3-ev:hover:not(:disabled) { background: #101c31; }
+.ws3-ev-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 10px; border-bottom: 1px dashed #334155; }
+.ws3-ev-head b { font-size: 26px; letter-spacing: 0.06em; }
+.ws3-ev.tw0 .ws3-ev-head b { color: var(--tw0); } .ws3-ev.tw1 .ws3-ev-head b { color: var(--tw1); }
+.ws3-ev-plate { font-size: 24px; padding: 2px 12px; color: #0b0f19; background: #f2efd6; border: 2px solid #0b0f19; border-radius: 6px; }
+.ws3-ev-row { display: grid; grid-template-columns: 32px 1fr; align-items: center; gap: 4px 12px; padding: 8px 10px; background: rgba(255, 255, 255, 0.04); border-left: 4px solid #334155; }
+.ws3-ev-row .ws3-icon { grid-row: span 2; color: #94a3b8; }
+.ws3-ev-k { font-size: 15px; letter-spacing: 0.14em; color: var(--muted); }
+.ws3-ev-v { font-size: 22px; font-weight: 700; color: #ecfccb; }
+.ws3-ev-row.is-flag { border-left-color: var(--amb); }
+.ws3-ev-row.is-flag .ws3-ev-v { color: #fde68a; }
+.ws3-ev-row.is-flag .ws3-icon { color: var(--amb); }
+.ws3-ev-row.is-hint { background: var(--y); border-left-color: #090d16; animation: ws3-hintring 1s ease-in-out infinite; }
+.ws3-ev-row.is-hint .ws3-ev-k, .ws3-ev-row.is-hint .ws3-ev-v, .ws3-ev-row.is-hint .ws3-icon { color: #090d16; }
+.ws3-ev-cta { margin-top: 4px; padding: 10px; text-align: center; font: 700 16px var(--mono); letter-spacing: 0.1em; color: #090d16; background: var(--cy); }
+.ws3-ev.tw1 .ws3-ev-cta { background: var(--y); }
+.ws3-ev.is-bad { opacity: 0.55; border-style: dashed; }
+.ws3-ev.is-bad .ws3-ev-cta { background: var(--red); }
+.ws3-ev.is-ok { background: rgba(163, 230, 53, 0.12); border-color: var(--ok); }
+.ws3-ev.is-ok .ws3-ev-cta { background: var(--ok); }
+
+/* step 3 expressway */
+.ws3-d-line { margin: 0; font-size: 19px; line-height: 1.4; }
+.ws3-d-line b { font-family: var(--mono); font-size: 20px; margin-right: 6px; }
+.ws3-d-plate { font-size: 20px; padding: 0 10px; margin: 0 4px; color: #0b0f19; background: #f2efd6; border: 2px solid #0b0f19; border-radius: 6px; vertical-align: -3px; }
+.ws3-road { width: 100%; max-width: 700px; display: block; margin: 0 auto; background: #05070c; border: 1px solid var(--edge); }
+.ws3-road-lane { stroke: #3a4b60; stroke-width: 2.5; stroke-dasharray: 10 10; }
+.ws3-road-fade { stroke: #2b3b4f; stroke-width: 2; stroke-dasharray: 4 8; }
+.ws3-road-lane-t { font: 700 18px var(--mono); fill: #cbd5e1; letter-spacing: 0.06em; }
+.ws3-road-gantry { fill: #2a4a60; stroke: #5b7f98; stroke-width: 1.5; }
+.ws3-road-cam { fill: #0b1424; stroke: var(--cy); stroke-width: 2; }
+.ws3-road-cam-t { font: 700 22px var(--mono); fill: #fff; }
+.ws3-road-km-t { font: 18px var(--mono); fill: #94a3b8; }
+.ws3-road-car polyline { stroke-width: 5; stroke-linejoin: round; stroke-linecap: round; }
+.ws3-road-car circle { stroke: #fff; stroke-width: 2.5; }
+.tw0-s polyline { stroke: var(--tw0); } .tw0-s circle { fill: var(--tw0); }
+.tw1-s polyline { stroke: var(--tw1); } .tw1-s circle { fill: var(--tw1); }
+.ws3-road-car.is-offender polyline { stroke-width: 8; }
+.ws3-road-car.is-other { opacity: 0.45; }
+.ws3-road-halo { fill: none !important; stroke-width: 4 !important; stroke: #fff; animation: ws3-halo 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes ws3-halo { 0% { transform: scale(0.8); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
+.ws3-road-tag { font: 700 19px var(--mono); }
+.tw0-s .ws3-road-tag { fill: var(--tw0); } .tw1-s .ws3-road-tag { fill: var(--tw1); }
+.ws3-road-closed { font: 700 18px var(--mono); fill: #fde68a; letter-spacing: 0.1em; }
+.ws3-exit { cursor: pointer; }
+.ws3-exit-pole { stroke: #64748b; stroke-width: 4; }
+.ws3-exit-sign { fill: #0f5a3a; stroke: #fff; stroke-width: 3; }
+.ws3-exit-edge { fill: none; stroke: rgba(255, 255, 255, 0.55); stroke-width: 1.5; }
+.ws3-exit-n { font: 700 26px var(--mono); fill: #fff; letter-spacing: 0.04em; }
+.ws3-exit-s { font: 700 18px var(--mono); fill: #bbf7d0; letter-spacing: 0.1em; }
+.ws3-exit:hover .ws3-exit-sign, .ws3-exit:focus-visible .ws3-exit-sign { stroke: var(--y); stroke-width: 5; }
+.ws3-exit:focus-visible { outline: none; }
+.ws3-exit.is-bad { cursor: default; opacity: 0.6; }
+.ws3-exit.is-bad .ws3-exit-sign { fill: #3b2a14; stroke: var(--red); stroke-dasharray: 6 5; }
+.ws3-exit.is-bad .ws3-exit-s { fill: var(--red); }
+.ws3-exit.is-ok .ws3-exit-sign { fill: #2f6a14; stroke: var(--ok); stroke-width: 5; }
+.ws3-legend { display: flex; flex-wrap: wrap; gap: 6px 22px; justify-content: center; font: 700 16px var(--mono); color: #94a3b8; }
+
+.ws3-d-end { padding: 16px; font: 700 20px var(--mono); letter-spacing: 0.1em; text-align: center; border-block: 3px solid; animation: ws3-pop 0.4s ease-out; }
+.ws3-d-end.is-ok { background: rgba(54, 83, 20, 0.9); color: #ecfccb; border-color: var(--ok); }
+.ws3-d-end.is-bad { background: rgba(124, 45, 18, 0.9); color: #ffedd5; border-color: var(--red); }
+
+/* the three rules, large and readable */
+.ws3-rulesD { padding: 18px 18px 16px; }
+.ws3-rulesD .ws3-panel-tag { font-size: 14px; }
+.ws3-ruleD { display: grid; grid-template-columns: 44px 1fr; gap: 12px; align-items: start; padding: 12px 0; border-top: 1px dashed #334155; }
+.ws3-ruleD:first-of-type { border-top: 0; }
+.ws3-ruleD b { display: grid; place-items: center; width: 40px; height: 40px; font: 700 22px var(--mono); color: #090d16; background: var(--y); clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
+.ws3-ruleD p { margin: 0; font-size: 20px; line-height: 1.35; color: #fff; }
+.ws3-dclock { font: 700 42px var(--mono); color: var(--y); margin-bottom: 6px; letter-spacing: 0.06em; }
+.ws3-dclock.is-low { color: var(--red); }
+.ws3-dnote { margin: 0 0 8px; font-size: 15px; color: var(--muted); }
+.ws3-modD .ws3-readout { font-size: 14px; }
+
+@media (max-width: 1230px) {
+  .ws3-modD { grid-template-columns: minmax(0, 1fr); }
+  .ws3-modD .ws3-side { grid-template-columns: 1.4fr 1fr; align-items: start; }
+}
+@media (max-width: 1000px) {
+  .ws3-chain-head, .ws3-chain-row { grid-template-columns: 70px repeat(3, minmax(0, 1fr)); }
+  .ws3-sight-tray { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ws3-evidence { grid-template-columns: 1fr; }
+  .ws3-modD .ws3-side { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ws3-fb, .ws3-d-end, .ws3-road-halo, .ws3-cell.is-target, .ws3-ev-row.is-hint { animation: none; }
+  .ws3-drail i { transition: none; }
+}
+
+/* short screens (1024 x 700): keep the board and the card tray on screen together */
+@media (max-height: 820px) {
+  .ws3-chase { gap: 6px; padding: 10px 14px; }
+  .ws3-modD .ws3-panel-tag { margin-bottom: 4px; }
+  .ws3-dsteps li { padding: 4px 10px; }
+  .ws3-dstep-n { width: 28px; height: 28px; font-size: 15px; }
+  .ws3-dwhat { padding: 5px 14px; }
+  .ws3-dwhat p { font-size: 19px; }
+  .ws3-complaint span { display: none; }
+  .ws3-complaint { padding: 4px 14px; }
+  .ws3-chain-head b { font-size: 16px; }
+  .ws3-chain-head small { display: inline; margin-left: 6px; font-size: 16px; }
+  .ws3-chain { gap: 6px; }
+  .ws3-chain-row { padding: 4px; gap: 6px; }
+  .ws3-cell { min-height: 96px; }
+  .ws3-sight { gap: 3px; padding: 5px 8px; }
+  .ws3-pill { padding: 2px 6px; }
+  .ws3-miniroad { max-width: 112px; }
+  .ws3-tray-label { margin-top: 0; }
+  .ws3-fb { padding: 5px 12px; font-size: 16px; }
+  .ws3-btn--big { padding: 9px 22px; }
+}
