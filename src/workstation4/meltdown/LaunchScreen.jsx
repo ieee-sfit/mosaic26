@@ -7,7 +7,8 @@ export default function LaunchScreen({ onLaunch, onOpenStationChooser, preset })
   const [p1, setP1] = useState(preset?.[0] ?? '')
   const [p2, setP2] = useState(preset?.[1] ?? '')
   const [touched, setTouched] = useState(false)
-  const [count, setCount] = useState(null)
+  // the launcher already collected both IDs: skip this screen's own ID form and go straight to the loading countdown
+  const [count, setCount] = useState(preset ? 3 : null)
 
   const re = STATION4_CONFIG.operatorIdPattern
   const err =
