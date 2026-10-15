@@ -1,6 +1,7 @@
 -- MOSAIC 26 rebuild, part 6: failed-login throttle for committee accounts.
 -- Wired through Supabase Auth's "Password verification attempt" hook (Dashboard > Authentication > Hooks):
 -- point it at public.hook_password_verification_attempt. Without that switch the function exists but is never called.
+-- NOTE: Supabase documents this hook as available on the Teams and Enterprise plans only. On Free/Pro use the Auth rate limits instead.
 -- NOT applied automatically.
 
 create table if not exists public.login_failures (

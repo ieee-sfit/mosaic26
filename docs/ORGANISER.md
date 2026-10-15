@@ -29,7 +29,9 @@ Open the public site, press **COMMITTEE** at the bottom of the leaderboard, log 
 - **MEDALS**: unclaimed window and match medals with *Mark claimed*; coin-toss resolution; medal windows (edit label/times/count, add, close) without a rebuild.
 - **CASH REPORT**: per volunteer cash / UPI / online, credits issued, registrations; event-wide runs started, credits spent / refunded / outstanding.
 
-Committee accounts are rows in `committee_members` (`display_name` is editable). Failed logins are throttled (5 wrong in 15 minutes locks that account for 15 minutes) through Supabase Auth's *Password verification attempt* hook: Dashboard > Authentication > Hooks, point it at `public.hook_password_verification_attempt`.
+Committee accounts are rows in `committee_members` (`display_name` is editable).
+
+Login throttling has two layers. (1) Supabase Auth's own per-IP sign-in rate limit: Dashboard > Authentication > Rate Limits, lower the sign-in limit. This works on every plan. (2) `public.hook_password_verification_attempt` (migration `20261021`) locks an account for 15 minutes after 5 wrong passwords, but Supabase offers the *Password verification attempt* hook only on the Teams and Enterprise plans (Dashboard > Authentication > Hooks). On Free/Pro it does nothing, so rely on layer 1 plus the strong random passwords.
 
 ## Versus lobbies
 At a station: ID, "Is this you?", **CREATE VERSUS LOBBY** (shows a number like 007) or **JOIN VERSUS LOBBY** (enter it). 2 to 5 players, one station. The host presses START; everyone gets the same questions/seed and a synchronised countdown, and each pays 1 credit then. Unstarted lobbies expire after 10 minutes. The winner gets a MATCH MEDAL if the score is at least 70 (one per person per station); collect at the desk.
