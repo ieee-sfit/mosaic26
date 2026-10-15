@@ -67,10 +67,11 @@ export default function IntroCinematic({ onComplete }) {
       <div className="cfs-intro-center">
         {/* IEEE SFIT Animation */}
         <div className="cfs-intro-panel cfs-panel-ieee">
+          <div className="cfs-intro-glow cfs-glow-ieee" />
           <div className="cfs-intro-video-box">
             <video
               ref={ieeeVideoRef}
-              src="/intro/ieee_animation.mp4"
+              src="/intro/ieee_graded.mp4"
               autoPlay
               muted
               playsInline
@@ -92,13 +93,18 @@ export default function IntroCinematic({ onComplete }) {
 
         {/* IEEE WIE Animation */}
         <div className="cfs-intro-panel cfs-panel-wie">
+          <div className="cfs-intro-glow cfs-glow-wie" />
           <div className="cfs-intro-video-box">
             <video
               ref={wieVideoRef}
-              src="/intro/wie_animation.mp4"
+              src="/intro/wie_graded.mp4"
               autoPlay
               muted
               playsInline
+              onEnded={(e) => {
+                // Hold last frame
+                try { e.target.pause() } catch {}
+              }}
               className="cfs-intro-video"
             />
           </div>
