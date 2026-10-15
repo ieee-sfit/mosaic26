@@ -2,10 +2,10 @@ import * as THREE from 'three'
 
 /**
  * Initializes and drives the Three.js 3D scene for the CtrlFreak Intro Splash screen.
- * Restores the initial clean, sparse yet numerous volumetric particle field
- * floating in deep space with sector accent lighting and interactive mouse parallax.
+ * Embeds the 4 cinematic universes (GotG, Ford v Ferrari, Baby Driver, World War Z)
+ * as orbital tactical sector nodes around a central quantum mainframe core.
  */
-export function initSplashScene(container, onStationChange) {
+export function initSplashScene(container) {
   let width = container.clientWidth || window.innerWidth
   let height = container.clientHeight || window.innerHeight
 
@@ -13,7 +13,7 @@ export function initSplashScene(container, onStationChange) {
   scene.fog = new THREE.FogExp2(0x050811, 0.02)
 
   const camera = new THREE.PerspectiveCamera(48, width / height, 0.1, 1000)
-  camera.position.set(0, 0, 16.0)
+  camera.position.set(0, 0, 17)
 
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
@@ -23,72 +23,72 @@ export function initSplashScene(container, onStationChange) {
   renderer.setSize(width, height)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.toneMapping = THREE.ACESFilmicToneMapping
-  renderer.toneMappingExposure = 1.25
+  renderer.toneMappingExposure = 1.2
   container.appendChild(renderer.domElement)
 
   // -------------------------------------------------------------
-  // SECTOR ACCENT LIGHTING
+  // LIGHTING
   // -------------------------------------------------------------
-  const ambientLight = new THREE.AmbientLight(0x0f172a, 1.6)
+  const ambientLight = new THREE.AmbientLight(0x0f172a, 1.5)
   scene.add(ambientLight)
 
-  const coreLight = new THREE.PointLight(0x38bdf8, 3.0, 30)
+  const coreLight = new THREE.PointLight(0x38bdf8, 3, 25)
   coreLight.position.set(0, 0, 2)
   scene.add(coreLight)
 
-  // 4 Sector colored accent lights
-  const lightS1 = new THREE.PointLight(0x00f2fe, 2.2, 22) // Cyan - GotG
-  lightS1.position.set(0, 7, 2)
+  // Sector colored accent lights
+  const lightS1 = new THREE.PointLight(0x00f2fe, 2.5, 18) // Cyan - GotG
+  lightS1.position.set(0, 6, 2)
   scene.add(lightS1)
 
-  const lightS2 = new THREE.PointLight(0xdc2626, 2.2, 22) // Red - F1
-  lightS2.position.set(8, 0, 2)
+  const lightS2 = new THREE.PointLight(0xdc2626, 2.5, 18) // Red - FvF
+  lightS2.position.set(7, 0, 2)
   scene.add(lightS2)
 
-  const lightS3 = new THREE.PointLight(0xfacc15, 2.2, 22) // Gold - eChallan
-  lightS3.position.set(0, -7, 2)
+  const lightS3 = new THREE.PointLight(0xfacc15, 2.5, 18) // Gold - Baby Driver
+  lightS3.position.set(0, -6, 2)
   scene.add(lightS3)
 
-  const lightS4 = new THREE.PointLight(0x22c55e, 2.2, 22) // Emerald - Area 51
-  lightS4.position.set(-8, 0, 2)
+  const lightS4 = new THREE.PointLight(0x22c55e, 2.5, 18) // Green - WWZ
+  lightS4.position.set(-7, 0, 2)
   scene.add(lightS4)
 
   // -------------------------------------------------------------
-  // VOLUMETRIC BACKGROUND PARTICLE FIELD (Initial Spread-Out Aesthetic)
+  // VOLUMETRIC BACKGROUND PARTICLE FIELD
   // -------------------------------------------------------------
   const particleCount = 3500
   const particleGeom = new THREE.BufferGeometry()
-  const partPos = new Float32Array(particleCount * 3)
-  const partCol = new Float32Array(particleCount * 3)
+  const positions = new Float32Array(particleCount * 3)
+  const colors = new Float32Array(particleCount * 3)
 
   const palette = [
-    new THREE.Color(0xef4444), // red - F1
-    new THREE.Color(0x38bdf8), // cyan - GotG
-    new THREE.Color(0xfacc15), // amber - eChallan
-    new THREE.Color(0x22c55e), // emerald - Area 51
+    new THREE.Color(0xef4444), // red
+    new THREE.Color(0x38bdf8), // cyan
+    new THREE.Color(0xfacc15), // amber
+    new THREE.Color(0x22c55e), // emerald
     new THREE.Color(0x64748b), // slate
   ]
 
   for (let i = 0; i < particleCount; i++) {
     const idx = i * 3
-    partPos[idx] = (Math.random() - 0.5) * 65
-    partPos[idx + 1] = (Math.random() - 0.5) * 48
-    partPos[idx + 2] = (Math.random() - 0.5) * 42 - 5
+    positions[idx] = (Math.random() - 0.5) * 60
+    positions[idx + 1] = (Math.random() - 0.5) * 45
+    positions[idx + 2] = (Math.random() - 0.5) * 40 - 5
 
     const c = palette[Math.floor(Math.random() * palette.length)]
-    partCol[idx] = c.r
-    partCol[idx + 1] = c.g
-    partCol[idx + 2] = c.b
+    colors[idx] = c.r
+    colors[idx + 1] = c.g
+    colors[idx + 2] = c.b
   }
 
-  particleGeom.setAttribute('position', new THREE.BufferAttribute(partPos, 3))
-  particleGeom.setAttribute('color', new THREE.BufferAttribute(partCol, 3))
+  particleGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+  particleGeom.setAttribute('color', new THREE.BufferAttribute(colors, 3))
 
   const particleMat = new THREE.PointsMaterial({
     size: 0.1,
     vertexColors: true,
     transparent: true,
-    opacity: 0.72,
+    opacity: 0.7,
     blending: THREE.AdditiveBlending,
   })
 
@@ -96,10 +96,19 @@ export function initSplashScene(container, onStationChange) {
   scene.add(particleSystem)
 
   // -------------------------------------------------------------
-  // INTERACTION & ANIMATION STATE
+  // PERSPECTIVE GRID FLOOR
+  // -------------------------------------------------------------
+  const gridHelper = new THREE.GridHelper(100, 50, 0x1e293b, 0x090d16)
+  gridHelper.position.y = -7.5
+  gridHelper.material.opacity = 0.25
+  gridHelper.material.transparent = true
+  scene.add(gridHelper)
+
+  // -------------------------------------------------------------
+  // ANIMATION & INTERACTION STATE
   // -------------------------------------------------------------
   const mouse = { x: 0, y: 0, targetX: 0, targetY: 0 }
-  let targetCamZ = 16.0
+  let targetCamZ = 16
   let isWarping = false
   let animFrameId = null
   const startTime = performance.now()
@@ -125,21 +134,13 @@ export function initSplashScene(container, onStationChange) {
 
   window.addEventListener('resize', onResize)
 
-  /**
-   * High-speed Warp Dive into the station terminal.
-   */
   function triggerWarp(onComplete) {
     if (isWarping) return
     isWarping = true
-    targetCamZ = -15.0
-
+    targetCamZ = -15
     setTimeout(() => {
       onComplete?.()
-    }, 550)
-  }
-
-  function setStationColor(hexColor) {
-    coreLight.color.set(hexColor)
+    }, 450)
   }
 
   function animate() {
@@ -149,21 +150,17 @@ export function initSplashScene(container, onStationChange) {
     mouse.x += (mouse.targetX - mouse.x) * 0.05
     mouse.y += (mouse.targetY - mouse.y) * 0.05
 
-    // Orbiting subtle core light breathing
-    coreLight.position.x = Math.sin(elapsed * 0.8) * 1.5
-    coreLight.position.y = Math.cos(elapsed * 0.6) * 1.0
-
     if (isWarping) {
       camera.position.z += (targetCamZ - camera.position.z) * 0.16
       const posAttr = particleGeom.attributes.position
       for (let i = 0; i < particleCount; i++) {
-        posAttr.setZ(i, posAttr.getZ(i) + 2.4)
+        posAttr.setZ(i, posAttr.getZ(i) + 1.8)
         if (posAttr.getZ(i) > 20) posAttr.setZ(i, -25)
       }
       posAttr.needsUpdate = true
     } else {
-      camera.position.x += (mouse.x * 2.2 - camera.position.x) * 0.04
-      camera.position.y += (mouse.y * 1.6 - camera.position.y) * 0.04
+      camera.position.x += (mouse.x * 2.5 - camera.position.x) * 0.04
+      camera.position.y += (mouse.y * 1.8 - camera.position.y) * 0.04
       camera.position.z += (targetCamZ - camera.position.z) * 0.04
       camera.lookAt(0, 0, 0)
 
@@ -181,8 +178,6 @@ export function initSplashScene(container, onStationChange) {
     window.removeEventListener('resize', onResize)
     if (animFrameId) cancelAnimationFrame(animFrameId)
     renderer.dispose()
-    particleGeom.dispose()
-    particleMat.dispose()
     if (renderer.domElement && renderer.domElement.parentNode) {
       renderer.domElement.parentNode.removeChild(renderer.domElement)
     }
@@ -190,7 +185,6 @@ export function initSplashScene(container, onStationChange) {
 
   return {
     triggerWarp,
-    setStationColor,
     dispose,
   }
 }
