@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { STATION4_CONFIG, TELEMETRY_BASELINE } from '../mockStation4Data'
-import { unlockAudio } from '../cinematic/soundscape'
 
 const digits = (v) => v.replace(/\D/g, '').slice(0, 6)
 
@@ -24,7 +23,7 @@ export default function LaunchScreen({ onLaunch, onOpenStationChooser, preset })
   const go = (e) => {
     e.preventDefault()
     setTouched(true)
-    if (!err) { unlockAudio(); setCount(3) }
+    if (!err) setCount(3)
   }
 
   if (count !== null) {

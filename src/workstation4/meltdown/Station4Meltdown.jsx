@@ -8,9 +8,6 @@ import LabBackdrop from './LabBackdrop'
 import ModuleA from './ModuleA'
 import ModuleB from './ModuleB'
 import ModuleC from './ModuleC'
-import Cinematic, { CineDock } from '../cinematic/Cinematic'
-import { CINE_NEXT, teamLabel } from '../cinematic/script'
-import { cue, setAmbience, setMusic, setMuted, stopAllAudio, unlockAudio } from '../cinematic/soundscape'
 import ModuleD from './ModuleD'
 import './meltdown.css'
 
@@ -25,8 +22,6 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
   const preset = /^\d{6}$/.test(session?.p1_id ?? '') && /^\d{6}$/.test(session?.p2_id ?? '')
     ? [session.p1_id, session.p2_id] : null
   const [stage, setStage] = useState('launch') // launch | play | offer | bonus | end
-  const [cine, setCine] = useState(null)
-  const [muted, setMute] = useState(false)
   const [ids, setIds] = useState({ p1: '', p2: '' })
   const [mod, setMod] = useState('A')
   const [score, setScore] = useState({ a: 0, b: 0, c: 0, d: 0 })
@@ -36,12 +31,8 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
   const [logs, setLogs] = useState([])
   const [report, setReport] = useState(null)
   const endAt = useRef(0)
-  const pausedLeft = useRef(null)
-  const clockOn = useRef(false)
   const live = useRef({})
   const finished = useRef(false)
-  const cineOnce = useRef(new Set())
-  const cineRef = useRef(null)
   const committed = useRef(false)
   /** Everything fixed the moment Module C ends: the speed bonus and time_left do not change while D is played. */
   const frozen = useRef(null)
@@ -51,7 +42,7 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
   const stats = useRef({})
   const modStart = useRef(0)
   const modRef = useRef('A')
-  useEffect(() => { live.current = { ids, score, timeLeft }; modRef.current = mod; cineRef.current = cine })
+  useEffect(() => { live.current = { ids, score, timeLeft }; modRef.current = mod })
   const resetStats = () => {
     stats.current = Object.fromEntries(ALL_MODULES.map((m) => [m, { seconds: 0, wrong: 0, hints: 0, flags: [] }]))
     modStart.current = Date.now()
@@ -68,32 +59,9 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
     if (s) s.seconds += Math.round((Date.now() - modStart.current) / 1000)
     modStart.current = Date.now()
   }, [])
-  const pauseClock = () => {
-    if (!clockOn.current || pausedLeft.current != null) return
-    pausedLeft.current = Math.max(0, endAt.current - Date.now())
-  }
-  const resumeClock = () => {
-    if (!clockOn.current) {
-      clockOn.current = true
-      endAt.current = Date.now() + STATION4_CONFIG.totalSeconds * 1000
-      pausedLeft.current = null
-      setTimeLeft(STATION4_CONFIG.totalSeconds)
-      return
-    }
-    if (pausedLeft.current == null) return
-    endAt.current = Date.now() + pausedLeft.current
-    pausedLeft.current = null
-  }
-  const playCine = useCallback((id) => {
-    if (!id || cineOnce.current.has(id)) return
-    cineOnce.current.add(id)
-    pauseClock()
-    setCine(id)
-  }, [])
+  const goMod = (next) => { closeModule(); setMod(next) }
 
   const fx = useCallback((kind) => {
-    if (kind === 'glitch') cue('wrong')
-    if (kind === 'shake' || kind === 'strobe') cue('thud')
     setFxOn((f) => ({ ...f, [kind]: true }))
     setTimeout(() => setFxOn((f) => ({ ...f, [kind]: false })), kind === 'strobe' ? 1200 : 600)
   }, [])
@@ -164,7 +132,7 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
 
   // timestamp-driven 12:00 countdown
   useEffect(() => {
-    if (stage !== 'play' || cine) return undefined
+    if (stage !== 'play') return undefined
     const tick = () => {
       const left = Math.max(0, Math.ceil((endAt.current - Date.now()) / 1000))
       setTimeLeft(left)
@@ -172,7 +140,7 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
     }
     const t = setInterval(tick, 250)
     return () => clearInterval(t)
-  }, [stage, cine, finish])
+  }, [stage, finish])
 
   // the shift clock keeps running during D (D ends itself at its own deadline); the offer auto-skips so an idle kiosk still saves
   useEffect(() => {
@@ -187,57 +155,23 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
   }, [stage])
 
   const launch = (p1, p2) => {
-    unlockAudio()
     finished.current = false
     committed.current = false
     frozen.current = null
     endAt.current = Date.now() + STATION4_CONFIG.totalSeconds * 1000
     setIds({ p1, p2 })
     resetStats()
-    clockOn.current = false
-    pausedLeft.current = null
-    cineOnce.current.clear()
-    setMod(null)
     setStage('play')
-    playCine('opening')
     log('QUARANTINE ENGAGED', 'ok')
   }
   const restart = () => {
-    stopAllAudio()
     // Replays go back through the launcher so the attempt cap is checked
     if (onOpenStationChooser) { onOpenStationChooser(); return }
     finished.current = false
-    cineOnce.current.clear()
-    clockOn.current = false
-    pausedLeft.current = null
-    setScore({ a: 0, b: 0, c: 0 }); setSeals(STATION4_CONFIG.moduleC.seals)
-    setMod(null); modRef.current = null; setTimeLeft(STATION4_CONFIG.totalSeconds); setLogs([]); setReport(null); setCine(null); setStage('launch')
+    setScore({ a: 0, b: 0, c: 0, d: 0 }); setSeals(STATION4_CONFIG.moduleC.seals)
+    setMod('A'); modRef.current = 'A'; setTimeLeft(STATION4_CONFIG.totalSeconds); setLogs([]); setReport(null); setStage('launch')
   }
 
-  const onCineDone = () => {
-    const id = cineRef.current
-    const next = CINE_NEXT[id]
-    if (next === 'PLAY_A' || next === 'PLAY_B' || next === 'PLAY_C') {
-      modStart.current = Date.now()
-      setMusic('play')
-      setAmbience('lab')
-      setCine(null)
-      setMod(next === 'PLAY_A' ? 'A' : next === 'PLAY_B' ? 'B' : 'C')
-      resumeClock()
-      return
-    }
-    if (next === 'END') { stopAllAudio(); setCine(null); setStage('end'); return }
-    if (next) setCine(next)
-  }
-
-  const muteToggle = (on) => {
-    setMute(on)
-    setMuted(on)
-  }
-
-
-
-  const winner = report?.result?.outcome === 'complete' ? teamLabel(ids.p1, ids.p2) : ''
   const inRun = stage === 'play' || stage === 'offer' || stage === 'bonus'
   const withD = stage === 'offer' || stage === 'bonus'
   const critical = timeLeft <= 120 && (stage === 'play' || stage === 'bonus')
@@ -283,13 +217,13 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
 
       <main className="mz-main">
         {stage === 'launch' && <LaunchScreen preset={preset} onLaunch={launch} onOpenStationChooser={onOpenStationChooser} />}
-        {stage === 'play' && !cine && mod === 'A' && (
-          <ModuleA fx={fx} log={log} track={track} onScore={(a) => setScore((s) => { if (a > s.a) cue('correct'); return { ...s, a } })} onDone={() => { closeModule(); playCine('clear1') }} />
+        {stage === 'play' && mod === 'A' && (
+          <ModuleA fx={fx} log={log} track={track} onScore={(a) => setScore((s) => ({ ...s, a }))} onDone={() => goMod('B')} />
         )}
-        {stage === 'play' && !cine && mod === 'B' && (
-          <ModuleB fx={fx} log={log} track={track} onScore={(b) => setScore((s) => { if (b > s.b) cue('correct'); return { ...s, b } })} onDone={() => { closeModule(); playCine('clear2') }} />
+        {stage === 'play' && mod === 'B' && (
+          <ModuleB fx={fx} log={log} track={track} onScore={(b) => setScore((s) => ({ ...s, b }))} onDone={() => goMod('C')} />
         )}
-        {stage === 'play' && !cine && mod === 'C' && (
+        {stage === 'play' && mod === 'C' && (
           <ModuleC
             fx={fx} log={log} track={track} onSeals={setSeals}
             onScore={(c) => setScore((s) => ({ ...s, c }))}
@@ -318,18 +252,6 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
         )}
         {stage === 'end' && report && <EndScreen result={report.result} summary={report.summary} diag={report.diag} onRestart={restart} />}
       </main>
-
-      {cine && (
-        <Cinematic
-          sceneId={cine}
-          tokens={{ winner: winner || teamLabel(ids.p1, ids.p2) }}
-          muted={muted}
-          onMute={muteToggle}
-          onDone={onCineDone}
-          gateStart={cine === 'opening'}
-        />
-      )}
-      {stage === 'play' && !cine && <CineDock muted={muted} onMute={muteToggle} />}
 
       {inRun && (
         <footer className="mz-log" aria-live="polite">
