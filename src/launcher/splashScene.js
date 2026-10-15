@@ -2,14 +2,14 @@ import * as THREE from 'three'
 
 /**
  * Initializes and drives the Three.js 3D scene for the CtrlFreak Intro Splash screen.
- * - TRUE SOLID 3D CUBE with all 6 proper surfaces.
- * - ONE CONTINUOUS IMAGE laid seamlessly across the entire visible surface (Top, Left, Right).
- * - Zero artificial borders between faces: continuous, unbroken artwork.
- * - Back and bottom faces mapped with dark industrial titanium chassis.
- * - Illusive depth via floating holographic HUD layer & volumetric energy motes.
- * - Dynamic mouse tilt with relative parallax.
- * - Hyper-speed dive-in on Spacebar/click that plunges through the HUD into the environment.
- * - Violent rotational tumble (720° / 4π) cycling stations at peak speed.
+ * Implements the "Centered Y" Screen-Space Camera Projection Mapping inside an isometric room:
+ * - 3 Interior Faces (Left Wall, Right Wall, Floor) meeting at a centered "Y" junction.
+ * - Single image with centered Y-perspective projected onto the 3 interior planes.
+ * - Texture overscan (12% bleed) so mouse parallax reveals more texture instead of void.
+ * - Solid industrial chassis outer hull enclosing the block.
+ * - Mouse movement tilts the room in true 3D, causing the baseboards and walls to shift with real depth.
+ * - Uncluttered, sparse 3,500-particle starfield in deep volumetric space.
+ * - Warp dive that plunges camera straight into the center of the room.
  */
 export function initSplashScene(container, onStationChange) {
   let width = container.clientWidth || window.innerWidth
@@ -33,7 +33,7 @@ export function initSplashScene(container, onStationChange) {
   container.appendChild(renderer.domElement)
 
   // -------------------------------------------------------------
-  // TEXTURE ASSETS: FULL-BLEED ENVIRONMENTS & CHASSIS
+  // TEXTURES: CENTERED "Y" ROOM ASSETS
   // -------------------------------------------------------------
   const texLoader = new THREE.TextureLoader()
 
@@ -46,72 +46,81 @@ export function initSplashScene(container, onStationChange) {
   }
 
   const chassisTex = loadSRGB('/launcher/cubes/chassis.jpg')
-  const hudTex = loadSRGB('/launcher/cubes/hud_overlay.png')
 
+  // The perfectly aligned "Centered Y" sci-fi mainframe placeholder
   const STATIONS = [
     {
       code: 'ST-01',
       name: 'GOAT ANC',
       color: new THREE.Color(0x00f2fe),
-      env: loadSRGB('/launcher/cubes/env_st1.jpg'),
+      roomTex: loadSRGB('/launcher/cubes/scifi_room_raw.jpg'),
     },
     {
       code: 'ST-02',
       name: 'F1 0-LAG STREAM',
       color: new THREE.Color(0xdc2626),
-      env: loadSRGB('/launcher/cubes/env_st2.jpg'),
+      roomTex: loadSRGB('/launcher/cubes/env_st2.jpg'),
     },
     {
       code: 'ST-03',
       name: 'eCHALLAN TRACE',
       color: new THREE.Color(0xfacc15),
-      env: loadSRGB('/launcher/cubes/env_st3.jpg'),
+      roomTex: loadSRGB('/launcher/cubes/env_st3.jpg'),
     },
     {
       code: 'ST-04',
       name: 'AREA 51 MELTDOWN',
       color: new THREE.Color(0x22c55e),
-      env: loadSRGB('/launcher/cubes/env_st4.jpg'),
+      roomTex: loadSRGB('/launcher/cubes/env_st4.jpg'),
     },
   ]
 
   let currentStationIdx = 0
 
   // -------------------------------------------------------------
-  // LIGHTING (Studio Diffusion Lighting)
+  // LIGHTING
   // -------------------------------------------------------------
   const ambientLight = new THREE.AmbientLight(0xffffff, 1.4)
   scene.add(ambientLight)
 
-  const keyLight = new THREE.DirectionalLight(0xffffff, 1.6)
+  const keyLight = new THREE.DirectionalLight(0xffffff, 1.5)
   keyLight.position.set(6, 9, 8)
   scene.add(keyLight)
 
-  const rimLight = new THREE.DirectionalLight(0x38bdf8, 0.6)
+  const rimLight = new THREE.DirectionalLight(0x00f2fe, 0.6)
   rimLight.position.set(-7, -4, 5)
   scene.add(rimLight)
 
   // -------------------------------------------------------------
-  // SOLID 3D CUBE GEOMETRY: ONE CONTINUOUS IMAGE ACROSS VISIBLE FACES
+  // "CENTERED Y" 3D ISOMETRIC ROOM GEOMETRY
   // -------------------------------------------------------------
   const cubeRoot = new THREE.Group()
-  cubeRoot.position.set(0, -0.35, 0)
+  // Offset slightly to center the visual Y junction on screen
+  cubeRoot.position.set(0, -0.2, 0)
   scene.add(cubeRoot)
 
-  const L = 4.2
-  const H = L / 2
+  const L = 4.2 // Room side dimension
 
-  // Build the 6-sided solid cube geometry:
-  // Front 3 visible faces (+Y, -X, +Z) share ONE continuous image mapped seamlessly
-  // Back 3 hidden faces (+X, -Y, -Z) use the dark industrial chassis
+  // UV projection with 12% overscan bleed
+  // Formula: u' = (u - 0.5) * s + 0.5
+  const s = 0.82
+  function bleedUV(u, v) {
+    return [(u - 0.5) * s + 0.5, (v - 0.5) * s + 0.5]
+  }
+
+  const uvCenter = bleedUV(0.5, 0.5)
+  const uvTopCenter = bleedUV(0.5, 1.0)
+  const uvTopLeft = bleedUV(0.0, 0.75)
+  const uvBottomLeft = bleedUV(0.0, 0.25)
+  const uvTopRight = bleedUV(1.0, 0.75)
+  const uvBottomRight = bleedUV(1.0, 0.25)
+  const uvFloorFront = bleedUV(0.5, 0.0)
+
   const positions = []
   const uvs = []
   const normals = []
 
-  // Helper to push a quad (2 triangles, 6 vertices)
   function pushQuad(p0, p1, p2, p3, norm, uv0, uv1, uv2, uv3) {
-    // Triangle 1: p0, p1, p2
-    // Triangle 2: p0, p2, p3
     const pts = [p0, p1, p2, p0, p2, p3]
     const u_list = [uv0, uv1, uv2, uv0, uv2, uv3]
     for (let i = 0; i < 6; i++) {
@@ -121,80 +130,85 @@ export function initSplashScene(container, onStationChange) {
     }
   }
 
-  // --- VISIBLE FRONT FACES (Group 0: 18 vertices, mapped to single continuous image) ---
+  // --- GROUP 0: THE 3 INTERIOR ROOM SURFACES (Left Wall, Right Wall, Floor) ---
 
-  // Face 0: Top Face (+Y)
-  // Apex: [H, H, -H] -> UV (0.500, 1.000)
-  // Top-Left: [-H, H, -H] -> UV (0.000, 0.750)
-  // Center: [-H, H, H] -> UV (0.500, 0.500)
-  // Top-Right: [H, H, H] -> UV (1.000, 0.750)
+  // 1. Left Wall (in plane Z=0, normal pointing into room [0, 0, 1])
+  // Corners: Corner [0,0,0], Top-Center [0,L,0], Top-Left [-L,L,0], Bottom-Left [-L,0,0]
   pushQuad(
-    [-H, H, -H],
-    [-H, H, H],
-    [H, H, H],
-    [H, H, -H],
-    [0, 1, 0],
-    [0.0, 0.75],
-    [0.5, 0.5],
-    [1.0, 0.75],
-    [0.5, 1.0]
-  )
-
-  // Face 1: Front-Left Face (-X)
-  // Top-Left: [-H, H, -H] -> UV (0.000, 0.750)
-  // Bottom-Left: [-H, -H, -H] -> UV (0.000, 0.250)
-  // Bottom-Center: [-H, -H, H] -> UV (0.500, 0.000)
-  // Center: [-H, H, H] -> UV (0.500, 0.500)
-  pushQuad(
-    [-H, H, -H],
-    [-H, -H, -H],
-    [-H, -H, H],
-    [-H, H, H],
-    [-1, 0, 0],
-    [0.0, 0.75],
-    [0.0, 0.25],
-    [0.5, 0.0],
-    [0.5, 0.5]
-  )
-
-  // Face 2: Front-Right Face (+Z)
-  // Center: [-H, H, H] -> UV (0.500, 0.500)
-  // Bottom-Center: [-H, -H, H] -> UV (0.500, 0.000)
-  // Bottom-Right: [H, -H, H] -> UV (1.000, 0.250)
-  // Top-Right: [H, H, H] -> UV (1.000, 0.750)
-  pushQuad(
-    [-H, H, H],
-    [-H, -H, H],
-    [H, -H, H],
-    [H, H, H],
+    [0, 0, 0],
+    [0, L, 0],
+    [-L, L, 0],
+    [-L, 0, 0],
     [0, 0, 1],
-    [0.5, 0.5],
-    [0.5, 0.0],
-    [1.0, 0.25],
-    [1.0, 0.75]
+    uvCenter,
+    uvTopCenter,
+    uvTopLeft,
+    uvBottomLeft
   )
 
-  // --- HIDDEN BACK/BOTTOM FACES (Group 1: 18 vertices, mapped to chassis) ---
-
-  // Face 3: Back-Right Face (+X)
+  // 2. Right Wall (in plane X=0, normal pointing into room [-1, 0, 0])
+  // Corners: Corner [0,0,0], Bottom-Right [0,0,L], Top-Right [0,L,L], Top-Center [0,L,0]
   pushQuad(
-    [H, -H, H],
-    [H, -H, -H],
-    [H, H, -H],
-    [H, H, H],
+    [0, 0, 0],
+    [0, 0, L],
+    [0, L, L],
+    [0, L, 0],
+    [-1, 0, 0],
+    uvCenter,
+    uvBottomRight,
+    uvTopRight,
+    uvTopCenter
+  )
+
+  // 3. Floor (in plane Y=0, normal pointing into room [0, 1, 0])
+  // Corners: Corner [0,0,0], Bottom-Left [-L,0,0], Floor-Front [-L,0,L], Bottom-Right [0,0,L]
+  pushQuad(
+    [0, 0, 0],
+    [-L, 0, 0],
+    [-L, 0, L],
+    [0, 0, L],
+    [0, 1, 0],
+    uvCenter,
+    uvBottomLeft,
+    uvFloorFront,
+    uvBottomRight
+  )
+
+  // --- GROUP 1: SOLID CHASSIS ENCLOSURE (Back walls & Outer hull) ---
+  const T = 0.12 // Outer thickness
+
+  // Outer Back Wall (behind Left Wall at Z = -T)
+  pushQuad(
+    [-L - T, -T, -T],
+    [-L - T, L + T, -T],
+    [T, L + T, -T],
+    [T, -T, -T],
+    [0, 0, -1],
+    [0, 0],
+    [0, 1],
+    [1, 1],
+    [1, 0]
+  )
+
+  // Outer Side Wall (behind Right Wall at X = T)
+  pushQuad(
+    [T, -T, -T],
+    [T, L + T, -T],
+    [T, L + T, L + T],
+    [T, -T, L + T],
     [1, 0, 0],
     [0, 0],
-    [1, 0],
+    [0, 1],
     [1, 1],
-    [0, 1]
+    [1, 0]
   )
 
-  // Face 4: Bottom Face (-Y)
+  // Outer Bottom Floor (under Floor at Y = -T)
   pushQuad(
-    [-H, -H, -H],
-    [H, -H, -H],
-    [H, -H, H],
-    [-H, -H, H],
+    [-L - T, -T, L + T],
+    [T, -T, L + T],
+    [T, -T, -T],
+    [-L - T, -T, -T],
     [0, -1, 0],
     [0, 0],
     [1, 0],
@@ -202,71 +216,36 @@ export function initSplashScene(container, onStationChange) {
     [0, 1]
   )
 
-  // Face 5: Back-Left Face (-Z)
-  pushQuad(
-    [H, -H, -H],
-    [-H, -H, -H],
-    [-H, H, -H],
-    [H, H, -H],
-    [0, 0, -1],
-    [0, 0],
-    [1, 0],
-    [1, 1],
-    [0, 1]
-  )
+  const roomGeom = new THREE.BufferGeometry()
+  roomGeom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  roomGeom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
+  roomGeom.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3))
 
-  const solidCubeGeom = new THREE.BufferGeometry()
-  solidCubeGeom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
-  solidCubeGeom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
-  solidCubeGeom.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3))
+  // Group 0: 3 inside room faces (18 vertices)
+  roomGeom.addGroup(0, 18, 0)
+  // Group 1: 3 outer chassis faces (18 vertices)
+  roomGeom.addGroup(18, 18, 1)
 
-  // Front faces material (Single continuous image, zero borders)
-  const frontMaterial = new THREE.MeshStandardMaterial({
-    map: STATIONS[0].env,
-    metalness: 0.15,
-    roughness: 0.28,
-    side: THREE.FrontSide,
-  })
-
-  // Chassis material for back and bottom faces
-  const chassisMaterial = new THREE.MeshStandardMaterial({
-    map: chassisTex,
-    color: 0x64748b,
-    metalness: 0.6,
+  const roomMaterial = new THREE.MeshStandardMaterial({
+    map: STATIONS[0].roomTex,
+    metalness: 0.12,
     roughness: 0.35,
     side: THREE.FrontSide,
   })
 
-  // Group 0 (vertices 0-17): Front 3 faces
-  solidCubeGeom.addGroup(0, 18, 0)
-  // Group 1 (vertices 18-35): Back 3 faces
-  solidCubeGeom.addGroup(18, 18, 1)
-
-  const solidCubeMesh = new THREE.Mesh(solidCubeGeom, [frontMaterial, chassisMaterial])
-  cubeRoot.add(solidCubeMesh)
-
-  // -------------------------------------------------------------
-  // FLOATING HOLOGRAPHIC HUD LAYER (Layered Depth & Stereoscopic Parallax)
-  // -------------------------------------------------------------
-  // Suspended slightly in front of the cube to create physical parallax depth
-  const hudGeom = new THREE.PlaneGeometry(L * 1.05, L * 1.05)
-  const hudMaterial = new THREE.MeshBasicMaterial({
-    map: hudTex,
-    color: STATIONS[0].color,
-    transparent: true,
-    opacity: 0.85,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    side: THREE.DoubleSide,
+  const chassisMaterial = new THREE.MeshStandardMaterial({
+    map: chassisTex,
+    color: 0x475569,
+    metalness: 0.7,
+    roughness: 0.3,
+    side: THREE.FrontSide,
   })
 
-  const hudMesh = new THREE.Mesh(hudGeom, hudMaterial)
-  // Positioned along the isometric camera viewing vector
-  hudMesh.position.set(0, 0, 0.45)
-  cubeRoot.add(hudMesh)
+  const roomMesh = new THREE.Mesh(roomGeom, [roomMaterial, chassisMaterial])
+  cubeRoot.add(roomMesh)
 
   // -------------------------------------------------------------
-  // VOLUMETRIC BACKGROUND PARTICLE FIELD & GRID FLOOR
+  // VOLUMETRIC BACKGROUND PARTICLES (Initial Sparse, Deep Frustum Field)
   // -------------------------------------------------------------
   const particleCount = 3500
   const particleGeom = new THREE.BufferGeometry()
@@ -274,11 +253,11 @@ export function initSplashScene(container, onStationChange) {
   const partCol = new Float32Array(particleCount * 3)
 
   const palette = [
-    new THREE.Color(0xef4444), // red - F1 0-Lag
-    new THREE.Color(0x38bdf8), // cyan - GotG Tokamak
-    new THREE.Color(0xfacc15), // amber - eChallan Radar
-    new THREE.Color(0x22c55e), // emerald - Area 51
-    new THREE.Color(0x94a3b8), // slate silver
+    new THREE.Color(0xef4444), // red
+    new THREE.Color(0x38bdf8), // cyan
+    new THREE.Color(0xfacc15), // amber
+    new THREE.Color(0x22c55e), // emerald
+    new THREE.Color(0x64748b), // slate
   ]
 
   for (let i = 0; i < particleCount; i++) {
@@ -300,45 +279,19 @@ export function initSplashScene(container, onStationChange) {
     size: 0.1,
     vertexColors: true,
     transparent: true,
-    opacity: 0.75,
+    opacity: 0.7,
     blending: THREE.AdditiveBlending,
   })
+
   const particleSystem = new THREE.Points(particleGeom, particleMat)
   scene.add(particleSystem)
 
-  // Subtle perspective grid floor for deep spatial grounding
-  const gridFloor = new THREE.GridHelper(100, 50, 0x1e293b, 0x070b14)
-  gridFloor.position.y = -6.8
-  gridFloor.material.opacity = 0.22
-  gridFloor.material.transparent = true
-  scene.add(gridFloor)
-
-  // Floating ambient energy motes around the cube
-  const moteCount = 180
-  const moteGeom = new THREE.BufferGeometry()
-  const motePos = new Float32Array(moteCount * 3)
-  for (let i = 0; i < moteCount; i++) {
-    const idx = i * 3
-    motePos[idx] = (Math.random() - 0.5) * 7.5
-    motePos[idx + 1] = (Math.random() - 0.5) * 7.5
-    motePos[idx + 2] = (Math.random() - 0.5) * 7.5
-  }
-  moteGeom.setAttribute('position', new THREE.BufferAttribute(motePos, 3))
-  const moteMat = new THREE.PointsMaterial({
-    size: 0.13,
-    color: STATIONS[0].color,
-    transparent: true,
-    opacity: 0.8,
-    blending: THREE.AdditiveBlending,
-  })
-  const moteSystem = new THREE.Points(moteGeom, moteMat)
-  cubeRoot.add(moteSystem)
-
   // -------------------------------------------------------------
-  // ISOMETRIC HERO ALIGNMENT & DYNAMICS
+  // ISOMETRIC HERO ALIGNMENT & STATE
   // -------------------------------------------------------------
-  const BASE_ROT_X = 0.615
-  const BASE_ROT_Y = 0.7854
+  // Pitch ~35.26° (atan(1/sqrt(2))), Yaw 45°: Perfectly aligns the 3 interior planes to the screen Y
+  const BASE_ROT_X = 0.61548
+  const BASE_ROT_Y = 0.785398
 
   cubeRoot.rotation.x = BASE_ROT_X
   cubeRoot.rotation.y = BASE_ROT_Y
@@ -391,14 +344,10 @@ export function initSplashScene(container, onStationChange) {
     const nextIdx = (currentStationIdx + 1) % STATIONS.length
     currentStationIdx = nextIdx
 
-    // Swap continuous environment image at peak rotational velocity
     setTimeout(() => {
       const st = STATIONS[nextIdx]
-      frontMaterial.map = st.env
-      frontMaterial.needsUpdate = true
-
-      hudMaterial.color = st.color
-      moteMat.color = st.color
+      roomMaterial.map = st.roomTex
+      roomMaterial.needsUpdate = true
       rimLight.color = st.color
 
       onStationChange?.(nextIdx)
@@ -406,12 +355,12 @@ export function initSplashScene(container, onStationChange) {
   }
 
   /**
-   * High-speed Warp Dive straight into the active station environment.
+   * High-speed Warp Dive straight into the center of the room.
    */
   function triggerWarp(onComplete) {
     if (isWarping) return
     isWarping = true
-    targetCamZ = -8.0 // Plunges through the cube volume
+    targetCamZ = -6.0
 
     setTimeout(() => {
       onComplete?.()
@@ -434,9 +383,9 @@ export function initSplashScene(container, onStationChange) {
     mouse.y += (mouse.targetY - mouse.y) * 0.06
 
     // Gentle idle breathing
-    const breathPitch = Math.sin(elapsed * 0.8) * 0.025
-    const breathYaw = Math.cos(elapsed * 0.6) * 0.035
-    const breathFloatY = Math.sin(elapsed * 1.2) * 0.08
+    const breathPitch = Math.sin(elapsed * 0.8) * 0.02
+    const breathYaw = Math.cos(elapsed * 0.6) * 0.028
+    const breathFloatY = Math.sin(elapsed * 1.2) * 0.06
 
     if (isTumbling) {
       // High-speed multi-rotation spin (720 deg)
@@ -453,34 +402,22 @@ export function initSplashScene(container, onStationChange) {
         cubeRoot.rotation.y = BASE_ROT_Y
       }
     } else {
-      // Parallax: tilts away from mouse cursor, exposing the 3D surface depth
-      const targetRotX = BASE_ROT_X + breathPitch - mouse.y * 0.38
-      const targetRotY = BASE_ROT_Y + breathYaw + mouse.x * 0.48
+      // Parallax: tilts away from mouse cursor, exposing the 3D room's physical depth
+      const targetRotX = BASE_ROT_X + breathPitch - mouse.y * 0.32
+      const targetRotY = BASE_ROT_Y + breathYaw + mouse.x * 0.42
 
       cubeRoot.rotation.x += (targetRotX - cubeRoot.rotation.x) * 0.08
       cubeRoot.rotation.y += (targetRotY - cubeRoot.rotation.y) * 0.08
-
-      // Micro-parallax on floating HUD layer (moves slightly faster to amplify 3D depth)
-      hudMesh.position.x = mouse.x * 0.15
-      hudMesh.position.y = mouse.y * 0.15
     }
 
-    cubeRoot.position.y = -0.35 + breathFloatY
-
-    // Energy motes subtle orbit
-    moteSystem.rotation.y = elapsed * 0.05
-    moteSystem.rotation.z = elapsed * 0.03
+    cubeRoot.position.y = -0.2 + breathFloatY
 
     // Camera updates & Warp Dive
     if (isWarping) {
-      // Accelerate camera straight through the cube into the environment
+      // Accelerate camera straight through the room
       camera.position.z += (targetCamZ - camera.position.z) * 0.14
       camera.position.x += (0 - camera.position.x) * 0.16
-      camera.position.y += (-0.35 - camera.position.y) * 0.16
-
-      // Scale up HUD layer outward so it flies past the camera perimeter
-      hudMesh.scale.multiplyScalar(1.08)
-      hudMaterial.opacity *= 0.94
+      camera.position.y += (-0.2 - camera.position.y) * 0.16
 
       // Accelerate background stars into warp speed streaks
       const posAttr = particleGeom.attributes.position
@@ -493,7 +430,7 @@ export function initSplashScene(container, onStationChange) {
       camera.position.x += (mouse.x * 0.4 - camera.position.x) * 0.04
       camera.position.y += (mouse.y * 0.3 - camera.position.y) * 0.04
       camera.position.z += (targetCamZ - camera.position.z) * 0.04
-      camera.lookAt(0, -0.35, 0)
+      camera.lookAt(0, -0.2, 0)
 
       particleSystem.rotation.y = elapsed * 0.025
       particleSystem.rotation.x = elapsed * 0.012
@@ -509,13 +446,14 @@ export function initSplashScene(container, onStationChange) {
     window.removeEventListener('resize', onResize)
     if (animFrameId) cancelAnimationFrame(animFrameId)
     renderer.dispose()
-    solidCubeGeom.dispose()
+    roomGeom.dispose()
     chassisTex.dispose()
-    hudTex.dispose()
-    hudGeom.dispose()
-    hudMaterial.dispose()
+    roomMaterial.dispose()
+    chassisMaterial.dispose()
+    particleGeom.dispose()
+    particleMat.dispose()
     STATIONS.forEach((s) => {
-      s.env.dispose()
+      s.roomTex.dispose()
     })
     if (renderer.domElement && renderer.domElement.parentNode) {
       renderer.domElement.parentNode.removeChild(renderer.domElement)
