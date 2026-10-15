@@ -33,6 +33,17 @@ Committee accounts are rows in `committee_members` (`display_name` is editable).
 
 Login throttling has two layers. (1) Supabase Auth's own per-IP sign-in rate limit: Dashboard > Authentication > Rate Limits, lower the sign-in limit. This works on every plan. (2) `public.hook_password_verification_attempt` (migration `20261021`) locks an account for 15 minutes after 5 wrong passwords, but Supabase offers the *Password verification attempt* hook only on the Teams and Enterprise plans (Dashboard > Authentication > Hooks). On Free/Pro it does nothing, so rely on layer 1 plus the strong random passwords.
 
+## Accounts
+`desk01` to `desk10` are registration-desk accounts. `admin01` and `admin02` are admin accounts: everything a desk account can do plus the **ADMIN** tab (team accounts: rename, disable, reset a password; event settings such as price and attempt cap; audit log). Passwords are not stored in this repo. Anyone can change their own password from the **Password** button in the desk header; admins can reset anyone's.
+
+## Leaderboard pages
+The public board shows 100 players per page (PREV / NEXT at the bottom, "page 1 of N"); ranks are global. The **COMMITTEE LOGIN** button is the very last thing on the page.
+
+## Database notes
+- The old pre-event test rows were retired, not deleted: `legacy_players_test` and `legacy_station_runs_test` exist but no API role can read them. Remove them any time in the SQL editor: `drop table public.legacy_station_runs_test; drop table public.legacy_players_test;` (also `drop table public._mosaic_probe2;`).
+- The old team/multiplier functions and the `leaderboard_standings` view are revoked from every API role but still exist; drop them at the same time if you like.
+- Migrations avoid DELETE/DROP statements on purpose (the SQL tooling asks for a human confirmation on those): lobby leaves are recorded with `left_at`, and the login-throttle table is append-only.
+
 ## Versus lobbies
 At a station: ID, "Is this you?", **CREATE VERSUS LOBBY** (shows a number like 007) or **JOIN VERSUS LOBBY** (enter it). 2 to 5 players, one station. The host presses START; everyone gets the same questions/seed and a synchronised countdown, and each pays 1 credit then. Unstarted lobbies expire after 10 minutes. The winner gets a MATCH MEDAL if the score is at least 70 (one per person per station); collect at the desk.
 
