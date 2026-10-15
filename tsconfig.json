@@ -28,6 +28,7 @@
     "src/session",
     "src/launcher/Leaderboard.tsx",
     "src/desk",
-    "src/board"
+    "src/board",
+    "src/launcher/RunBadge.tsx"
   ]
 }

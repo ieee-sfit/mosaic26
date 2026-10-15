@@ -66,7 +66,7 @@ export default function Launcher({ onEngage, onOpenLeaderboard }) {
         <ClearanceModal
           station={selectedStation}
           onAbort={() => setSelected(null)}
-          onEngage={(p1, p2) => onEngage(selectedStation.id, p1, p2)}
+          onEngage={(playerId, runId, extra) => onEngage(selectedStation.id, playerId, runId, extra)}
         />
       )}
     </main>

@@ -13,7 +13,7 @@ import { WaveScope } from './WaveScope';
 import { Windshield } from './Windshield';
 
 interface Props {
-  operators: [string, string];
+  operator: string;
   onRecord: (r: RoundResult) => void;
   /** The last target is down: the shift clock stops here and the speed bonus is frozen. */
   onCleared: () => void;
@@ -36,7 +36,7 @@ interface CState {
 const startState = (round: number): CState => ({ round, controls: { ...WAVE_PROFILES[round].start }, misses: 0, hints: 0, status: 'tuning', noLock: 0 });
 
 /** Module C · wave interception: match the three controls to the noise, then fire. No hull, no per-target timer: only the shared clock can end it. */
-export function ModuleC({ operators, onRecord, onCleared, onFinish }: Props) {
+export function ModuleC({ operator, onRecord, onCleared, onFinish }: Props) {
   const cfg = SCORING.moduleC;
   const shake = useShake();
   const [s, setS] = useState<CState>(() => startState(0));
@@ -123,7 +123,7 @@ export function ModuleC({ operators, onRecord, onCleared, onFinish }: Props) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <ModuleHeader code="MODULE C" title="Cockpit Targeting & Wave Interception" tag="ANC_INTERCEPT_ARRAY" operators={operators} steps={3} active={2} />
+      <ModuleHeader code="MODULE C" title="Cockpit Targeting & Wave Interception" tag="ANC_INTERCEPT_ARRAY" operator={operator} steps={3} active={2} />
 
       <div className="flex flex-1 flex-col gap-3 p-3">
         <div className="grid gap-3 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.5fr)]">

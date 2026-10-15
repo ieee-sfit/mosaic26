@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 
 export interface Station3Summary {
-  p1_id: string;
-  p2_id: string;
+  player_id: string;
   game_id: 'station3';
   raw_score: number;
   time_left: number;
+  /** Hints requested across all modules (tiebreak: fewer is better). */
+  hints_used: number;
+  /** Wrong answers / failed attempts across all modules (tiebreak: fewer is better). */
+  wrong_attempts: number;
 }
 
 /** Effects the station shell exposes to modules (all purely visual — no audio). */

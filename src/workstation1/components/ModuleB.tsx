@@ -20,7 +20,7 @@ import { DiagScope, LAB } from './DiagScope';
 import { JogControl } from './JogControl';
 
 interface Props {
-  operators: [string, string];
+  operator: string;
   onRecord: (r: StepResult) => void;
   onComplete: () => void;
 }
@@ -61,7 +61,7 @@ const readout = (k: ControlKey, c: Controls): string =>
   k === 'amp' ? ampFromSlider(CAL, c.amp).toFixed(2) : k === 'freq' ? `${freqFromSlider(CAL, c.freq).toFixed(2)}×` : `${Math.round(c.phase)}°`;
 
 /** Module B · DIAGNOSE THE LEFTOVER. Read the leftover line, name the wrong control, fix it by hand. */
-export function ModuleB({ operators, onRecord, onComplete }: Props) {
+export function ModuleB({ operator, onRecord, onComplete }: Props) {
   const cfg = SCORING.moduleB;
   const shake = useShake();
   const [s, setS] = useState<BState>(() => fresh(0));
@@ -173,7 +173,7 @@ export function ModuleB({ operators, onRecord, onComplete }: Props) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <ModuleHeader code="MODULE B" title="Diagnose the Leftover" tag="LEFTOVER_LAB" operators={operators} steps={3} active={1} />
+      <ModuleHeader code="MODULE B" title="Diagnose the Leftover" tag="LEFTOVER_LAB" operator={operator} steps={3} active={1} />
       {flash && <div key={`${flash.kind}${flash.n}`} className={flash.kind === 'bad' ? 'hull-flash' : 'lab-flash'} />}
 
       <div className="grid flex-1 items-stretch gap-3 p-3 pb-24 lg:grid-cols-[minmax(0,1.5fr)_minmax(340px,0.8fr)]">

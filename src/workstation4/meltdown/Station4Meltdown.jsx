@@ -29,11 +29,10 @@ const round2 = (n) => Math.round(n * 100) / 100
 
 export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
   const session = useSession()
-  const preset = /^\d{6}$/.test(session?.p1_id ?? '') && /^\d{6}$/.test(session?.p2_id ?? '') && session.p1_id !== session.p2_id
-    ? [session.p1_id, session.p2_id] : null
+  // The arcade launcher has already verified the player's single 4-digit ID.
+  const playerId = /^\d{4}$/.test(session?.player_id ?? '') ? session.player_id : ''
   // launch | story-opening | tut-A | A | story-1 | tut-B | B | story-2 | tut-C | C | offer | story-3 | tut-D | D | ending | end
   const [phase, setPhase] = useState('launch')
-  const [ids, setIds] = useState({ p1: '', p2: '' })
   const [score, setScore] = useState({ a: 0, b: 0, c: 0, d: 0 })
   const [timeLeft, setTimeLeft] = useState(STATION4_CONFIG.totalSeconds)
   const [fxOn, setFxOn] = useState({})
@@ -52,7 +51,7 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
   const skipRef = useRef(() => undefined)
   // Diagnostics: per-module time, wrong tries, hints and the worst moments (shown on the end screen)
   const stats = useRef({})
-  useEffect(() => { live.current = { ids, score }; phaseRef.current = phase })
+  useEffect(() => { live.current = { playerId, score }; phaseRef.current = phase })
   const resetStats = () => {
     stats.current = Object.fromEntries(ALL_MODULES.map((m) => [m, { seconds: 0, wrong: 0, hints: 0, flags: [] }]))
   }
@@ -80,9 +79,13 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
     const f = frozen.current
     if (!f || committed.current) return
     committed.current = true
-    const { ids: i } = live.current
+    const { playerId: who } = live.current
     const raw = round2(f.base + f.bonus + d)
-    const summary = { p1_id: i.p1, p2_id: i.p2, game_id: 'station4', raw_score: raw, time_left: f.left }
+    const all = Object.values(stats.current)
+    const summary = {
+      player_id: who, game_id: 'station4', raw_score: raw, time_left: f.left,
+      hints_used: all.reduce((n, m) => n + m.hints, 0), wrong_attempts: all.reduce((n, m) => n + m.wrong, 0),
+    }
     setScore((x) => ({ ...x, d }))
     setReport({
       result: { outcome: f.outcome, a: f.a, b: f.b, c: f.c, d, dPlayed, dEnding, bonus: f.bonus },
@@ -152,14 +155,13 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
     return () => clearTimeout(t)
   }, [phase])
 
-  const launch = (p1, p2) => {
+  const launch = () => {
     finished.current = false
     committed.current = false
     frozen.current = null
     setSeed(Date.now())
     timeRef.current = STATION4_CONFIG.totalSeconds
     setTimeLeft(STATION4_CONFIG.totalSeconds)
-    setIds({ p1, p2 })
     resetStats()
     setPhase('story-opening')
     log('QUARANTINE ENGAGED', 'ok')
@@ -203,7 +205,7 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
         <header className="mz-header">
           <div className="mz-brand">
             <b>AREA 51 MELTDOWN</b>
-            <span>STATION 04 // OPS {ids.p1} + {ids.p2}</span>
+            <span>STATION 04 // OP {playerId}</span>
           </div>
           <nav className="mz-modnav" aria-label="Module progress">
             {(withD ? ALL_MODULES : MODULES).map((m, i) => (
@@ -228,7 +230,7 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
       )}
 
       <main className="mz-main">
-        {phase === 'launch' && <LaunchScreen key={runKey} preset={preset} onLaunch={launch} onOpenStationChooser={onOpenStationChooser} />}
+        {phase === 'launch' && <LaunchScreen key={runKey} onLaunch={launch} />}
 
         {phase === 'tut-A' && <TutorialScreen module="A" onContinue={() => setPhase('A')} />}
         {phase === 'A' && (

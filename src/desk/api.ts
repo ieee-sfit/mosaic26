@@ -21,9 +21,7 @@ export const uuid = (): string =>
 
 export const usernameToEmail = (u: string) => `${u.trim().toLowerCase()}@desk.mosaic26.local`
 
-/** Leaderboard URL shown on slips and end screens. */
-export const boardUrl = (): string =>
-  ((import.meta.env.VITE_BOARD_URL as string | undefined) || (typeof window !== 'undefined' ? window.location.origin : '')).replace(/\/$/, '')
+export { boardUrl } from '../lib/boardUrl'
 
 export const ERRORS: Record<string, string> = {
   NAME_REQUIRED: 'Name is required.',

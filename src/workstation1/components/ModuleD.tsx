@@ -7,7 +7,7 @@ import { HudPanel, TeleChip } from './HudPanel';
 
 interface Props {
   seed: number;
-  operators: [string, string];
+  operator: string;
   /** Shift time left. Module D has no cap of its own: it ends when the shared clock reaches 0 (points already earned stay). */
   secondsLeft: number;
   /** Called once with every round's result, the bonus total and the ending. */
@@ -55,7 +55,7 @@ const mmss = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${St
 const freqLabel = (n: number) => `${(402 + n * 2.5).toFixed(1)}`;
 
 /** Module D · SECRET HANDSHAKE: the mothership's beacon hops between 12 channels by a secret rule. Answer on the right channel each hop. */
-export function ModuleD({ seed, operators, secondsLeft, onDone }: Props) {
+export function ModuleD({ seed, operator, secondsLeft, onDone }: Props) {
   const patterns = useMemo(() => ROUNDS.map((def, i) => generatePattern(def, i, seed)), [seed]);
   const g = useRef<Game>({
     round: 0,
@@ -258,8 +258,7 @@ export function ModuleD({ seed, operators, secondsLeft, onDone }: Props) {
           <div className="font-hud text-lg font-bold uppercase leading-tight tracking-[0.14em] text-white">Secret Handshake</div>
           <div className="flex flex-wrap gap-x-4">
             <TeleChip label="STATION" value="01 · GOAT_ANC" />
-            <TeleChip label="OP1" value={operators[0]} />
-            <TeleChip label="OP2" value={operators[1]} />
+            <TeleChip label="OP" value={operator} />
             <TeleChip label="SYS" value="MOTHERSHIP_LINK" tone="gold" />
           </div>
         </div>

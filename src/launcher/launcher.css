@@ -158,3 +158,10 @@
 .arc-note--bad { color: #fca5a5; border-color: #ef4444; background: rgba(239,68,68,.08); }
 .arc-note--ok { color: var(--c1); border-color: var(--c1); background: color-mix(in srgb, var(--c1) 8%, transparent); }
 .arc-field input:read-only, input[readonly] { cursor: default; }
+
+/* Player confirmation ("Is this you?") */
+.arc-confirm { display: grid; gap: 4px; text-align: center; padding: 14px 10px; border: 1px solid color-mix(in srgb, var(--c1) 45%, transparent); background: color-mix(in srgb, var(--c1) 6%, transparent); }
+.arc-confirm__q { margin: 0; font: 700 12px 'JetBrains Mono', monospace; letter-spacing: .3em; color: var(--c1); }
+.arc-confirm__name { margin: 0; font: 700 34px/1.1 'Chakra Petch', sans-serif; letter-spacing: .08em; }
+.arc-confirm__college { margin: 0; font: 600 14px 'JetBrains Mono', monospace; letter-spacing: .12em; opacity: .85; }
+.arc-confirm__meta { margin: 6px 0 0; font: 600 11px 'JetBrains Mono', monospace; letter-spacing: .12em; opacity: .7; }

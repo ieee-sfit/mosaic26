@@ -24,7 +24,7 @@ export const STATION4_CONFIG = {
   gameId: 'station4',
   title: 'AREA 51 MELTDOWN',
   totalSeconds: 12 * 60,
-  operatorIdPattern: /^\d{6}$/,
+  operatorIdPattern: /^\d{4}$/,
   scoring: {
     moduleA: 15, // 3 questions x 5
     moduleB: 40, // 3 breadboard bays: 13 + 13 + 14

@@ -8,7 +8,6 @@ import { useCountdown } from './hooks/useCountdown';
 import { pickRandom } from './utils/pick';
 import { maxTotals, sum } from './utils/scoring';
 import type { EndReason, HandshakeResult, McqQuestion, Phase, QuestionResult, RoundResult, Station1Result, StepResult } from './types';
-import { Launcher } from './components/Launcher';
 import { ModuleA } from './components/ModuleA';
 import { ModuleB } from './components/ModuleB';
 import { ModuleC } from './components/ModuleC';
@@ -41,6 +40,8 @@ const TUTORIAL_PHASES: Partial<Record<Phase, { module: 'A' | 'B' | 'C' | 'D'; ne
   tutD: { module: 'D', next: 'moduleD' },
 };
 
+const sumBy = <T,>(xs: T[], f: (x: T) => number): number => xs.reduce((n, x) => n + f(x), 0);
+
 /**
  * Station 1 · GOAT ANC.
  * Flow: [launch countdown] → opening → tutorial A → Module A → story 1 → tutorial B → Module B → story 2 → tutorial C → Module C →
@@ -52,15 +53,11 @@ export default function GoatAnc({ onComplete, onOpenStationChooser }: HostProps)
 }
 
 function Session({ onComplete, onRestart }: HostProps & { onRestart: () => void }) {
-  const session = useSession() as { p1_id?: string; p2_id?: string } | null;
-  const preset: [string, string] | null =
-    session && /^\d{6}$/.test(session.p1_id ?? '') && /^\d{6}$/.test(session.p2_id ?? '')
-      ? [session.p1_id as string, session.p2_id as string]
-      : null;
-  // With both IDs already verified by the arcade launcher, Station 1's own ID screen is skipped; it stays only as a standalone fallback.
-  const [phase, setPhase] = useState<Phase>(preset ? 'opening' : 'launcher');
-  const [operators, setOperators] = useState<[string, string]>(preset ?? ['', '']);
-  const [questions, setQuestions] = useState<McqQuestion[]>(() => (preset ? pickRandom(QUESTION_BANK, SCORING.moduleA.questionCount) : []));
+  const session = useSession();
+  // The arcade launcher has already verified the player's single 4-digit ID; '0000' only appears when the station is opened outside it.
+  const operator = session?.player_id ?? '0000';
+  const [phase, setPhase] = useState<Phase>('opening');
+  const [questions] = useState<McqQuestion[]>(() => pickRandom(QUESTION_BANK, SCORING.moduleA.questionCount));
   const [a, setA] = useState<QuestionResult[]>([]);
   const [b, setB] = useState<StepResult[]>([]);
   const [c, setC] = useState<RoundResult[]>([]);
@@ -110,7 +107,7 @@ function Session({ onComplete, onRestart }: HostProps & { onRestart: () => void 
     const scoreC = sum(c);
     const scoreD = Math.round(d.reduce((n, x) => n + x.points, 0) * 100) / 100;
     const final: Station1Result = {
-      operators,
+      operator,
       endReason,
       secondsRemaining,
       moduleA: a,
@@ -126,6 +123,8 @@ function Session({ onComplete, onRestart }: HostProps & { onRestart: () => void 
       moduleSeconds: { ...times.current },
       total: scoreA + scoreB + scoreC,
       maxTotal: maxTotals(SCORING).total,
+      hintsUsed: sumBy(a, (x) => x.hintsUsed) + sumBy(b, (x) => x.hintsUsed) + sumBy(c, (x) => x.hintsUsed) + sumBy(d, (x) => x.hintsUsed),
+      wrongAttempts: sumBy(a, (x) => x.wrongAttempts) + sumBy(b, (x) => x.wrongAttempts) + sumBy(c, (x) => x.misses) + sumBy(d, (x) => x.misses),
     };
     setResult(final);
     phaseRef.current = 'ending';
@@ -160,12 +159,6 @@ function Session({ onComplete, onRestart }: HostProps & { onRestart: () => void 
     if (f && phaseRef.current === 'moduleD') emit('COMPLETE', f.seconds, results, ending);
   };
 
-  const launch = (ops: [string, string]) => {
-    setOperators(ops);
-    setQuestions(pickRandom(QUESTION_BANK, SCORING.moduleA.questionCount));
-    go('opening');
-  };
-
   const story = STORY_PHASES[phase];
   const tutorial = TUTORIAL_PHASES[phase];
   const endingBeat: StoryBeat | null = phase === 'ending' && result ? (result.endReason === 'COMPLETE' ? BEATS.success : BEATS.fail) : null;
@@ -176,20 +169,19 @@ function Session({ onComplete, onRestart }: HostProps & { onRestart: () => void 
       <div ref={ref} className={`goat-root ${alarm ? 'goat-alarm' : ''}`}>
         <CockpitBackdrop />
         <TimerBadge seconds={seconds} total={SCORING.totalSeconds} armed={clockRunning} />
-        {phase === 'launcher' && <Launcher onLaunch={launch} preset={preset} />}
         {story && <StoryScreen key={phase} beat={BEATS[story.beat]} onContinue={() => go(story.next)} />}
         {tutorial && <TutorialScreen key={phase} module={tutorial.module} onContinue={() => go(tutorial.next)} />}
         {phase === 'moduleA' && (
-          <ModuleA questions={questions} operators={operators} onRecord={(r) => setA((x) => [...x, r])} onComplete={() => go('story1')} />
+          <ModuleA questions={questions} operator={operator} onRecord={(r) => setA((x) => [...x, r])} onComplete={() => go('story1')} />
         )}
         {phase === 'moduleB' && (
-          <ModuleB operators={operators} onRecord={(r) => setB((x) => [...x, r])} onComplete={() => go('story2')} />
+          <ModuleB operator={operator} onRecord={(r) => setB((x) => [...x, r])} onComplete={() => go('story2')} />
         )}
         {phase === 'moduleC' && (
-          <ModuleC operators={operators} onRecord={(r) => setC((x) => [...x, r])} onCleared={clearedC} onFinish={finishC} />
+          <ModuleC operator={operator} onRecord={(r) => setC((x) => [...x, r])} onCleared={clearedC} onFinish={finishC} />
         )}
         {phase === 'offer' && <BonusOffer secondsLeft={frozen.current?.seconds ?? 0} onPlay={playD} onSkip={skipD} />}
-        {phase === 'moduleD' && <ModuleD seed={seed} operators={operators} secondsLeft={seconds} onDone={doneD} />}
+        {phase === 'moduleD' && <ModuleD seed={seed} operator={operator} secondsLeft={seconds} onDone={doneD} />}
         {endingBeat && <StoryScreen key="ending" beat={endingBeat} extra={endingExtra} onContinue={() => go('summary')} />}
         {phase === 'summary' && result && <SummaryScreen result={result} onRestart={onRestart} />}
       </div>
