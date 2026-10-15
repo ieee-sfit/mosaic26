@@ -1,4 +1,5 @@
-import { STATION4_CONFIG } from '../mockStation4Data'
+import { CIRCUIT_ROUND_BANK, STATION4_CONFIG } from '../mockStation4Data'
+import { mulberry32 } from './escape'
 
 // ---------- Module A ----------
 export function pickQuestions(bank, count, rng = Math.random) {
@@ -24,6 +25,12 @@ export function questionPoints({ hint, wrong }) {
 }
 
 // ---------- Module C ----------
+/** One round per slot (3 slots), drawn from the slot's bank by the run's seed (a versus lobby shares it). */
+export function pickRounds(seed) {
+  const rnd = seed != null ? mulberry32(seed ^ 0x4c4c4c) : Math.random
+  return CIRCUIT_ROUND_BANK.map((bank) => bank[Math.floor(rnd() * bank.length)])
+}
+
 export function applyGate(type, a, b) {
   if (a == null) return null
   if (type === 'NOT') return a ? 0 : 1

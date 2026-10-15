@@ -242,7 +242,7 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
         )}
         {phase === 'tut-C' && <TutorialScreen module="C" onContinue={() => setPhase('C')} />}
         {phase === 'C' && (
-          <ModuleC fx={fx} log={log} track={track} onScore={(c) => setScore((s) => ({ ...s, c }))} onDone={completeC} />
+          <ModuleC fx={fx} log={log} track={track} seed={seed} onScore={(c) => setScore((s) => ({ ...s, c }))} onDone={completeC} />
         )}
         {phase === 'offer' && (
           <div className="mz-offer mz-panel mz-chamfer mz-fade-in" role="dialog" aria-label="Code Breaker bonus offer">

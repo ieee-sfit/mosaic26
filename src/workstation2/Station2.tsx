@@ -3,7 +3,7 @@ import { speedBonus } from '../core/scoring';
 import { gridPosition, lapSeconds, racePosition } from './race';
 import { useSession } from '../session/sessionContext';
 import { STATION2_CONFIG } from './mockStation2Data';
-import { pickStints } from './logic';
+import { pickSections, pickStints } from './logic';
 import PitWallBackdrop from './components/PitWallBackdrop';
 import Stopwatch from './components/Stopwatch';
 import LaunchScreen from './components/LaunchScreen';
@@ -77,6 +77,7 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
   /** Fixes this run's lap variants (Module C): a repeat attempt remounts the station and draws a new seed. */
   const [seed] = useState(() => session?.seed ?? (Math.random() * 4294967296) >>> 0);
   const stints = useMemo(() => pickStints(seed), [seed]);
+  const sections = useMemo(() => pickSections(seed), [seed]);
 
   const endAt = useRef(0);
   const pausedAt = useRef(0);
@@ -358,7 +359,7 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
           <ModuleA track={track} onShake={shake} onScore={setA} onDone={() => leaveModule('story1')} seed={seed} />
         )}
         {playing && !board && mod === 'B' && (
-          <ModuleB track={track} onShake={shake} onScore={setB} onDone={routesDone} />
+          <ModuleB sections={sections} track={track} onShake={shake} onScore={setB} onDone={routesDone} />
         )}
         {playing && !board && mod === 'C' && (
           <ModuleC

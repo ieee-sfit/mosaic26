@@ -1,4 +1,4 @@
-import { LAP_VARIANTS, QUALITY_PROFILES, QUESTION_BANK, STATION2_CONFIG } from './mockStation2Data';
+import { LAP_VARIANTS, QUALITY_PROFILES, QUESTION_BANK, SECTION_BANK, SECTIONS_PER_LAP, STATION2_CONFIG } from './mockStation2Data';
 import type { Beam, QuizQuestion, Section, Stint } from './types';
 
 export function shuffle<T>(arr: T[], rng: () => number = Math.random): T[] {
@@ -40,6 +40,17 @@ export function itemPoints(base: number, hint: 0 | 1 | 2, wrong: number): number
 }
 
 // ---------------------------------------------------------------- Module B: route builder
+/** One practice lab then one qualifying lab, SECTIONS_PER_LAP distinct runs each, drawn from the bank by the run's seed. */
+export function pickSections(seed: number): Section[] {
+  const rnd = seeded(seed ^ 0x2b2b2b);
+  const out: Section[] = [];
+  for (const lap of ['practice', 'qualifying'] as const) {
+    const pool = shuffle(SECTION_BANK.filter((s) => s.lap === lap), rnd).slice(0, SECTIONS_PER_LAP);
+    pool.forEach((s, i) => out.push({ ...s, index: i + 1 }));
+  }
+  return out;
+}
+
 export interface Metrics { ms: number; loss: number; mbps: number }
 export interface Verdict { lat: boolean; loss: boolean; bw: boolean; ok: boolean }
 
