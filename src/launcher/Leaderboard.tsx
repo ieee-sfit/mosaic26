@@ -16,8 +16,9 @@ interface OverallRow {
   wrong: number
   time_left: number
   attempts: number
+  total_rows: number
 }
-interface StationRow { rank: number; codename: string; score: number; hints: number; wrong: number; time_left: number; finished_at: string }
+interface StationRow { rank: number; codename: string; score: number; hints: number; wrong: number; time_left: number; finished_at: string; total_rows: number }
 interface Winner { codename: string; total: number; status: 'won' | 'toss' }
 interface WindowRow { id: number; label: string; starts_at: string; ends_at: string; medals: number; closed: boolean; winners: Winner[] }
 interface WindowsData {
@@ -29,6 +30,7 @@ interface WindowsData {
 interface FoundRow { rank: number; shared: boolean; codename: string; total: number; of_players: number }
 
 const POLL_MS = 10000
+const PAGE_SIZE = 100
 const STATIONS = [
   { key: 's1', id: 'station1', short: 'GOAT', long: 'GOAT ANC', cls: 'st1' },
   { key: 's2', id: 'station2', short: 'F1', long: 'F1 STREAM', cls: 'st2' },
@@ -89,6 +91,7 @@ export default function Leaderboard({ onBack }: { onBack?: () => void }) {
   const [updated, setUpdated] = useState<Date | null>(null)
   const [input, setInput] = useState('')
   const [found, setFound] = useState<FoundRow[] | null>(null)
+  const [page, setPage] = useState(0) // 0-based; 100 players per page
   const [, setTick] = useState(0)
   const offset = useRef(0) // server clock minus this device's clock
   const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -101,9 +104,9 @@ export default function Leaderboard({ onBack }: { onBack?: () => void }) {
       return
     }
     const [o, w, s] = await Promise.all([
-      supabase.rpc('board_overall', { p_limit: 100 }),
+      supabase.rpc('board_overall', { p_limit: PAGE_SIZE, p_offset: page * PAGE_SIZE }),
       supabase.rpc('public_windows'),
-      tab === 'stations' ? supabase.rpc('board_station', { p_station: stationTab, p_limit: 100 }) : Promise.resolve(null),
+      tab === 'stations' ? supabase.rpc('board_station', { p_station: stationTab, p_limit: PAGE_SIZE, p_offset: page * PAGE_SIZE }) : Promise.resolve(null),
     ])
     const err = o.error || w.error || s?.error
     if (err) setError(err.message.toUpperCase())
@@ -117,7 +120,7 @@ export default function Leaderboard({ onBack }: { onBack?: () => void }) {
       setUpdated(new Date())
     }
     setLoaded(true)
-  }, [tab, stationTab])
+  }, [tab, stationTab, page])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -155,6 +158,16 @@ export default function Leaderboard({ onBack }: { onBack?: () => void }) {
 
   const live = !error && loaded
   const meta = (hints: number, wrong: number, left: number) => `${hints} HINT${hints === 1 ? '' : 'S'} · ${wrong} WRONG · ${mmss(left)} LEFT`
+  const rows = tab === 'overall' ? overall : byStation
+  const totalRows = Number(rows[0]?.total_rows ?? 0)
+  const pages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE))
+  const pager = totalRows > PAGE_SIZE && (
+    <nav className="lb-pager" aria-label="Pages" data-testid="pager">
+      <button type="button" disabled={page <= 0} onClick={() => setPage(page - 1)}>◂ PREV</button>
+      <span>PAGE {page + 1} OF {pages} · {totalRows} PLAYERS</span>
+      <button type="button" disabled={page + 1 >= pages} onClick={() => setPage(page + 1)}>NEXT ▸</button>
+    </nav>
+  )
   const closed = (wins?.windows ?? []).filter((w) => w.closed && w.winners.length > 0)
 
   return (
@@ -184,13 +197,13 @@ export default function Leaderboard({ onBack }: { onBack?: () => void }) {
         </div>
         <div className="lb-tabs" role="tablist">
           {([['overall', 'OVERALL'], ['stations', 'STATIONS'], ['medals', 'MEDALS']] as const).map(([k, label]) => (
-            <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{label}</button>
+            <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => { setTab(k); setPage(0) }}>{label}</button>
           ))}
         </div>
         {tab === 'stations' && (
           <div className="lb-subtabs" role="tablist" aria-label="Station">
             {STATIONS.map((s) => (
-              <button key={s.id} role="tab" aria-selected={stationTab === s.id} className={`${stationTab === s.id ? 'on' : ''} ${s.cls}`} onClick={() => setStationTab(s.id)}>{s.long}</button>
+              <button key={s.id} role="tab" aria-selected={stationTab === s.id} className={`${stationTab === s.id ? 'on' : ''} ${s.cls}`} onClick={() => { setStationTab(s.id); setPage(0) }}>{s.long}</button>
             ))}
           </div>
         )}
@@ -219,6 +232,7 @@ export default function Leaderboard({ onBack }: { onBack?: () => void }) {
                   hit={!!found?.some((f) => f.codename === r.codename)} />
               ))}
             </div>
+            {pager}
             <p className="lb-note">Ties are broken by: fewer hints, fewer wrong attempts, more time left, fewer attempts used. Still level? SHARED rank, decided by a live coin toss.</p>
           </>
         )}
@@ -231,6 +245,7 @@ export default function Leaderboard({ onBack }: { onBack?: () => void }) {
                 <Card key={r.codename} rank={r.rank} name={r.codename} total={r.score} meta={meta(r.hints, r.wrong, r.time_left)} hit={!!found?.some((f) => f.codename === r.codename)} />
               ))}
             </div>
+            {pager}
             <p className="lb-note">Each player's best run on this station. Ties: fewer hints, fewer wrong attempts, more time left, earlier finish.</p>
           </>
         )}
@@ -252,8 +267,12 @@ export default function Leaderboard({ onBack }: { onBack?: () => void }) {
       </main>
       <footer className="lb-foot">
         {updated ? `UPDATED ${updated.toLocaleTimeString('en-GB')} · REFRESHES EVERY 10 S` : 'CONNECTING…'}
-        {!onBack && <> · <a className="lb-committee" href="#/desk">COMMITTEE</a></>}
       </footer>
+      {!onBack && (
+        <div className="lb-loginrow">
+          <a className="lb-committee" href="#/desk">COMMITTEE LOGIN</a>
+        </div>
+      )}
     </div>
   )
 }

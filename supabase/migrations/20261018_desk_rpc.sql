@@ -7,7 +7,7 @@ declare m public.committee_members;
 begin
   perform public._require_desk();
   select * into m from public.committee_members where user_id = auth.uid();
-  return jsonb_build_object('ok', true, 'username', m.username, 'display_name', m.display_name,
+  return jsonb_build_object('ok', true, 'username', m.username, 'display_name', m.display_name, 'role', m.role,
     'first_name', split_part(btrim(m.display_name), ' ', 1),
     'price_inr', public._cfg_int('price_inr'), 'attempt_cap', public._cfg_int('attempt_cap'),
     'desk_hours', (select value from public.app_config where key = 'desk_hours'));
@@ -16,6 +16,12 @@ end $$;
 create or replace function public._me_first_name()
 returns text language sql stable security definer set search_path = public as $$
   select split_part(btrim(display_name), ' ', 1) from public.committee_members where user_id = auth.uid();
+$$;
+
+-- Total rupees received from this player (all top-ups), so the desk can see at a glance that they have paid.
+create or replace function public._paid_inr(p_id text)
+returns int language sql stable security definer set search_path = public as $$
+  select coalesce(sum(amount_inr), 0)::int from public.credit_ledger where player_id = p_id and delta > 0;
 $$;
 
 create or replace function public._credits_for(p_amount int)
@@ -107,7 +113,8 @@ begin
   if length(q) < 2 then return '[]'::jsonb; end if;
   return coalesce((
     select jsonb_agg(jsonb_build_object('id', p.id, 'name', p.name, 'college', p.college, 'phone', p.phone, 'pid', p.pid,
-                                        'codename', p.codename, 'balance', public._balance(p.id)) order by p.name)
+                                        'codename', p.codename, 'balance', public._balance(p.id), 'year', p.year, 'department', p.department,
+                                        'is_internal', p.is_internal, 'paid_inr', public._paid_inr(p.id)) order by p.name)
     from (
       select * from public.players
       where (d <> '' and length(d) = 4 and id = d)
@@ -128,7 +135,7 @@ begin
   return jsonb_build_object('ok', true,
     'player', jsonb_build_object('id', pl.id, 'name', pl.name, 'college', pl.college, 'is_internal', pl.is_internal, 'pid', pl.pid,
       'year', pl.year, 'department', pl.department, 'phone', pl.phone, 'notes', pl.notes, 'codename', pl.codename, 'created_at', pl.created_at),
-    'balance', public._balance(p_id),
+    'balance', public._balance(p_id), 'paid_inr', public._paid_inr(p_id),
     'standing', case when st.player_id is null then null else jsonb_build_object('rank', st.rnk, 'shared', st.shared, 'total', st.total) end,
     'runs', coalesce((select jsonb_agg(jsonb_build_object('run_id', r.client_run_id, 'station', r.station_id, 'state', r.state,
         'raw', r.raw_score, 'time_left', r.time_left, 'hints', r.hints_used, 'wrong', r.wrong_attempts, 'lobby_id', r.lobby_id,
@@ -206,7 +213,7 @@ begin
   return jsonb_build_object('ok', true, 'volunteers', v, 'event', ev);
 end $$;
 
-revoke all on function public._me_first_name(), public._credits_for(int), public._close_run(uuid, text, boolean) from public, anon, authenticated;
+revoke all on function public._me_first_name(), public._paid_inr(text), public._credits_for(int), public._close_run(uuid, text, boolean) from public, anon, authenticated;
 revoke all on function public.desk_me(), public.desk_register(text, text, boolean, text, text, text, text, int, text, text, text, text, uuid),
   public.desk_topup(text, int, text, text, text, uuid), public.desk_find(text), public.desk_player(text),
   public.desk_refund_run(uuid, text), public.desk_void_run(uuid, text), public.desk_college_suggest(text),
@@ -215,3 +222,19 @@ grant execute on function public.desk_me(), public.desk_register(text, text, boo
   public.desk_topup(text, int, text, text, text, uuid), public.desk_find(text), public.desk_player(text),
   public.desk_refund_run(uuid, text), public.desk_void_run(uuid, text), public.desk_college_suggest(text),
   public.desk_cash_report(timestamptz, timestamptz) to authenticated;
+
+-- Any committee member can change their own password (the first passwords were shared in a chat, so rotating them is wise).
+create or replace function public.desk_change_password(p_old text, p_new text)
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare cur text;
+begin
+  perform public._require_desk();
+  if length(coalesce(p_new, '')) < 8 then return jsonb_build_object('ok', false, 'error', 'WEAK_PASSWORD'); end if;
+  select encrypted_password into cur from auth.users where id = auth.uid();
+  if cur is null or cur <> crypt(coalesce(p_old, ''), cur) then return jsonb_build_object('ok', false, 'error', 'WRONG_PASSWORD'); end if;
+  update auth.users set encrypted_password = crypt(p_new, gen_salt('bf')), updated_at = now() where id = auth.uid();
+  perform public._audit('change_password', auth.uid()::text);
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function public.desk_change_password(text, text) from public, anon, authenticated;
+grant execute on function public.desk_change_password(text, text) to authenticated;

@@ -65,7 +65,7 @@ export default function Find({ me, go, initialId }: { me: Me; go: (t: TabKey, id
           {list.map((x) => (
             <li key={x.id}>
               <button className="dk-rowbtn" onClick={() => open(x.id)}>
-                <b>{x.id}</b> <span>{x.name}</span> <span className="dk-dim">{x.college} · {x.phone}</span> <i>{x.balance} cr</i>
+                <b>{x.id}</b> <span>{x.name}</span> <span className="dk-dim">{x.college} · {x.year} {x.department} · {x.phone}</span> <span className={x.paid_inr > 0 ? 'pos' : 'neg'}>{x.paid_inr > 0 ? `PAID Rs ${x.paid_inr}` : 'NOT PAID'}</span> <i>{x.balance} cr</i>
               </button>
             </li>
           ))}
@@ -79,7 +79,7 @@ export default function Find({ me, go, initialId }: { me: Me; go: (t: TabKey, id
           <h3>{p.player.name} <small className="dk-dim">ID {p.player.id}</small></h3>
           <p className="dk-dim">{p.player.college}{p.player.is_internal ? ' (ours)' : ''} · {p.player.year} · {p.player.department} · {p.player.phone}{p.player.pid ? ` · PID ${p.player.pid}` : ''}</p>
           <p>Leaderboard name: <b>{p.player.codename}</b>{p.standing ? ` · rank ${p.standing.rank}${p.standing.shared ? ' (shared)' : ''} · total ${p.standing.total}` : ' · not ranked yet'}</p>
-          <div className="dk-bal">Balance: <b data-testid="balance">{p.balance}</b> credit(s) <button className="dk-btn dk-sm" onClick={() => go('topup', p.player.id)}>Top-up</button></div>
+          <div className="dk-bal"><span className={p.paid_inr > 0 ? 'pos' : 'neg'} data-testid="paid">{p.paid_inr > 0 ? `PAID Rs ${p.paid_inr}` : 'NOT PAID'}</span> · Balance: <b data-testid="balance">{p.balance}</b> credit(s) <button className="dk-btn dk-sm" onClick={() => go('topup', p.player.id)}>Top-up</button></div>
           <h4>Runs ({me.attempt_cap} per station)</h4>
           <ul className="dk-list">
             {p.runs.map((r: any) => (

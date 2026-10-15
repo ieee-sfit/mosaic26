@@ -215,7 +215,7 @@ returns jsonb language sql stable security definer set search_path = public as $
   select coalesce(jsonb_agg(to_jsonb(x) order by x.rank, x.codename), '[]'::jsonb) from (
     select q.rnk as rank, q.shared, p.codename, q.s1, q.s2, q.s3, q.s4, q.total, q.hints, q.wrong, q.time_left, q.attempts
     from public._ranked() q join public.players p on p.id = q.player_id
-    order by q.rnk, p.codename limit 300) x;
+    order by q.rnk, p.codename limit 2000) x;
 $$;
 
 create or replace function public._board_station_json(p_station text)
@@ -224,7 +224,7 @@ returns jsonb language sql stable security definer set search_path = public as $
     select row_number() over (order by b.raw_score desc, b.hints, b.wrong, b.time_left desc, b.finished_at) as rank,
            p.codename, b.raw_score as score, b.hints, b.wrong, b.time_left, b.finished_at
     from public._best_runs() b join public.players p on p.id = b.player_id
-    where b.station_id = p_station order by 1 limit 300) x;
+    where b.station_id = p_station order by 1 limit 2000) x;
 $$;
 
 -- Returns the cached value for a key, recomputing it when stale. Only one session recomputes; the others serve the old value.
@@ -242,26 +242,30 @@ begin
   return v;
 end $$;
 
-create or replace function public.board_overall(p_limit int default 100)
+-- Pages of 100. rank is the global rank; total_rows lets the page show "page 1 of N".
+create or replace function public.board_overall(p_limit int default 100, p_offset int default 0)
 returns table (rank bigint, shared boolean, codename text, s1 int, s2 int, s3 int, s4 int, total int,
-               hints int, wrong int, time_left int, attempts int)
+               hints int, wrong int, time_left int, attempts int, total_rows bigint)
 language sql volatile security definer set search_path = public as $$
-  select x.rank, x.shared, x.codename, x.s1, x.s2, x.s3, x.s4, x.total, x.hints, x.wrong, x.time_left, x.attempts
-  from jsonb_to_recordset(public._cached('overall', 7002)) as x(rank bigint, shared boolean, codename text, s1 int, s2 int, s3 int, s4 int,
-                                                                total int, hints int, wrong int, time_left int, attempts int)
-  order by x.rank, x.codename
-  limit greatest(least(coalesce(p_limit, 100), 300), 1);
+  with v as (select public._cached('overall', 7002) as j)
+  select x.rank, x.shared, x.codename, x.s1, x.s2, x.s3, x.s4, x.total, x.hints, x.wrong, x.time_left, x.attempts, jsonb_array_length(v.j)::bigint
+  from v, lateral jsonb_array_elements(v.j) with ordinality as e(el, n),
+       lateral jsonb_to_record(e.el) as x(rank bigint, shared boolean, codename text, s1 int, s2 int, s3 int, s4 int,
+                                          total int, hints int, wrong int, time_left int, attempts int)
+  where e.n > greatest(coalesce(p_offset, 0), 0) and e.n <= greatest(coalesce(p_offset, 0), 0) + greatest(least(coalesce(p_limit, 100), 100), 1)
+  order by e.n;
 $$;
 
-create or replace function public.board_station(p_station text, p_limit int default 100)
-returns table (rank bigint, codename text, score int, hints int, wrong int, time_left int, finished_at timestamptz)
+create or replace function public.board_station(p_station text, p_limit int default 100, p_offset int default 0)
+returns table (rank bigint, codename text, score int, hints int, wrong int, time_left int, finished_at timestamptz, total_rows bigint)
 language sql volatile security definer set search_path = public as $$
-  select x.rank, x.codename, x.score, x.hints, x.wrong, x.time_left, x.finished_at
-  from jsonb_to_recordset(case when p_station in ('station1', 'station2', 'station3', 'station4')
-                               then public._cached('station:' || p_station, 7003) else '[]'::jsonb end)
-       as x(rank bigint, codename text, score int, hints int, wrong int, time_left int, finished_at timestamptz)
-  order by x.rank
-  limit greatest(least(coalesce(p_limit, 100), 300), 1);
+  with v as (select case when p_station in ('station1', 'station2', 'station3', 'station4')
+                         then public._cached('station:' || p_station, 7003) else '[]'::jsonb end as j)
+  select x.rank, x.codename, x.score, x.hints, x.wrong, x.time_left, x.finished_at, jsonb_array_length(v.j)::bigint
+  from v, lateral jsonb_array_elements(v.j) with ordinality as e(el, n),
+       lateral jsonb_to_record(e.el) as x(rank bigint, codename text, score int, hints int, wrong int, time_left int, finished_at timestamptz)
+  where e.n > greatest(coalesce(p_offset, 0), 0) and e.n <= greatest(coalesce(p_offset, 0), 0) + greatest(least(coalesce(p_limit, 100), 100), 1)
+  order by e.n;
 $$;
 
 create or replace function public.board_find(p_q text)
@@ -281,7 +285,7 @@ revoke all on function public._cache_bust(), public._board_overall_json(), publi
   from public, anon, authenticated;
 revoke all on function public.kiosk_lookup(text, text, text), public.start_run(text, uuid, text, text),
   public.submit_run(text, uuid, text, text, int, int, int, int), public.kiosk_standing(text, text),
-  public.board_overall(int), public.board_station(text, int), public.board_find(text) from public, anon, authenticated;
+  public.board_overall(int, int), public.board_station(text, int, int), public.board_find(text) from public, anon, authenticated;
 grant execute on function public.kiosk_lookup(text, text, text), public.start_run(text, uuid, text, text),
   public.submit_run(text, uuid, text, text, int, int, int, int), public.kiosk_standing(text, text),
-  public.board_overall(int), public.board_station(text, int), public.board_find(text) to anon, authenticated;
+  public.board_overall(int, int), public.board_station(text, int, int), public.board_find(text) to anon, authenticated;

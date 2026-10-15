@@ -111,6 +111,7 @@ create table if not exists public.committee_members (
   user_id uuid primary key references auth.users (id) on delete cascade,
   username text not null unique,
   display_name text not null,
+  role text not null default 'desk' check (role in ('desk', 'admin')),
   active boolean not null default true,
   created_at timestamptz not null default now()
 );

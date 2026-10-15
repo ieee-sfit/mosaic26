@@ -59,7 +59,7 @@ export default function Topup({ me, initialId }: { me: Me; initialId: string }) 
       {p && (
         <div className="dk-player">
           <b>{p.player.name}</b> <span className="dk-dim">{p.player.college}</span>
-          <div className="dk-bal">Balance: <b data-testid="balance">{p.balance}</b></div>
+          <div className="dk-bal"><span className={p.paid_inr > 0 ? 'pos' : 'neg'}>{p.paid_inr > 0 ? `PAID Rs ${p.paid_inr}` : 'NOT PAID'}</span> · Balance: <b data-testid="balance">{p.balance}</b></div>
         </div>
       )}
       {p && <PayFields price={me.price_inr} value={pay} onChange={setPay} />}
