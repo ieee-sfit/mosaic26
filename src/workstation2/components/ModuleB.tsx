@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { LAP_LABEL, POINTS_PER_SECTION, SECTIONS, SECTIONS_PER_LAP, STATION2_CONFIG } from '../mockStation2Data';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { LAP_LABEL, POINTS_PER_SECTION, SECTIONS_PER_LAP, STATION2_CONFIG } from '../mockStation2Data';
 import { fmt, fmtLoss, fmtMbps, itemPoints, metricsOf, neighbours, solveSection, verdictOf } from '../logic';
 import { fmtLap, secondsFor, speedFor } from '../race';
 import HintDock from '../../core/HintDock';
@@ -16,6 +16,8 @@ export interface RouteSummary {
 }
 
 interface Props {
+  /** The four runs of this attempt: 2 practice then 2 qualifying (logic.ts `pickSections`). */
+  sections: readonly Section[];
   onScore: (total: number) => void;
   onDone: (summary: RouteSummary) => void;
   onShake: () => void;
@@ -27,18 +29,18 @@ const LAPS: LapId[] = ['practice', 'qualifying'];
 const PTS = POINTS_PER_SECTION;
 const labelOf = (id: string) => (id === 'T' ? 'TWR' : id === 'P' ? 'PIT' : id);
 
-const PILLS = Object.fromEntries(SECTIONS.map((s) => [s.id, pillPositions(s)]));
-const lapOf = (lap: LapId) => SECTIONS.filter((s) => s.lap === lap);
+const lapOf = (sections: readonly Section[], lap: LapId) => sections.filter((s) => s.lap === lap);
 /** Lap time = sum over its sections of (km / speed earned by that section's points). Points only, never the clock. */
-function lapSummary(lap: LapId, pts: Record<string, number>) {
-  const secs = lapOf(lap);
+function lapSummary(sections: readonly Section[], lap: LapId, pts: Record<string, number>) {
+  const secs = lapOf(sections, lap);
   const total = secs.reduce((n, s) => n + (pts[s.id] ?? 0), 0);
   const sec = secs.reduce((n, s) => n + secondsFor(s.km, (pts[s.id] ?? 0) / PTS), 0);
   return { pts: total, sec };
 }
 
 /** Module B: build the route from the trackside tower to the pit wall that meets every NEED line. 4 runs x 10 points. */
-export default function ModuleB({ onScore, onDone, onShake, track }: Props) {
+export default function ModuleB({ sections, onScore, onDone, onShake, track }: Props) {
+  const PILLS = useMemo(() => Object.fromEntries(sections.map((s) => [s.id, pillPositions(s)])), [sections]);
   const [si, setSi] = useState(0);
   const [route, setRoute] = useState<string[]>(['T']);
   const [pts, setPts] = useState<Record<string, number>>({});
@@ -53,7 +55,7 @@ export default function ModuleB({ onScore, onDone, onShake, track }: Props) {
   useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
   const later = (fn: () => void, ms: number) => { timers.current.push(window.setTimeout(fn, ms)); };
 
-  const sec: Section = SECTIONS[si];
+  const sec: Section = sections[si];
   const lap = sec.lap;
   const pill = pillSize(sec);
   const t = tries[sec.id] ?? { wrong: 0, hint: 0 as HintLevel };
@@ -81,13 +83,13 @@ export default function ModuleB({ onScore, onDone, onShake, track }: Props) {
 
   const advance = (nextPts: Record<string, number>) => {
     const nextIdx = si + 1;
-    if (nextIdx >= SECTIONS.length) {
-      cb.current.onDone({ practice: lapSummary('practice', nextPts), qualifying: lapSummary('qualifying', nextPts) });
+    if (nextIdx >= sections.length) {
+      cb.current.onDone({ practice: lapSummary(sections, 'practice', nextPts), qualifying: lapSummary(sections, 'qualifying', nextPts) });
       return;
     }
     const reset = () => { setSi(nextIdx); setRoute(['T']); setMsg({ kind: 'info', text: '' }); setBusy(false); };
-    if (SECTIONS[nextIdx].lap !== lap) {
-      setBanner(`${LAP_LABEL[lap]} ${fmtLap(lapSummary(lap, nextPts).sec)}`);
+    if (sections[nextIdx].lap !== lap) {
+      setBanner(`${LAP_LABEL[lap]} ${fmtLap(lapSummary(sections, lap, nextPts).sec)}`);
       later(() => { setBanner(null); reset(); }, 1700);
       return;
     }
@@ -158,10 +160,10 @@ export default function ModuleB({ onScore, onDone, onShake, track }: Props) {
 
       <div className="ws2-laptabs" role="list">
         {LAPS.map((l) => (
-          <div key={l} role="listitem" className={`ws2-laptab ${l === lap ? 'is-now' : ''} ${lapOf(l).every((s) => s.id in pts) ? 'is-done' : ''}`}>
+          <div key={l} role="listitem" className={`ws2-laptab ${l === lap ? 'is-now' : ''} ${lapOf(sections, l).every((s) => s.id in pts) ? 'is-done' : ''}`}>
             <b>{LAP_LABEL[l]}</b>
-            <span className="ws2-laptab__pips" aria-label={`${lapOf(l).filter((s) => s.id in pts).length} of ${SECTIONS_PER_LAP} runs done`}>
-              {lapOf(l).map((s) => <i key={s.id} className={s.id in pts ? 'on' : s.id === sec.id ? 'now' : ''} />)}
+            <span className="ws2-laptab__pips" aria-label={`${lapOf(sections, l).filter((s) => s.id in pts).length} of ${SECTIONS_PER_LAP} runs done`}>
+              {lapOf(sections, l).map((s) => <i key={s.id} className={s.id in pts ? 'on' : s.id === sec.id ? 'now' : ''} />)}
             </span>
           </div>
         ))}

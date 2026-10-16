@@ -1,15 +1,17 @@
 import { useMemo, useState, useRef } from 'react'
 import { QUESTION_BANK, STATION4_CONFIG } from '../mockStation4Data'
-import { pickOne, pickQuestions, questionPoints } from './logic'
+import { pickOne, pickQuestions, questionPoints, shuffleOptions } from './logic'
 import HintDock from '../../core/HintDock'
+import { mulberry32 } from './escape'
 
 const LETTERS = ['A', 'B', 'C', 'D']
 
-export default function ModuleA({ onScore, onDone, fx, log, track }) {
-  const questions = useMemo(
-    () => pickQuestions(QUESTION_BANK, STATION4_CONFIG.moduleA.questionsPerRun),
-    [],
-  )
+export default function ModuleA({ onScore, onDone, fx, log, track, seed }) {
+  // seeded: every player of a versus lobby gets the same questions
+  const questions = useMemo(() => {
+    const rng = seed != null ? mulberry32(seed ^ 0xa5a5a5) : Math.random
+    return pickQuestions(QUESTION_BANK, STATION4_CONFIG.moduleA.questionsPerRun, rng).map((q) => shuffleOptions(q, rng))
+  }, [seed])
   const [idx, setIdx] = useState(0)
   const [state, setState] = useState(() => questions.map(() => ({ hint: 0, wrong: 0, banned: [], picked: null, done: false })))
   const earnedRef = useRef(0)

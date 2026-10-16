@@ -26,6 +26,10 @@
     "src/core",
     "src/lib",
     "src/session",
-    "src/launcher/Leaderboard.tsx"
+    "src/launcher/Leaderboard.tsx",
+    "src/desk",
+    "src/board",
+    "src/launcher/RunBadge.tsx",
+    "src/launcher/LobbyResult.tsx"
   ]
 }

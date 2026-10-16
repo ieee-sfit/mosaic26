@@ -7,6 +7,7 @@ services:
         VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
         VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
         VITE_KIOSK_SECRET: ${VITE_KIOSK_SECRET:-}
+        VITE_BOARD_URL: ${VITE_BOARD_URL:-}
     image: mosaic:${BUILD_MODE:-kiosk}
     ports:
       - "${PORT:-8080}:80"
@@ -22,6 +23,7 @@ services:
       VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
       VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
       VITE_KIOSK_SECRET: ${VITE_KIOSK_SECRET:-}
+      VITE_BOARD_URL: ${VITE_BOARD_URL:-}
     volumes:
       - .:/app
       - node_modules:/app/node_modules

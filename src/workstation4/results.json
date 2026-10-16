@@ -832,10 +832,11 @@
     ]
   },
   {
-    "p1_id": "541516",
-    "p2_id": "665165",
+    "player_id": "9997",
     "game_id": "station4",
     "raw_score": 0,
-    "time_left": 687
+    "time_left": 598,
+    "hints_used": 24,
+    "wrong_attempts": 0
   }
 ]

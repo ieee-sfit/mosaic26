@@ -4,7 +4,7 @@
 
 /* ── Flow ─────────────────────────────────────────────────────────── */
 export type Phase =
-  | 'launcher' | 'opening' | 'tutA' | 'moduleA' | 'story1' | 'tutB' | 'moduleB' | 'story2' | 'tutC' | 'moduleC'
+  | 'opening' | 'tutA' | 'moduleA' | 'story1' | 'tutB' | 'moduleB' | 'story2' | 'tutC' | 'moduleC'
   | 'offer' | 'story3' | 'tutD' | 'moduleD' | 'ending' | 'summary';
 export type EndReason = 'COMPLETE' | 'TIME_EXPIRED';
 
@@ -122,7 +122,8 @@ export interface ScoringConfig {
 
 /* ── Result handed to the host app ────────────────────────────────── */
 export interface Station1Result {
-  operators: [string, string];
+  /** The player's 4-digit ID. */
+  operator: string;
   endReason: EndReason;
   secondsRemaining: number;
   moduleA: QuestionResult[];
@@ -140,6 +141,10 @@ export interface Station1Result {
   moduleSeconds: { A: number; B: number; C: number; D: number };
   total: number;
   maxTotal: number;
+  /** Hints used across all modules (a level-2 hint counts as 2). Reported to the server for tiebreaks. */
+  hintsUsed: number;
+  /** Wrong answers / wrong diagnoses / missed shots / missed hops across all modules. */
+  wrongAttempts: number;
 }
 
 /* ── Module B · Diagnose the leftover ─────────────────────────────── */
