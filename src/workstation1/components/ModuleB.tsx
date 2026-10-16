@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { SCORING, WAVE_CALIBRATION as CAL } from '../mockStation1Data';
+import { DIAG_WAVEFORMS, SCORING, WAVE_CALIBRATION as CAL } from '../mockStation1Data';
 import { useShake } from '../hooks/useScreenShake';
 import { scoreStep } from '../utils/scoring';
 import { normDeg, ampFromSlider, freqFromSlider, type Controls } from '../utils/waves';
@@ -13,16 +13,14 @@ import {
   withinTolerance,
   type ControlKey,
 } from '../utils/diagnose';
-import type { DiagWaveDef, StepResult } from '../types';
+import type { StepResult } from '../types';
 import HintDock from '../../core/HintDock';
 import { ModuleHeader } from './ModuleHeader';
 import { DiagScope, LAB } from './DiagScope';
 import { JogControl } from './JogControl';
 
 interface Props {
-  /** The two waveforms of this run: [guided, open]. */
-  waves: readonly [DiagWaveDef, DiagWaveDef];
-  operator: string;
+  operators: [string, string];
   onRecord: (r: StepResult) => void;
   onComplete: () => void;
 }
@@ -46,10 +44,10 @@ interface BState {
 const UNIT: Record<ControlKey, number> = { amp: 0.004, freq: 0.004, phase: 0.8 };
 const ADVANCE_MS = 1300;
 
-const fresh = (waves: readonly DiagWaveDef[], wave: 0 | 1, controls?: Controls): BState => ({
+const fresh = (wave: 0 | 1, controls?: Controls): BState => ({
   wave,
   step: 0,
-  controls: controls ?? { ...waves[wave].start },
+  controls: controls ?? { ...DIAG_WAVEFORMS[wave].start },
   fixed: [],
   picked: null,
   rejected: [],
@@ -63,18 +61,18 @@ const readout = (k: ControlKey, c: Controls): string =>
   k === 'amp' ? ampFromSlider(CAL, c.amp).toFixed(2) : k === 'freq' ? `${freqFromSlider(CAL, c.freq).toFixed(2)}×` : `${Math.round(c.phase)}°`;
 
 /** Module B · DIAGNOSE THE LEFTOVER. Read the leftover line, name the wrong control, fix it by hand. */
-export function ModuleB({ waves, operator, onRecord, onComplete }: Props) {
+export function ModuleB({ operators, onRecord, onComplete }: Props) {
   const cfg = SCORING.moduleB;
   const shake = useShake();
-  const [s, setS] = useState<BState>(() => fresh(waves, 0));
+  const [s, setS] = useState<BState>(() => fresh(0));
   const [flash, setFlash] = useState<{ kind: 'bad' | 'ok'; n: number } | null>(null);
   const latest = useRef(s);
   useEffect(() => {
     latest.current = s;
   });
 
-  const wave = waves[s.wave];
-  const orders = useMemo(() => waves.map((w) => fixOrder(CAL, w).order), [waves]);
+  const wave = DIAG_WAVEFORMS[s.wave];
+  const orders = useMemo(() => DIAG_WAVEFORMS.map((w) => fixOrder(CAL, w).order), []);
   const expected = orders[s.wave][s.step];
   const remaining = CONTROL_KEYS.filter((k) => !s.fixed.includes(k));
   const live = s.stage === 'diagnose' || s.stage === 'fix';
@@ -86,10 +84,10 @@ export function ModuleB({ waves, operator, onRecord, onComplete }: Props) {
   /** The control is fixed: score the step, snap the control exactly onto its target and show FIXED. */
   const completeStep = (hint: 0 | 1 | 2, wrongs: number, key: ControlKey) => {
     const cur = latest.current;
-    const t = targetsOf(CAL, waves[cur.wave]);
+    const t = targetsOf(CAL, DIAG_WAVEFORMS[cur.wave]);
     const snapped: Controls = { ...cur.controls, [key]: t[key] };
     onRecord({
-      waveId: waves[cur.wave].id,
+      waveId: DIAG_WAVEFORMS[cur.wave].id,
       stepIndex: cur.step,
       control: key,
       wrongAttempts: wrongs,
@@ -146,7 +144,7 @@ export function ModuleB({ waves, operator, onRecord, onComplete }: Props) {
     if (k === 'phase') next.phase = normDeg(next.phase + units * UNIT.phase);
     else next[k] = Math.min(1, Math.max(0, next[k] + units * UNIT[k]));
     latest.current = { ...cur, controls: next };
-    if (withinTolerance(CAL, cfg.tolerance, waves[cur.wave], next, k)) {
+    if (withinTolerance(CAL, cfg.tolerance, DIAG_WAVEFORMS[cur.wave], next, k)) {
       completeStep(cur.hint, cur.wrongs, k);
     } else {
       setS({ ...cur, controls: next });
@@ -166,7 +164,7 @@ export function ModuleB({ waves, operator, onRecord, onComplete }: Props) {
     completeStep(2, cur.wrongs, exp);
   };
 
-  const startWave2 = () => setS(fresh(waves, 1));
+  const startWave2 = () => setS(fresh(1));
 
   const hintTextFor = `${CONTROL_WORDS[expected].name} · ${CONTROL_WORDS[expected].plain} is the control to fix. ${REASON[expected]}`;
   const guided = wave.guided;
@@ -175,7 +173,7 @@ export function ModuleB({ waves, operator, onRecord, onComplete }: Props) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <ModuleHeader code="MODULE B" title="Diagnose the Leftover" tag="LEFTOVER_LAB" operator={operator} steps={3} active={1} />
+      <ModuleHeader code="MODULE B" title="Diagnose the Leftover" tag="LEFTOVER_LAB" operators={operators} steps={3} active={1} />
       {flash && <div key={`${flash.kind}${flash.n}`} className={flash.kind === 'bad' ? 'hull-flash' : 'lab-flash'} />}
 
       <div className="grid flex-1 items-stretch gap-3 p-3 pb-24 lg:grid-cols-[minmax(0,1.5fr)_minmax(340px,0.8fr)]">

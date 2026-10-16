@@ -23,8 +23,6 @@ interface Props {
   onDone: (total: number) => void;
   onShake: () => void;
   track: Track;
-  /** The run seed: every player of a versus lobby gets the same radio streams. */
-  seed: number;
 }
 
 const STAGES = RADIO_CONFIG.stages;
@@ -34,7 +32,8 @@ const RULE = 'ANY OTHER RUN = CORRUPTED · PRESS 7 RESEND';
 const AUTO_CARD_MS = 6000;
 
 /** Module D: the F1 skin on the shared RADIO LINK engine. Labels, car feedback and subtitle live here; the stream logic is in core/radiolink. */
-export default function ModuleD({ deadline, onScore, onDone, onShake, track, seed }: Props) {
+export default function ModuleD({ deadline, onScore, onDone, onShake, track }: Props) {
+  const [seed] = useState(() => (Math.random() * 4294967296) >>> 0);
   const [streams] = useState<Stream[]>(() => STAGES.map((spec, i) => generateStream(stageSeed(seed, i), spec, RADIO_CODEBOOK, RADIO_CONFIG.gen)));
 
   const [n, setN] = useState(0); // stage being played, or about to be (3 = all done)

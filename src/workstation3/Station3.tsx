@@ -5,6 +5,7 @@ import { useSession } from '../session/sessionContext';
 import { CONFIG, caseFor } from './mockStation3Data';
 import { clamp, fmtClock, type Fx, type Station3Summary } from './utils';
 import { StationHeader, StationTimer } from './components/Hud';
+import StartScreen from './components/StartScreen';
 import ModuleA from './components/ModuleA';
 import ModuleB from './components/ModuleB';
 import ModuleC from './components/ModuleC';
@@ -15,11 +16,12 @@ import TutorialScreen from './story/TutorialScreen';
 import { BEATS, D_LOST, D_STOPPED } from './story/story';
 
 /**
- * Flow: opening -> tutorial A -> A -> story 1 -> tutorial B -> B -> story 2 -> tutorial C -> C
+ * Flow: [start login, standalone only] -> opening -> tutorial A -> A -> story 1 -> tutorial B -> B -> story 2 -> tutorial C -> C
  *       -> bonus offer -> (PLAY) story 3 -> tutorial D -> D -> ending (story) -> debrief.
  * The shift clock runs ONLY in A, B, C and D. It is paused on every story, tutorial and the bonus offer.
  */
 type Phase =
+  | 'start'
   | 'story-opening'
   | 'tut-A'
   | 'A'
@@ -60,24 +62,34 @@ interface Frozen {
   left: number;
 }
 const STORAGE_KEY = 'ws3_last_session';
-const ID_RE = /^\d{4}$/;
+const ID_RE = /^\d{6}$/;
+
+/** Operator IDs handed over by the launcher's shared session (if any). */
+interface LauncherSession {
+  p1_id?: string;
+  p2_id?: string;
+}
 
 interface Station3Props {
   onNavigateStation?: (stNum: number) => void;
   onOpenStationChooser?: () => void;
-  /** Receives `{ player_id, game_id: 'station3', raw_score, time_left, hints_used, wrong_attempts }` once, when the session ends. */
+  /** Receives `{ p1_id, p2_id, game_id: 'station3', raw_score, time_left }` once, when the session ends. */
   onComplete?: (summary: Station3Summary) => void;
 }
 
 export default function Station3({ onOpenStationChooser, onComplete }: Station3Props) {
-  // Launched via the arcade launcher, which has already verified the player's single 4-digit ID.
-  const session = useSession();
-  const playerId = session && ID_RE.test(session.player_id) ? session.player_id : '';
+  // Launched via the arcade launcher → IDs already captured, skip the login screen.
+  const session = useSession() as LauncherSession | null;
+  const sessionIds =
+    session && ID_RE.test(session.p1_id ?? '') && ID_RE.test(session.p2_id ?? '')
+      ? { p1: session.p1_id as string, p2: session.p2_id as string }
+      : null;
 
-  const [phase, setPhase] = useState<Phase>('story-opening');
+  const [phase, setPhase] = useState<Phase>(sessionIds ? 'story-opening' : 'start');
+  const [ids, setIds] = useState(sessionIds ?? { p1: '', p2: '' });
   const [timeLeft, setTimeLeft] = useState<number>(CONFIG.totalSeconds);
   const [scores, setScores] = useState<Scores>(NO_SCORES);
-  const [seed] = useState(() => session?.seed ?? (Math.random() * 4294967296) >>> 0);
+  const [seed] = useState(() => (Math.random() * 4294967296) >>> 0);
   const cas = caseFor(seed);
   const [result, setResult] = useState<Breakdown | null>(null);
   const [shake, setShake] = useState(false);
@@ -86,6 +98,7 @@ export default function Station3({ onOpenStationChooser, onComplete }: Station3P
   const timeRef = useRef<number>(CONFIG.totalSeconds);
   const scoresRef = useRef<Scores>(NO_SCORES);
   const frozenRef = useRef<Frozen | null>(null);
+  const idsRef = useRef(ids);
   const emittedRef = useRef(false);
   const statsRef = useRef<Record<ModId, ModStat>>(noStats());
   const shakeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -115,20 +128,18 @@ export default function Station3({ onOpenStationChooser, onComplete }: Station3P
     if (emittedRef.current) return;
     emittedRef.current = true;
     const s = { ...f.scores, d };
+    const { p1, p2 } = idsRef.current;
+
     scoresRef.current = s;
     setScores(s);
     setTimeLeft(f.left);
     setResult({
-      a: s.a, b: s.b, c: s.c, d, dPlayed, dSuccess, base: f.base, bonus: f.bonus, timeLeft: f.left, outcome, playerId,
+      a: s.a, b: s.b, c: s.c, d, dPlayed, dSuccess, base: f.base, bonus: f.bonus, timeLeft: f.left, outcome, p1, p2,
       stats: { A: { ...statsRef.current.A }, B: { ...statsRef.current.B }, C: { ...statsRef.current.C }, D: { ...statsRef.current.D } },
     });
     setPhase('ending');
 
-    const all = Object.values(statsRef.current);
-    const summary: Station3Summary = {
-      player_id: playerId, game_id: 'station3', raw_score: f.base + f.bonus + d, time_left: f.left,
-      hints_used: all.reduce((n, m) => n + m.hints, 0), wrong_attempts: all.reduce((n, m) => n + m.wrong, 0),
-    };
+    const summary: Station3Summary = { p1_id: p1, p2_id: p2, game_id: 'station3', raw_score: f.base + f.bonus + d, time_left: f.left };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(summary));
     } catch {
@@ -216,6 +227,13 @@ export default function Station3({ onOpenStationChooser, onComplete }: Station3P
     return () => clearTimeout(t);
   }, [phase]);
 
+  const start = (p1: string, p2: string) => {
+    const next = { p1, p2 };
+    idsRef.current = next;
+    setIds(next);
+    setPhase('story-opening');
+  };
+
   const restart = () => {
     // Replays go back through the launcher so the attempt cap is checked
     if (onOpenStationChooser) {
@@ -230,7 +248,10 @@ export default function Station3({ onOpenStationChooser, onComplete }: Station3P
     setTimeLeft(CONFIG.totalSeconds);
     setScores(NO_SCORES);
     setResult(null);
-    setPhase('story-opening');
+    const next = sessionIds ?? { p1: '', p2: '' };
+    setIds(next);
+    idsRef.current = next;
+    setPhase(sessionIds ? 'story-opening' : 'start');
   };
 
   const total = scores.a + scores.b + scores.c + scores.d;
@@ -248,9 +269,11 @@ export default function Station3({ onOpenStationChooser, onComplete }: Station3P
       <StationTimer timeLeft={timeLeft} paused={!running} />
       <StationHeader active={modOf(phase)} showD={inD} score={total} onOpenStationChooser={onOpenStationChooser} />
 
+      {phase === 'start' && <StartScreen onStart={start} />}
+
       {phase === 'story-opening' && <StoryScreen key="opening" beat={BEATS.opening} onContinue={() => setPhase('tut-A')} />}
       {phase === 'tut-A' && <TutorialScreen module="A" onContinue={() => setPhase('A')} />}
-      {phase === 'A' && <ModuleA fx={fx} seed={seed} onScore={(d) => addScore('a', d)} onStat={(k) => bump('A', k)} onDone={() => setPhase('story-1')} />}
+      {phase === 'A' && <ModuleA fx={fx} onScore={(d) => addScore('a', d)} onStat={(k) => bump('A', k)} onDone={() => setPhase('story-1')} />}
 
       {phase === 'story-1' && <StoryScreen key="story1" beat={BEATS.story1} onContinue={() => setPhase('tut-B')} />}
       {phase === 'tut-B' && <TutorialScreen module="B" onContinue={() => setPhase('B')} />}
