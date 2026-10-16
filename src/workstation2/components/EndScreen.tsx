@@ -18,6 +18,7 @@ export interface Report {
   /** Speed bonus, frozen when Module C ended. */
   bonus: number;
   raw: number;
+  timeLeft?: number;
   grid?: number | null;
   /** Race finishing position, null on a DNF. */
   finish?: number | null;
@@ -30,10 +31,11 @@ const HEAD: Record<Outcome, { title: string; tone: string; line: string }> = {
 };
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
+const mm = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
 /** Debrief in the same layout as Stations 1 and 4: headline, score /140, rating, one card per module, diagnostics. */
 export default function EndScreen({ report, onRestart }: { report: Report; onRestart: () => void }) {
-  const { outcome, a, b, c, d, dPlayed, bonus, raw, diag, grid, finish } = report;
+  const { outcome, a, b, c, d, dPlayed, bonus, raw, diag, grid, finish, timeLeft = 0 } = report;
   const base = a + b + c;
   const head = HEAD[outcome];
   const rows = [
@@ -57,6 +59,7 @@ export default function EndScreen({ report, onRestart }: { report: Report; onRes
         <span className="ws2-end__tag">STATION 02 · DEBRIEF</span>
         <h1 className={`ws2-end__head is-${head.tone}`}>{head.title}</h1>
         <p className="ws2-end__line">&gt; {head.line}</p>
+        <p className="ws2-end__line" style={{ color: '#ffb800' }}>&gt; TIME REMAINING: {mm(timeLeft)} ({timeLeft}s)</p>
         {grid ? <p className="ws2-end__line">&gt; GRID P{grid} · {finish ? `FINISH P${finish}` : 'DNF'}</p> : null}
         <p className="ws2-end__line">&gt; BASE {Math.round(base)}/100 · SPEED BONUS +{bonus}/{STATION2_CONFIG.speedBonusMax}</p>
         {dPlayed && <p className="ws2-end__line">&gt; FINAL PUSH +{round1(d)} / {SCORING.bonusModuleMax}</p>}
@@ -64,6 +67,13 @@ export default function EndScreen({ report, onRestart }: { report: Report; onRes
           <div>
             <small>TOTAL SCORE</small>
             <b>{Math.round(raw)}<span>/{SCORING.rawMax}</span></b>
+          </div>
+          <div style={{ padding: '8px 16px', background: 'rgba(255,184,0,0.1)', border: '1px solid rgba(255,184,0,0.3)', borderRadius: '4px' }}>
+            <small style={{ color: '#ffb800' }}>TIME REMAINING</small>
+            <b style={{ fontSize: 'clamp(28px, 4vw, 42px)', color: '#fff' }}>
+              {mm(timeLeft)}
+              <span style={{ fontSize: '18px', color: '#ffb800' }}> ({timeLeft}s)</span>
+            </b>
           </div>
           <div className="ws2-end__grade"><small>RATING</small><b>{gradeFor(base)}</b></div>
         </div>

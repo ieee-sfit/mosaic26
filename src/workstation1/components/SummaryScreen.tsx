@@ -78,6 +78,7 @@ export function SummaryScreen({ result, onRestart }: { result: Station1Result; o
         <TeleChip label="OP1" value={result.operators[0]} />
         <TeleChip label="OP2" value={result.operators[1]} />
         <TeleChip label="ELAPSED" value={mm(used)} />
+        <TeleChip label="REMAINING" value={`${mm(result.secondsRemaining)} (${result.secondsRemaining}s)`} />
       </div>
 
       <div className="mt-6 grid flex-1 items-start gap-6 lg:grid-cols-[1.1fr_1fr]">
@@ -86,6 +87,9 @@ export function SummaryScreen({ result, onRestart }: { result: Station1Result; o
             {head.label}
           </h1>
           <p className="mt-2 font-tele text-xs uppercase tracking-widest text-goat-mute">&gt; {head.line}</p>
+          <p className="mt-1 font-tele text-xs uppercase tracking-widest text-goat-gold">
+            &gt; TIME REMAINING: {mm(result.secondsRemaining)} ({result.secondsRemaining}s)
+          </p>
           <p className="mt-1 font-tele text-xs uppercase tracking-widest text-goat-mute">
             &gt; BASE {Math.round(result.total)}/100 · SPEED BONUS +{bonus}/{SHARED.speedBonusMax}
           </p>
@@ -93,12 +97,19 @@ export function SummaryScreen({ result, onRestart }: { result: Station1Result; o
             <p className="mt-1 font-tele text-xs uppercase tracking-widest text-goat-gold">&gt; SECRET HANDSHAKE +{Math.round(result.scoreD * 10) / 10} / {SHARED.bonusModuleMax}</p>
           )}
 
-          <div className="mt-8 flex items-end gap-6">
+          <div className="mt-8 flex flex-wrap items-end gap-6">
             <div>
               <div className="font-tele text-[10px] uppercase tracking-[0.3em] text-goat-mute">TOTAL_SCORE</div>
               <div className="font-tele text-[clamp(56px,9vw,120px)] font-extrabold leading-none tabular-nums text-white" style={{ textShadow: '0 0 30px rgba(0,242,254,0.5)' }}>
                 {Math.round(final.raw_score)}
                 <span className="text-2xl text-goat-mute">/{SHARED.rawMax}</span>
+              </div>
+            </div>
+            <div className="chamfer border border-goat-gold/50 bg-goat-gold/10 px-5 py-3 text-goat-gold" style={{ ['--c' as string]: '12px' }}>
+              <div className="font-tele text-[10px] font-bold uppercase tracking-[0.25em] text-goat-gold">TIME_REMAINING</div>
+              <div className="font-tele text-[clamp(28px,4vw,44px)] font-extrabold leading-tight tabular-nums text-white">
+                {mm(result.secondsRemaining)}
+                <span className="ml-2 font-tele text-sm font-normal text-goat-gold/80">({result.secondsRemaining}s)</span>
               </div>
             </div>
             <div className="chamfer flex h-28 w-28 shrink-0 flex-col items-center justify-center bg-goat-cyan text-goat-void" style={{ ['--c' as string]: '20px' }}>

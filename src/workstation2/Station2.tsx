@@ -213,7 +213,7 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
     setScore((x) => ({ ...x, d }));
     setReport({
       outcome: f.outcome, a: f.a, b: f.b, c: f.c, d, dPlayed, bonus: f.bonus, raw, diag: JSON.parse(JSON.stringify(stats.current)),
-      grid: f.grid, finish: f.finish,
+      grid: f.grid, finish: f.finish, timeLeft: f.left,
     });
     try { onComplete?.(summary); } catch { /* host callback must not break the end screen */ }
     try { window.dispatchEvent(new CustomEvent('mosaic:station-complete', { detail: summary })); } catch { /* ignore */ }

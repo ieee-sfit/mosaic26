@@ -80,9 +80,11 @@ export default function SummaryScreen({ result, twins, onRestart }: { result: Br
           <span className="ws3-sum-chip">OP1 {result.p1 || '------'}</span>
           <span className="ws3-sum-chip">OP2 {result.p2 || '------'}</span>
           <span className="ws3-sum-chip">ELAPSED {mmss(used)}</span>
+          <span className="ws3-sum-chip ws3-sum-chip--y">REMAINING {mmss(result.timeLeft)} ({result.timeLeft}s)</span>
         </div>
         <h2 className={`ws3-sum-head ws3-sum-head--${head.tone}`}>{head.label}</h2>
         <p className="ws3-sum-line">&gt; {head.line}</p>
+        <p className="ws3-sum-line ws3-sum-line--y">&gt; TIME REMAINING: {mmss(result.timeLeft)} ({result.timeLeft}s)</p>
         <p className="ws3-sum-line">&gt; BASE {result.base}/{MAX_BASE_SCORE} · SPEED BONUS +{result.bonus}/{SCORING.speedBonusMax}</p>
         {result.dPlayed && <p className="ws3-sum-line ws3-sum-line--y">&gt; BLOCKADE +{result.d} / {SCORING.bonusModuleMax}</p>}
 
@@ -103,6 +105,13 @@ export default function SummaryScreen({ result, twins, onRestart }: { result: Br
             <div className="ws3-sum-total">
               {total}
               <span>/{SCORING.rawMax}</span>
+            </div>
+          </div>
+          <div style={{ padding: '8px 16px', background: 'rgba(255, 184, 0, 0.1)', border: '1px solid rgba(255, 184, 0, 0.35)', borderRadius: '4px' }}>
+            <div className="ws3-sum-k" style={{ color: '#ffb800' }}>TIME REMAINING</div>
+            <div className="ws3-sum-total" style={{ fontSize: 'clamp(28px, 4vw, 42px)' }}>
+              {mmss(result.timeLeft)}
+              <span style={{ fontSize: '18px', color: '#ffb800', marginLeft: '6px' }}>({result.timeLeft}s)</span>
             </div>
           </div>
           <div className="ws3-sum-grade" aria-label={`Rating ${grade}`}>

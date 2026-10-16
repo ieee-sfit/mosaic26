@@ -15,10 +15,13 @@ const HEAD = {
   timeout: ['CONTAINMENT LOST', 'mz-red', 'TIME EXPIRED'],
 }
 
+const fmt = (s = 0) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+
 export default function EndScreen({ result, summary, diag, onRestart }) {
   const { outcome, a, b, c, d, dPlayed, dEnding, bonus } = result
   const cfg = STATION4_CONFIG.scoring
   const base = a + b + c
+  const timeLeft = summary?.time_left ?? 0
   // a played Module D ends the story: the escape either destroys the facility or fails
   const head = dPlayed && dEnding === 'win' ? ['FACILITY DESTROYED', 'mz-green', 'OUTBREAK ENDED']
     : dPlayed && dEnding === 'fail' ? ['DETONATION FAILED', 'mz-red', 'THE FACILITY STANDS']
@@ -44,12 +47,20 @@ export default function EndScreen({ result, summary, diag, onRestart }) {
         <span className="mz-end2-tag">STATION 04 · DEBRIEF</span>
         <h1 className={`mz-end2-head ${head[1]}`}>{head[0]}</h1>
         <p className="mz-end2-line">&gt; {head[2]}</p>
+        <p className="mz-end2-line" style={{ color: '#22c55e' }}>&gt; TIME REMAINING: {fmt(timeLeft)} ({timeLeft}s)</p>
         <p className="mz-end2-line">&gt; BASE {Math.round(base)}/100 · SPEED BONUS +{bonus}/{cfg.speedBonusMax}</p>
         {dPlayed && <p className="mz-end2-line">&gt; CODE BREAKER +{Math.round(d * 10) / 10} / {SCORING.bonusModuleMax}</p>}
         <div className="mz-end2-score">
           <div>
             <small>TOTAL_SCORE</small>
             <b>{Math.round(summary.raw_score)}<span>/{SCORING.rawMax}</span></b>
+          </div>
+          <div style={{ padding: '8px 16px', background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.35)', borderRadius: '4px' }}>
+            <small style={{ color: '#22c55e' }}>TIME REMAINING</small>
+            <b style={{ fontSize: 'clamp(28px, 4vw, 42px)', color: '#fff', textShadow: '0 0 20px rgba(34, 197, 94, .45)' }}>
+              {fmt(timeLeft)}
+              <span style={{ fontSize: '18px', color: '#22c55e', marginLeft: '6px' }}>({timeLeft}s)</span>
+            </b>
           </div>
           <div className="mz-end2-grade"><small>RATING</small><b>{gradeFor(base)}</b></div>
         </div>
