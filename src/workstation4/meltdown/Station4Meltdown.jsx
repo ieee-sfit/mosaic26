@@ -13,7 +13,7 @@ import StoryScreen from './StoryScreen'
 import TutorialScreen from './TutorialScreen'
 import { BEATS, D_FAILED, D_RESTORED } from './story'
 import './meltdown.css'
- 
+
 /**
  * Flow: [loading countdown] -> opening story -> tutorial A -> A -> story 1 -> tutorial B -> B -> story 2 -> tutorial C -> C
  *       -> bonus offer -> (PLAY) story 3 -> tutorial D -> D -> ending story -> debrief.
