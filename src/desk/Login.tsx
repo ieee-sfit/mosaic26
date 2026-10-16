@@ -16,7 +16,10 @@ export default function Login() {
     const { error } = await supabase.auth.signInWithPassword({ email: usernameToEmail(user), password: pass })
     if (error) {
       const m = error.message || ''
-      setErr(/too many|rate|attempts/i.test(m) ? m : 'Wrong username or password.')
+      const code = (error as { code?: string }).code
+      // Show the server's own reason, so a configuration problem is not mistaken for a typo.
+      const wrong = /invalid login credentials/i.test(m)
+      setErr(wrong ? 'Wrong username or password.' : `${m || 'Sign-in failed.'}${code ? ` (${code})` : ''}`)
       setPass('')
     }
     setBusy(false)
