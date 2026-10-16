@@ -6,6 +6,7 @@ import {
   type Topic,
 } from '../mockStation3Data';
 import { shuffle, type Fx } from '../utils';
+import { mulberry32 } from '../logic';
 import { ActionBar, Readout } from './Hud';
 import HintDock from '../../core/HintDock';
 
@@ -15,11 +16,11 @@ interface Card {
 }
 
 /** 3 questions, each from a different topic, options shuffled. */
-const dealCards = (): Card[] => {
-  const topics = shuffle<Topic>(['exposure', 'binarization', 'confidence', 'syntax']).slice(0, CONFIG.moduleA.questionCount);
+const dealCards = (rng: () => number): Card[] => {
+  const topics = shuffle<Topic>(['exposure', 'binarization', 'confidence', 'syntax'], rng).slice(0, CONFIG.moduleA.questionCount);
   return topics.map((topic) => {
-    const q = shuffle(QUESTION_BANK.filter((x) => x.topic === topic))[0];
-    return { q, options: shuffle(q.options.map((text, i) => ({ text, correct: i === q.correct }))) };
+    const q = shuffle(QUESTION_BANK.filter((x) => x.topic === topic), rng)[0];
+    return { q, options: shuffle(q.options.map((text, i) => ({ text, correct: i === q.correct })), rng) };
   });
 };
 
@@ -31,14 +32,17 @@ export default function ModuleA({
   onDone,
   fx,
   onStat,
+  seed,
 }: {
   onScore: (delta: number) => void;
   onDone: () => void;
   fx: Fx;
   /** Reports a wrong pick or a hint for the end-of-run diagnostic. */
   onStat: (kind: 'wrong' | 'hint') => void;
+  /** The run seed (same for every player of a versus lobby): fixes the questions and the option order. */
+  seed?: number;
 }) {
-  const [cards] = useState(dealCards);
+  const [cards] = useState(() => dealCards(seed != null ? mulberry32(seed ^ 0xa5a5a5) : Math.random));
   const [idx, setIdx] = useState(0);
   const [wrong, setWrong] = useState<number[]>([]);
   const [hint, setHint] = useState<0 | 1 | 2>(0);

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { SCORING, WAVE_CALIBRATION as CAL, WAVE_PROFILES } from '../mockStation1Data';
+import { SCORING, WAVE_CALIBRATION as CAL } from '../mockStation1Data';
 import { useShake } from '../hooks/useScreenShake';
 import { scoreRound } from '../utils/scoring';
 import { alignmentFor, ampFromSlider, closenessFor, disturbanceDb, freqFromSlider, snapToWindows, targetsFor, type Closeness, type Controls } from '../utils/waves';
-import type { RoundResult } from '../types';
+import type { RoundResult, WaveProfile } from '../types';
 import HintDock from '../../core/HintDock';
 import { HudPanel, TeleChip } from './HudPanel';
 import { ModuleHeader } from './ModuleHeader';
@@ -13,7 +13,9 @@ import { WaveScope } from './WaveScope';
 import { Windshield } from './Windshield';
 
 interface Props {
-  operators: [string, string];
+  /** The scout profiles of this run, in play order. */
+  profiles: readonly WaveProfile[];
+  operator: string;
   onRecord: (r: RoundResult) => void;
   /** The last target is down: the shift clock stops here and the speed bonus is frozen. */
   onCleared: () => void;
@@ -33,19 +35,19 @@ interface CState {
   noLock: number;
 }
 
-const startState = (round: number): CState => ({ round, controls: { ...WAVE_PROFILES[round].start }, misses: 0, hints: 0, status: 'tuning', noLock: 0 });
+const startState = (profiles: readonly WaveProfile[], round: number): CState => ({ round, controls: { ...profiles[round].start }, misses: 0, hints: 0, status: 'tuning', noLock: 0 });
 
 /** Module C · wave interception: match the three controls to the noise, then fire. No hull, no per-target timer: only the shared clock can end it. */
-export function ModuleC({ operators, onRecord, onCleared, onFinish }: Props) {
+export function ModuleC({ profiles, operator, onRecord, onCleared, onFinish }: Props) {
   const cfg = SCORING.moduleC;
   const shake = useShake();
-  const [s, setS] = useState<CState>(() => startState(0));
+  const [s, setS] = useState<CState>(() => startState(profiles, 0));
   const latest = useRef(s);
   useEffect(() => {
     latest.current = s;
   });
 
-  const profile = WAVE_PROFILES[s.round];
+  const profile = profiles[s.round];
   const align = alignmentFor(CAL, profile, s.controls);
   const meters = closenessFor(CAL, profile, s.controls);
   const db = disturbanceDb(CAL, profile, s.controls, align.locked);
@@ -77,7 +79,7 @@ export function ModuleC({ operators, onRecord, onCleared, onFinish }: Props) {
     if (s.status !== 'destroyed') return;
     const id = window.setTimeout(() => {
       const cur = latest.current;
-      setS(cur.round >= WAVE_PROFILES.length - 1 ? { ...cur, status: 'done' } : startState(cur.round + 1));
+      setS(cur.round >= profiles.length - 1 ? { ...cur, status: 'done' } : startState(profiles, cur.round + 1));
     }, 1700);
     return () => window.clearTimeout(id);
   }, [s.status, s.round]);
@@ -116,14 +118,14 @@ export function ModuleC({ operators, onRecord, onCleared, onFinish }: Props) {
 
   /** A control that enters its window snaps onto the target. */
   const set = (patch: Partial<Controls>) =>
-    setS((cur) => (cur.status === 'tuning' ? { ...cur, controls: snapToWindows(CAL, WAVE_PROFILES[cur.round], { ...cur.controls, ...patch }) } : cur));
+    setS((cur) => (cur.status === 'tuning' ? { ...cur, controls: snapToWindows(CAL, profiles[cur.round], { ...cur.controls, ...patch }) } : cur));
 
   const dbTone = db > 70 ? '#ef4444' : db > 48 ? '#f59e0b' : '#39ff88';
   const done = s.status === 'done';
 
   return (
     <div className="flex min-h-screen flex-col">
-      <ModuleHeader code="MODULE C" title="Cockpit Targeting & Wave Interception" tag="ANC_INTERCEPT_ARRAY" operators={operators} steps={3} active={2} />
+      <ModuleHeader code="MODULE C" title="Cockpit Targeting & Wave Interception" tag="ANC_INTERCEPT_ARRAY" operator={operator} steps={3} active={2} />
 
       <div className="flex flex-1 flex-col gap-3 p-3">
         <div className="grid gap-3 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.5fr)]">
@@ -131,7 +133,7 @@ export function ModuleC({ operators, onRecord, onCleared, onFinish }: Props) {
           <div className="relative min-h-[240px] lg:min-h-[340px]">
             <Windshield profile={profile} locked={align.locked && tuning} destroyed={s.status === 'destroyed' || done}>
               <div className="absolute left-1/2 top-4 z-10 -translate-x-1/2 text-center">
-                <div className="font-tele text-[10px] uppercase tracking-[0.3em] text-goat-mute">WAVE {s.round + 1}/{WAVE_PROFILES.length}</div>
+                <div className="font-tele text-[10px] uppercase tracking-[0.3em] text-goat-mute">WAVE {s.round + 1}/{profiles.length}</div>
                 <div className="font-hud text-sm font-bold uppercase tracking-[0.2em] text-goat-gold">{profile.callsign}</div>
               </div>
               {noLockOn && tuning && (
@@ -239,7 +241,7 @@ export function ModuleC({ operators, onRecord, onCleared, onFinish }: Props) {
       </footer>
       <HintDock
         level={s.hints}
-        itemLabel={`TARGET ${s.round + 1}/${WAVE_PROFILES.length}`}
+        itemLabel={`TARGET ${s.round + 1}/${profiles.length}`}
         hint1Text={`Aim for AMP ${ampFromSlider(CAL, targets.amp).toFixed(2)}, FREQ ${freqFromSlider(CAL, targets.freq).toFixed(2)}x, PHASE ${Math.round(targets.phase)} deg. The target zones are marked on every control.`}
         hint2Text="The controls were dialled in and fired for you. This target scores 0."
         cost1={cfg.hint1Penalty}

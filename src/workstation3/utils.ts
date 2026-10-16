@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 
 export interface Station3Summary {
-  p1_id: string;
-  p2_id: string;
+  player_id: string;
   game_id: 'station3';
   raw_score: number;
   time_left: number;
+  /** Hints requested across all modules (tiebreak: fewer is better). */
+  hints_used: number;
+  /** Wrong answers / failed attempts across all modules (tiebreak: fewer is better). */
+  wrong_attempts: number;
 }
 
 /** Effects the station shell exposes to modules (all purely visual — no audio). */
@@ -14,10 +17,10 @@ export interface Fx {
   flash: () => void;
 }
 
-export const shuffle = <T,>(items: readonly T[]): T[] => {
+export const shuffle = <T,>(items: readonly T[], rng: () => number = Math.random): T[] => {
   const a = [...items];
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rng() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;

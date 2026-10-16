@@ -6,6 +6,7 @@ ARG BUILD_MODE=kiosk
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_ANON_KEY
 ARG VITE_KIOSK_SECRET
+ARG VITE_BOARD_URL
 
 WORKDIR /app
 
@@ -22,8 +23,8 @@ RUN case "$BUILD_MODE" in kiosk|board) ;; *) \
  && if [ "$BUILD_MODE" = "kiosk" ]; then \
       [ -n "$VITE_KIOSK_SECRET" ] || { echo "VITE_KIOSK_SECRET build arg is required for the kiosk build" >&2; exit 1; }; \
     fi \
- && printf 'VITE_SUPABASE_URL=%s\nVITE_SUPABASE_ANON_KEY=%s\nVITE_KIOSK_SECRET=%s\n' \
-      "$VITE_SUPABASE_URL" "$VITE_SUPABASE_ANON_KEY" "$VITE_KIOSK_SECRET" > ".env.$BUILD_MODE" \
+ && printf 'VITE_SUPABASE_URL=%s\nVITE_SUPABASE_ANON_KEY=%s\nVITE_KIOSK_SECRET=%s\nVITE_BOARD_URL=%s\n' \
+      "$VITE_SUPABASE_URL" "$VITE_SUPABASE_ANON_KEY" "$VITE_KIOSK_SECRET" "$VITE_BOARD_URL" > ".env.$BUILD_MODE" \
  && npm run "build:$BUILD_MODE" \
  && cp -r "dist-$BUILD_MODE" /app/out
 

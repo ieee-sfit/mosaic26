@@ -26,8 +26,7 @@ export interface Breakdown {
   bonus: number;
   timeLeft: number;
   outcome: Outcome;
-  p1: string;
-  p2: string;
+  playerId: string;
   stats: Record<ModId, ModStat>;
 }
 
@@ -77,8 +76,7 @@ export default function SummaryScreen({ result, twins, onRestart }: { result: Br
       <section className="ws3-sum-left">
         <div className="ws3-sum-chips">
           <span className="ws3-sum-chip ws3-sum-chip--y">STATION 03 · DEBRIEF</span>
-          <span className="ws3-sum-chip">OP1 {result.p1 || '------'}</span>
-          <span className="ws3-sum-chip">OP2 {result.p2 || '------'}</span>
+          <span className="ws3-sum-chip">OP {result.playerId || '----'}</span>
           <span className="ws3-sum-chip">ELAPSED {mmss(used)}</span>
         </div>
         <h2 className={`ws3-sum-head ws3-sum-head--${head.tone}`}>{head.label}</h2>
