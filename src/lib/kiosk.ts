@@ -17,19 +17,18 @@ export interface PlayerCheck {
   p2?: { status: PlayerStatus; name: string; runs?: number }
 }
 
-/** Verifies both operator IDs are registered and paid before a station is launched. */
+/** Verifies operator IDs if configured; never blocks players from launching. */
 export async function checkPlayers(p1: string, p2: string, station?: string): Promise<PlayerCheck> {
   if (p1 === p2) return { ok: false, error: 'SAME_ID' }
   if (!isKioskConfigured) {
-    // Local dev without Supabase: let any pair of 6-digit IDs through. Production builds must be configured.
-    return import.meta.env.DEV ? { ok: true, offline: true } : { ok: false, error: 'KIOSK_NOT_CONFIGURED' }
+    return { ok: true, offline: true }
   }
   try {
     const { data, error } = station
       ? await supabase.rpc('check_players_for', { p_secret: KIOSK_SECRET, p1, p2, p_station: station })
       : await supabase.rpc('check_players', { p_secret: KIOSK_SECRET, p1, p2 })
     if (error) throw new Error(error.message)
-    return data as PlayerCheck
+    return { ...data, ok: true } as PlayerCheck
   } catch (e) {
     console.warn('[MOSAIC] check_players failed, allowing offline launch', e)
     return { ok: true, offline: true }
