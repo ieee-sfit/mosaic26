@@ -26,7 +26,7 @@ Open the public site, press **COMMITTEE** at the bottom of the leaderboard, log 
 - **TOP-UP**: a replay needs only a top-up on the existing ID.
 - **FIND**: by ID, phone, name or PID. Shows balance, rank, run history; **Refund** (credit back, run excluded from cap and boards) or **Void** (excluded, no credit back), both need a reason and are audited.
 - **LOBBIES**: active versus lobbies; cancel an unstarted one.
-- **MEDALS**: unclaimed window and match medals with *Mark claimed*; coin-toss resolution; medal windows (edit label/times/count, add, close) without a rebuild.
+- **MEDALS**: unclaimed window and match medals with *Mark claimed*; coin-toss resolution; medal windows (edit label/times/count, add) without a rebuild. **Medals are never awarded automatically**: when you decide it is time, press *Close & award medals* on an ended window (it shows who would win first, then asks to confirm). Admins can *Re-open* a closed window that has no winners.
 - **CASH REPORT**: per volunteer cash / UPI / online, credits issued, registrations; event-wide runs started, credits spent / refunded / outstanding.
 
 Committee accounts are rows in `committee_members` (`display_name` is editable).
@@ -48,7 +48,7 @@ The public board shows 100 players per page (PREV / NEXT at the bottom, "page 1 
 At a station: ID, "Is this you?", **CREATE VERSUS LOBBY** (shows a number like 007) or **JOIN VERSUS LOBBY** (enter it). 2 to 5 players, one station. The host presses START; everyone gets the same questions/seed and a synchronised countdown, and each pays 1 credit then. Unstarted lobbies expire after 10 minutes. The winner gets a MATCH MEDAL if the score is at least 70 (one per person per station); collect at the desk.
 
 ## Window medals (gold rush)
-Rows in `medal_windows`. In each window everyone who finished a run inside it is ranked by consolidated total at the window end; a person wins at most one window medal; results are persisted when the window closes and never change. Raise `medals_count` of an open window if more medals are bought.
+Rows in `medal_windows`. In each window everyone who finished a run inside it is ranked by consolidated total at the window end; a person wins at most one window medal; results are persisted only when the desk presses *Close & award medals* (nothing closes by itself) and never change afterwards. Raise `medals_count` of an open window if more medals are bought.
 
 ## What is protected
 - Browsers can read no table. Only listed RPCs run: public boards (masked codenames, never phone/PID/credits), kiosk RPCs (need the kiosk secret), desk RPCs (need a committee login).

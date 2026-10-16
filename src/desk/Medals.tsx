@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { rpc, errText, fmtTime, toLocalInput, fromLocalInput } from './api'
 import { usePoll } from './usePoll'
 
@@ -10,6 +10,16 @@ export default function Medals() {
   const [msg, setMsg] = useState<{ tone: 'ok' | 'bad'; text: string } | null>(null)
   const [picks, setPicks] = useState<Record<number, string[]>>({})
   const [edit, setEdit] = useState<any>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [confirm, setConfirm] = useState<{ w: any; cands: any[] | null } | null>(null)
+  useEffect(() => { rpc<any>('desk_me', {}).then((r) => setIsAdmin(r?.role === 'admin')).catch(() => {}) }, [])
+  const askClose = async (w: any) => {
+    setConfirm({ w, cands: null })
+    try {
+      const r = await rpc<any>('desk_window_preview', { p_id: w.id })
+      setConfirm({ w, cands: r.ok ? r.candidates : [] })
+    } catch { setConfirm({ w, cands: [] }) }
+  }
   const refresh = () => Promise.all([un.reload(), wins.reload()])
   const run = async (fn: string, args: Record<string, unknown>, okText: string) => {
     try {
@@ -78,7 +88,8 @@ export default function Medals() {
                   <td>{w.label}</td><td>{fmtTime(w.starts_at)}</td><td>{fmtTime(w.ends_at)}</td><td>{w.medals}</td>
                   <td>{w.results.filter((r: any) => r.status !== 'lost').map((r: any) => `${r.name}${r.status === 'toss' ? ' (toss)' : ''}${r.claimed ? ' ✓' : ''}`).join(', ') || (w.closed ? '–' : '')}</td>
                   <td className="dk-actions">
-                    {!w.closed && w.ended && <button className="dk-btn dk-sm" onClick={() => run('desk_close_window', { p_id: w.id }, `Closed ${w.label}.`)}>Close</button>}
+                    {!w.closed && w.ended && <button className="dk-btn dk-sm dk-primary" onClick={() => askClose(w)}>Close &amp; award medals</button>}
+                    {w.closed && w.results.length === 0 && isAdmin && <button className="dk-btn dk-sm" onClick={() => run('admin_reopen_window', { p_id: w.id }, `Re-opened ${w.label}.`)}>Re-open</button>}
                     {!w.closed && <button className="dk-btn dk-sm" onClick={() => setEdit({ id: w.id, label: w.label, starts: toLocalInput(w.starts_at), ends: toLocalInput(w.ends_at), medals: w.medals })}>Edit</button>}
                   </td>
                 </tr>
@@ -86,6 +97,19 @@ export default function Medals() {
             </tbody>
           </table>
         </div>
+        <p className="dk-dim">Medals are never awarded automatically. When you say so, press “Close &amp; award medals” on an ended window.</p>
+        {confirm && (
+          <div className="dk-reason dk-confirm">
+            <h3>Award medals for {confirm.w.label}?</h3>
+            <p>This is final. Any earlier window that is still open is closed and awarded first. Current top players:</p>
+            {confirm.cands === null ? <p className="dk-dim">Loading…</p> : (
+              <ol>{confirm.cands.map((c: any) => <li key={c.player_id}>{c.name} <span className="dk-dim">ID {c.player_id} · {c.total} pts{c.tied ? ' · tied' : ''}</span></li>)}
+                {confirm.cands.length === 0 && <li className="dk-dim">Nobody has played in this window.</li>}</ol>
+            )}
+            <button className="dk-btn dk-primary" onClick={() => { const w = confirm.w; setConfirm(null); run('desk_close_window', { p_id: w.id }, `Closed ${w.label}.`) }}>Yes, close and award</button>
+            <button className="dk-btn" onClick={() => setConfirm(null)}>Cancel</button>
+          </div>
+        )}
         <button className="dk-btn" onClick={() => setEdit({ id: null, label: '', starts: '2026-10-16T10:00', ends: '2026-10-16T10:15', medals: 1 })}>Add window</button>
         {edit && (
           <div className="dk-reason">

@@ -252,7 +252,7 @@ export default function Leaderboard({ onBack }: { onBack?: () => void }) {
 
         {tab === 'medals' && (
           <section className="lb-medals" data-testid="medals">
-            {closed.length === 0 && <div className="lb-empty">NO MEDAL WINNERS YET. WINDOWS CLOSE ON THE CLOCK.</div>}
+            {closed.length === 0 && <div className="lb-empty">NO MEDAL WINNERS YET. THE DESK AWARDS MEDALS AFTER EACH WINDOW.</div>}
             {closed.map((w) => (
               <div key={w.id} className="lb-medal-row">
                 <small>{w.label} · {w.medals} medal{w.medals === 1 ? '' : 's'}</small>
