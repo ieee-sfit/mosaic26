@@ -5,8 +5,9 @@
   mask-image: radial-gradient(ellipse at center, #000 60%, transparent 100%);
 }
 .arc-committee {
-  position: fixed; right: 0; bottom: 0; width: 170px; z-index: 30; pointer-events: none; background: #000;
-  clip-path: polygon(20% 0, 100% 0, 100% 100%, 0 100%);
+  position: fixed; right: 0; bottom: 0; width: 195px; z-index: 30; pointer-events: none; background: rgba(0, 0, 0, 0.88);
+  clip-path: polygon(14% 0, 100% 0, 100% 100%, 0 100%);
+  padding: 6px 10px 5px 22px;
   filter: drop-shadow(0 0 10px rgba(0, 242, 254, .25));
 }
 .arc-committee img { display: block; width: 100%; height: auto; }
