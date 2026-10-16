@@ -15,7 +15,7 @@ revoke all on public.board_cache from anon, authenticated;
 
 create or replace function public._cache_bust()
 returns void language sql security definer set search_path = public as $$
-  update public.board_cache set computed_at = '-infinity';
+  update public.board_cache set computed_at = '-infinity' where true;   -- Supabase's safeupdate rejects an UPDATE without WHERE
 $$;
 
 -- Best run per (player, station) among COMPLETED runs, using the per-run chain:
