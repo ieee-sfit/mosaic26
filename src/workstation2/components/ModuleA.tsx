@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { STATION2_CONFIG } from '../mockStation2Data';
-import { fmt, itemPoints, pickQuestions, seeded } from '../logic';
+import { fmt, itemPoints, pickQuestions } from '../logic';
 import HintDock from '../../core/HintDock';
 import type { HintLevel } from '../../core/HintDock';
 import type { Track } from '../Station2';
@@ -10,8 +10,6 @@ interface Props {
   onDone: () => void;
   onShake: () => void;
   track: Track;
-  /** The run seed (shared by every player of a versus lobby): fixes which questions are asked and in what order. */
-  seed?: number;
 }
 
 const LETTERS = ['A', 'B', 'C', 'D'];
@@ -22,8 +20,8 @@ interface QState { hint: HintLevel; wrong: number[]; removed: number | null; pic
 const blank = (): QState => ({ hint: 0, wrong: [], removed: null, picked: null, pts: null });
 
 /** Module A: three questions on a paper timing sheet. Tap an answer to submit it. */
-export default function ModuleA({ onScore, onDone, onShake, track, seed }: Props) {
-  const [questions] = useState(() => pickQuestions(undefined, seed != null ? seeded(seed ^ 0xa5a5a5) : Math.random));
+export default function ModuleA({ onScore, onDone, onShake, track }: Props) {
+  const [questions] = useState(() => pickQuestions());
   const [qi, setQi] = useState(0);
   const [st, setSt] = useState<QState[]>(() => questions.map(blank));
   const [msg, setMsg] = useState('');

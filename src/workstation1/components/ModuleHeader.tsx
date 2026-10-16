@@ -4,13 +4,13 @@ interface Props {
   code: string; // "MODULE A"
   title: string;
   tag: string;
-  operator: string;
+  operators: [string, string];
   steps: number;
   active: number; // 0-based index of current module
 }
 
 /** Top strip shared by modules A–C. Right edge is left clear for the fixed timer. */
-export function ModuleHeader({ code, title, tag, operator, steps, active }: Props) {
+export function ModuleHeader({ code, title, tag, operators, steps, active }: Props) {
   return (
     <div className="flex min-h-[88px] items-center gap-4 border-b border-goat-cyan/20 bg-goat-void/70 py-2 pl-4 pr-[230px]">
       <div className="chamfer-tr flex items-center gap-3 self-stretch bg-goat-cyan px-4 text-goat-void" style={{ ['--c' as string]: '12px' }}>
@@ -20,7 +20,8 @@ export function ModuleHeader({ code, title, tag, operator, steps, active }: Prop
         <div className="font-hud text-lg font-bold uppercase leading-tight tracking-[0.14em] text-white">{title}</div>
         <div className="flex flex-wrap gap-x-4">
           <TeleChip label="STATION" value="01 · GOAT_ANC" />
-          <TeleChip label="OP" value={operator} />
+          <TeleChip label="OP1" value={operators[0]} />
+          <TeleChip label="OP2" value={operators[1]} />
           <TeleChip label="SYS" value={tag} tone="gold" />
         </div>
       </div>

@@ -29,10 +29,11 @@ const round2 = (n) => Math.round(n * 100) / 100
 
 export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
   const session = useSession()
-  // The arcade launcher has already verified the player's single 4-digit ID.
-  const playerId = /^\d{4}$/.test(session?.player_id ?? '') ? session.player_id : ''
+  const preset = /^\d{6}$/.test(session?.p1_id ?? '') && /^\d{6}$/.test(session?.p2_id ?? '') && session.p1_id !== session.p2_id
+    ? [session.p1_id, session.p2_id] : null
   // launch | story-opening | tut-A | A | story-1 | tut-B | B | story-2 | tut-C | C | offer | story-3 | tut-D | D | ending | end
   const [phase, setPhase] = useState('launch')
+  const [ids, setIds] = useState({ p1: '', p2: '' })
   const [score, setScore] = useState({ a: 0, b: 0, c: 0, d: 0 })
   const [timeLeft, setTimeLeft] = useState(STATION4_CONFIG.totalSeconds)
   const [fxOn, setFxOn] = useState({})
@@ -51,7 +52,7 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
   const skipRef = useRef(() => undefined)
   // Diagnostics: per-module time, wrong tries, hints and the worst moments (shown on the end screen)
   const stats = useRef({})
-  useEffect(() => { live.current = { playerId, score }; phaseRef.current = phase })
+  useEffect(() => { live.current = { ids, score }; phaseRef.current = phase })
   const resetStats = () => {
     stats.current = Object.fromEntries(ALL_MODULES.map((m) => [m, { seconds: 0, wrong: 0, hints: 0, flags: [] }]))
   }
@@ -79,13 +80,9 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
     const f = frozen.current
     if (!f || committed.current) return
     committed.current = true
-    const { playerId: who } = live.current
+    const { ids: i } = live.current
     const raw = round2(f.base + f.bonus + d)
-    const all = Object.values(stats.current)
-    const summary = {
-      player_id: who, game_id: 'station4', raw_score: raw, time_left: f.left,
-      hints_used: all.reduce((n, m) => n + m.hints, 0), wrong_attempts: all.reduce((n, m) => n + m.wrong, 0),
-    }
+    const summary = { p1_id: i.p1, p2_id: i.p2, game_id: 'station4', raw_score: raw, time_left: f.left }
     setScore((x) => ({ ...x, d }))
     setReport({
       result: { outcome: f.outcome, a: f.a, b: f.b, c: f.c, d, dPlayed, dEnding, bonus: f.bonus },
@@ -155,13 +152,14 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
     return () => clearTimeout(t)
   }, [phase])
 
-  const launch = () => {
+  const launch = (p1, p2) => {
     finished.current = false
     committed.current = false
     frozen.current = null
-    setSeed(session?.seed ?? Date.now())
+    setSeed(Date.now())
     timeRef.current = STATION4_CONFIG.totalSeconds
     setTimeLeft(STATION4_CONFIG.totalSeconds)
+    setIds({ p1, p2 })
     resetStats()
     setPhase('story-opening')
     log('QUARANTINE ENGAGED', 'ok')
@@ -205,7 +203,7 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
         <header className="mz-header">
           <div className="mz-brand">
             <b>AREA 51 MELTDOWN</b>
-            <span>STATION 04 // OP {playerId}</span>
+            <span>STATION 04 // OPS {ids.p1} + {ids.p2}</span>
           </div>
           <nav className="mz-modnav" aria-label="Module progress">
             {(withD ? ALL_MODULES : MODULES).map((m, i) => (
@@ -230,11 +228,11 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
       )}
 
       <main className="mz-main">
-        {phase === 'launch' && <LaunchScreen key={runKey} onLaunch={launch} />}
+        {phase === 'launch' && <LaunchScreen key={runKey} preset={preset} onLaunch={launch} onOpenStationChooser={onOpenStationChooser} />}
 
         {phase === 'tut-A' && <TutorialScreen module="A" onContinue={() => setPhase('A')} />}
         {phase === 'A' && (
-          <ModuleA fx={fx} log={log} track={track} seed={seed} onScore={(a) => setScore((s) => ({ ...s, a }))} onDone={() => setPhase('story-1')} />
+          <ModuleA fx={fx} log={log} track={track} onScore={(a) => setScore((s) => ({ ...s, a }))} onDone={() => setPhase('story-1')} />
         )}
         {phase === 'tut-B' && <TutorialScreen module="B" onContinue={() => setPhase('B')} />}
         {phase === 'B' && (
@@ -242,7 +240,7 @@ export default function Station4Meltdown({ onComplete, onOpenStationChooser }) {
         )}
         {phase === 'tut-C' && <TutorialScreen module="C" onContinue={() => setPhase('C')} />}
         {phase === 'C' && (
-          <ModuleC fx={fx} log={log} track={track} seed={seed} onScore={(c) => setScore((s) => ({ ...s, c }))} onDone={completeC} />
+          <ModuleC fx={fx} log={log} track={track} onScore={(c) => setScore((s) => ({ ...s, c }))} onDone={completeC} />
         )}
         {phase === 'offer' && (
           <div className="mz-offer mz-panel mz-chamfer mz-fade-in" role="dialog" aria-label="Code Breaker bonus offer">

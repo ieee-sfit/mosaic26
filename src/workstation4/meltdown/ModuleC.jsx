@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
-import { STATION4_CONFIG } from '../mockStation4Data'
-import { cheapestFix, decidingPart, evaluateCircuit, feeders, initialInputs, layoutRound, phasePoints, pickRounds } from './logic'
+import { CIRCUIT_ROUNDS, STATION4_CONFIG } from '../mockStation4Data'
+import { cheapestFix, decidingPart, evaluateCircuit, feeders, initialInputs, layoutRound, phasePoints } from './logic'
 import HintDock from '../../core/HintDock'
 
 const GATES = ['AND', 'OR', 'NOT']
@@ -13,12 +13,11 @@ const RULES = {
   seal: ['AND is 0 if any input is 0.', 'OR is 0 only if both inputs are 0.', 'NOT flips.'],
 }
 
-export default function ModuleC({ onScore, onDone, fx, log, track, seed }) {
+export default function ModuleC({ onScore, onDone, fx, log, track }) {
   const cfg = STATION4_CONFIG.moduleC
-  const rounds = useMemo(() => pickRounds(seed), [seed])
   const [ri, setRi] = useState(0)
-  const round = rounds[ri]
-  const [inputs, setInputs] = useState(() => initialInputs(rounds[0]))
+  const round = CIRCUIT_ROUNDS[ri]
+  const [inputs, setInputs] = useState(() => initialInputs(CIRCUIT_ROUNDS[0]))
   const [placed, setPlaced] = useState({})
   const [selected, setSelected] = useState(null)
   const [phase, setPhase] = useState('breach') // breach | transit | seal | slam
@@ -76,8 +75,8 @@ export default function ModuleC({ onScore, onDone, fx, log, track, seed }) {
     setPhase('slam')
     fx('shake')
     setTimeout(() => {
-      if (ri + 1 >= rounds.length) return onDone()
-      const nr = rounds[ri + 1]
+      if (ri + 1 >= CIRCUIT_ROUNDS.length) return onDone()
+      const nr = CIRCUIT_ROUNDS[ri + 1]
       setRi(ri + 1); setInputs(initialInputs(nr)); setPlaced({}); setSelected(null)
       setScene('corridor'); fresh(); setPhase('breach')
     }, 1900)

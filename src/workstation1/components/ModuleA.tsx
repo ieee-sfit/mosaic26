@@ -10,7 +10,7 @@ import { StarshipWireframe } from './StarshipWireframe';
 
 interface Props {
   questions: McqQuestion[];
-  operator: string;
+  operators: [string, string];
   onRecord: (r: QuestionResult) => void;
   onComplete: () => void;
 }
@@ -27,7 +27,7 @@ interface QState {
 }
 const fresh = (): QState => ({ hints: 0, wrong: [], removed: null, picked: null });
 
-export function ModuleA({ questions, operator, onRecord, onComplete }: Props) {
+export function ModuleA({ questions, operators, onRecord, onComplete }: Props) {
   const cfg = SCORING.moduleA;
   const shake = useShake();
   const [idx, setIdx] = useState(0);
@@ -97,7 +97,7 @@ export function ModuleA({ questions, operator, onRecord, onComplete }: Props) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <ModuleHeader code="MODULE A" title="Flight Telemetry Checks" tag="SENSOR_BUS_ANOMALY" operator={operator} steps={3} active={0} />
+      <ModuleHeader code="MODULE A" title="Flight Telemetry Checks" tag="SENSOR_BUS_ANOMALY" operators={operators} steps={3} active={0} />
 
       {flashKey && <div key={`${flashKey.kind}${flashKey.n}`} className={flashKey.kind === 'bad' ? 'hull-flash' : 'ok-flash'} />}
 

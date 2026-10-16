@@ -3,7 +3,7 @@ import { speedBonus } from '../core/scoring';
 import { gridPosition, lapSeconds, racePosition } from './race';
 import { useSession } from '../session/sessionContext';
 import { STATION2_CONFIG } from './mockStation2Data';
-import { pickSections, pickStints } from './logic';
+import { pickStints } from './logic';
 import PitWallBackdrop from './components/PitWallBackdrop';
 import Stopwatch from './components/Stopwatch';
 import LaunchScreen from './components/LaunchScreen';
@@ -24,14 +24,11 @@ import { RADIO_CONFIG } from './mockStation2Data';
 import './station2.css';
 
 export interface Station2Summary {
-  player_id: string;
+  p1_id: string;
+  p2_id: string;
   game_id: 'station2';
   raw_score: number;
   time_left: number;
-  /** Hints requested across all modules (tiebreak: fewer is better). */
-  hints_used: number;
-  /** Wrong answers / failed attempts across all modules (tiebreak: fewer is better). */
-  wrong_attempts: number;
 }
 
 interface Props {
@@ -46,7 +43,7 @@ export type Track = (m: ModuleId, kind: 'wrong' | 'hint', label?: string) => voi
 const MODULES: ModuleId[] = ['A', 'B', 'C']; // the three scored modules; D is an optional bonus after them
 const ALL_MODULES: ModuleId[] = [...MODULES, 'D'];
 const NAMES: Record<ModuleId, string> = { A: 'TELEMETRY', B: 'ROUTES', C: 'RACE', D: 'FINAL PUSH' };
-const ID_RE = /^\d{4}$/;
+const ID_RE = /^\d{6}$/;
 
 /**
  * Screens in play order: opening -> tutA -> launch (start lights; the clock starts at GO) -> play (A) -> story1 -> tutB -> play (B, then the
@@ -62,7 +59,8 @@ const blankDiag = (): Diag => Object.fromEntries(ALL_MODULES.map((m) => [m, { se
 
 export default function Station2({ onOpenStationChooser, onComplete }: Props) {
   const session = useSession();
-  const playerId: string | null = session && ID_RE.test(session.player_id) ? session.player_id : null;
+  const ids: [string, string] | null =
+    session && ID_RE.test(session.p1_id) && ID_RE.test(session.p2_id) ? [session.p1_id, session.p2_id] : null;
 
   const [stage, setStage] = useState<Stage>('opening');
   const [mod, setMod] = useState<ModuleId>('A');
@@ -75,9 +73,8 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
   /** True from the moment the last Module C lap is banked: the clock stops there, so the speed bonus is frozen at that instant. */
   const [cCleared, setCCleared] = useState(false);
   /** Fixes this run's lap variants (Module C): a repeat attempt remounts the station and draws a new seed. */
-  const [seed] = useState(() => session?.seed ?? (Math.random() * 4294967296) >>> 0);
+  const [seed] = useState(() => (Math.random() * 4294967296) >>> 0);
   const stints = useMemo(() => pickStints(seed), [seed]);
-  const sections = useMemo(() => pickSections(seed), [seed]);
 
   const endAt = useRef(0);
   const pausedAt = useRef(0);
@@ -88,12 +85,12 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
   /** Everything fixed at the moment Module C ends: the speed bonus and time_left do not change while D is played. */
   const frozen = useRef<{ outcome: Outcome; a: number; b: number; c: number; base: number; bonus: number; left: number; grid: number | null; finish: number | null } | null>(null);
   const [dDeadline, setDDeadline] = useState(0);
-  const live = useRef({ score, playerId, grid: null as number | null });
+  const live = useRef({ score, ids, grid: null as number | null });
   const stats = useRef<Diag>(blankDiag());
   const modStart = useRef(0);
   const modRef = useRef<ModuleId>('A');
   const stage$ = useRef<HTMLDivElement | null>(null);
-  useEffect(() => { live.current = { score, playerId, grid }; modRef.current = mod; });
+  useEffect(() => { live.current = { score, ids, grid }; modRef.current = mod; });
   const skipRef = useRef<() => void>(() => undefined);
   useEffect(() => { skipRef.current = skipD; });
 
@@ -210,13 +207,9 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
     const f = frozen.current;
     if (!f || committed.current) return;
     committed.current = true;
-    const { playerId: who } = live.current;
+    const { ids: i } = live.current;
     const raw = round2(f.base + f.bonus + d);
-    const all = Object.values(stats.current);
-    const summary: Station2Summary = {
-      player_id: who ?? '', game_id: 'station2', raw_score: raw, time_left: f.left,
-      hints_used: all.reduce((n, m) => n + m.hints, 0), wrong_attempts: all.reduce((n, m) => n + m.wrong, 0),
-    };
+    const summary: Station2Summary = { p1_id: i?.[0] ?? '', p2_id: i?.[1] ?? '', game_id: 'station2', raw_score: raw, time_left: f.left };
     setScore((x) => ({ ...x, d }));
     setReport({
       outcome: f.outcome, a: f.a, b: f.b, c: f.c, d, dPlayed, bonus: f.bonus, raw, diag: JSON.parse(JSON.stringify(stats.current)),
@@ -323,7 +316,7 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
         <header className="ws2-header">
           <div className="ws2-brand">
             <b>F1 0-LAG STREAM</b>
-            <span>ST-02 · {playerId}</span>
+            <span>ST-02 · {ids?.[0]} + {ids?.[1]}</span>
           </div>
           <nav className="ws2-modnav" aria-label="Module progress">
             {(withD ? ALL_MODULES : MODULES).map((m, i) => (
@@ -353,13 +346,13 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
             }}
           />
         )}
-        {stage === 'launch' && <LaunchScreen playerId={playerId} onGo={go} onBack={onOpenStationChooser} />}
+        {stage === 'launch' && <LaunchScreen ids={ids} onGo={go} onBack={onOpenStationChooser} />}
         {playing && board && board.kind === 'quali' && <BoardScreen data={board} onContinue={qualiContinue} />}
         {playing && !board && mod === 'A' && (
-          <ModuleA track={track} onShake={shake} onScore={setA} onDone={() => leaveModule('story1')} seed={seed} />
+          <ModuleA track={track} onShake={shake} onScore={setA} onDone={() => leaveModule('story1')} />
         )}
         {playing && !board && mod === 'B' && (
-          <ModuleB sections={sections} track={track} onShake={shake} onScore={setB} onDone={routesDone} />
+          <ModuleB track={track} onShake={shake} onScore={setB} onDone={routesDone} />
         )}
         {playing && !board && mod === 'C' && (
           <ModuleC
@@ -391,7 +384,6 @@ export default function Station2({ onOpenStationChooser, onComplete }: Props) {
         {stage === 'bonus' && (
           <ModuleD
             deadline={dDeadline}
-            seed={seed}
             track={track} onShake={shake}
             onScore={setD}
             onDone={doneD}

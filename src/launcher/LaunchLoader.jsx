@@ -13,7 +13,7 @@ const STATUS_LINES = [
   'ENGAGE',
 ]
 
-export default function LaunchLoader({ stationNum, playerId, onComplete }) {
+export default function LaunchLoader({ stationNum, p1, p2, onComplete }) {
   const [elapsedMs, setElapsedMs] = useState(0)
 
   useEffect(() => {
@@ -52,7 +52,7 @@ export default function LaunchLoader({ stationNum, playerId, onComplete }) {
         STATION {String(stationNum).padStart(2, '0')} // LAUNCH SEQUENCE
       </div>
 
-      <div className="mosaic-loader-ops">OP: {playerId}</div>
+      <div className="mosaic-loader-ops">OP1: {p1} // OP2: {p2}</div>
 
       <div className="mosaic-loader-count-wrap">
           <motion.span

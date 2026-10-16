@@ -6,56 +6,44 @@ import Station4 from './workstation4'
 import Launcher from './launcher/Launcher'
 import Leaderboard from './launcher/Leaderboard'
 import LaunchLoader from './launcher/LaunchLoader'
-import RunBadge from './launcher/RunBadge'
-import LobbyResult from './launcher/LobbyResult'
-import CtrlFreakSplash from './launcher/CtrlFreakSplash'
-import IntroCinematic from './launcher/IntroCinematic'
 import { saveRun } from './lib/saveRun'
 import { normalizeStation1 } from './core/scoring'
 import { SessionContext, createSession } from './session/sessionContext'
 
 const STATION_COMPONENTS = { 1: Station1, 2: Station2, 3: Station3, 4: Station4 }
 
-/** Normalise each station's completion payload and hand it to Supabase (+ localStorage fallback). Resolves once the save was attempted. */
+const ID_RE = /^\d{6}$/
+
+/** Normalise each station's completion payload and hand it to Supabase (+ localStorage fallback). */
 function recordRun(stationId, session, payload) {
   const isGoat = stationId === 1 // Station1 emits its own result shape
+  const ops = isGoat ? payload?.operators ?? [] : []
+  const pick = (own, fallback) => (ID_RE.test(own ?? '') ? own : fallback)
   // Station 1 reports points on its own base; rescale to the shared contract: base 100 + frozen speed bonus 20 + Module D 20 = 0..140.
   const norm = isGoat ? normalizeStation1(payload) : { raw_score: payload.raw_score, time_left: payload.time_left }
-  return saveRun({
-    run_id: session.runId,
-    player_id: session.player_id,
+  saveRun({
+    p1_id: isGoat ? pick(ops[0], session.p1_id) : payload.p1_id,
+    p2_id: isGoat ? pick(ops[1], session.p2_id) : payload.p2_id,
     station_id: `station${stationId}`,
     ...norm,
-    hints_used: (isGoat ? payload.hintsUsed : payload.hints_used) ?? 0,
-    wrong_attempts: (isGoat ? payload.wrongAttempts : payload.wrong_attempts) ?? 0,
   })
 }
 
 function App() {
   const [session, setSession] = useState(null)
-  const [view, setView] = useState('intro') // 'intro' | 'splash' | 'launcher' | 'leaderboard'
-  const [launching, setLaunching] = useState(null) // { id, playerId, runId } during the pre-game countdown
-  const [initialStation, setInitialStation] = useState(null)
-  const [done, setDone] = useState('no') // 'no' | 'saving' | 'saved': the finished run is being sent, or has been sent / queued
+  const [view, setView] = useState('launcher') // 'launcher' | 'leaderboard'
+  const [launching, setLaunching] = useState(null) // { id, p1, p2 } during the pre-game countdown
 
   // The session clock starts only once the countdown finishes
-  const begin = (stationId, playerId, runId, extra) => {
-    setDone('no')
-    setSession(createSession(stationId, playerId, runId, extra))
+  const finishLaunch = () => {
+    if (!launching) return
+    setSession(createSession(launching.id, launching.p1, launching.p2))
     setLaunching(null)
   }
-  const finishLaunch = () => launching && begin(launching.id, launching.playerId, launching.runId)
 
   const returnToLauncher = () => {
     setSession(null)
-    setInitialStation(null)
     setView('launcher')
-  }
-
-  const returnToSplash = () => {
-    setSession(null)
-    setInitialStation(null)
-    setView('splash')
   }
 
   if (session) {
@@ -64,43 +52,21 @@ function App() {
       <SessionContext.Provider value={session}>
         <Station
           key={session.startedAt}
-          onComplete={(payload) => {
-            setDone('saving')
-            recordRun(session.stationId, session, payload).finally(() => setDone('saved'))
-          }}
+          onComplete={(payload) => recordRun(session.stationId, session, payload)}
           onNavigateStation={returnToLauncher} // every new attempt goes back through the ID and attempt check
           onOpenStationChooser={returnToLauncher}
         />
-        {done !== 'no' && (
-          <div className="rb-dock">
-            <RunBadge playerId={session.player_id} saved={done === 'saved'} />
-            {done === 'saved' && session.lobbyId && <LobbyResult playerId={session.player_id} lobbyId={session.lobbyId} />}
-          </div>
-        )}
       </SessionContext.Provider>
     )
   }
 
   if (launching) {
-    return <LaunchLoader stationNum={launching.id} playerId={launching.playerId} onComplete={finishLaunch} />
-  }
-
-  if (view === 'intro') {
     return (
-      <IntroCinematic
-        onComplete={() => setView('splash')}
-      />
-    )
-  }
-
-  if (view === 'splash') {
-    return (
-      <CtrlFreakSplash
-        onEnterTerminal={() => {
-          setInitialStation(null)
-          setView('launcher')
-        }}
-        onOpenLeaderboard={() => setView('leaderboard')}
+      <LaunchLoader
+        stationNum={launching.id}
+        p1={launching.p1}
+        p2={launching.p2}
+        onComplete={finishLaunch}
       />
     )
   }
@@ -109,11 +75,8 @@ function App() {
 
   return (
     <Launcher
-      initialSelectedStation={initialStation}
-      // A versus lobby has already run its own synchronized countdown, so it starts the session at once
-      onEngage={(id, playerId, runId, extra) => (extra?.lobbyId ? begin(id, playerId, runId, extra) : setLaunching({ id, playerId, runId }))}
+      onEngage={(id, p1, p2) => setLaunching({ id, p1, p2 })}
       onOpenLeaderboard={() => setView('leaderboard')}
-      onBackToIntro={returnToSplash}
     />
   )
 }

@@ -5,22 +5,15 @@ import ClearanceModal from './ClearanceModal'
 import './launcher.css'
 import './branding.css'
 
-export default function Launcher({ onEngage, onOpenLeaderboard, onBackToIntro, initialSelectedStation = null }) {
+export default function Launcher({ onEngage, onOpenLeaderboard }) {
   const [hovered, setHovered] = useState(null)
-  const [selected, setSelected] = useState(initialSelectedStation)
+  const [selected, setSelected] = useState(null)
   const selectedStation = STATIONS.find((s) => s.id === selected)
 
   return (
     <main className="arc-launcher">
       <header className="arc-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          {onBackToIntro && (
-            <button type="button" className="arc-hud" onClick={onBackToIntro}>
-              [← INTRO]
-            </button>
-          )}
-          <span className="arc-brand">MOSAIC<b>//26</b> ARENA TERMINAL</span>
-        </div>
+        <span className="arc-brand">MOSAIC<b>//26</b> ARENA TERMINAL</span>
         <img className="arc-eventlogo" src="/ctrlfreak_logo.png" alt="CtrlFreak: Critical Point" />
         <button type="button" className="arc-hud" onClick={onOpenLeaderboard}>
           [PUBLIC TELEMETRY / LEADERBOARD]
@@ -73,7 +66,7 @@ export default function Launcher({ onEngage, onOpenLeaderboard, onBackToIntro, i
         <ClearanceModal
           station={selectedStation}
           onAbort={() => setSelected(null)}
-          onEngage={(playerId, runId, extra) => onEngage(selectedStation.id, playerId, runId, extra)}
+          onEngage={(p1, p2) => onEngage(selectedStation.id, p1, p2)}
         />
       )}
     </main>

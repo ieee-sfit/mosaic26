@@ -1,24 +1,13 @@
-import { CIRCUIT_ROUND_BANK, STATION4_CONFIG } from '../mockStation4Data'
-import { mulberry32 } from './escape'
+import { STATION4_CONFIG } from '../mockStation4Data'
 
 // ---------- Module A ----------
-export function pickQuestions(bank, count, rng = Math.random) {
+export function pickQuestions(bank, count) {
   const pool = [...bank]
   for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1))
+    const j = Math.floor(Math.random() * (i + 1))
     ;[pool[i], pool[j]] = [pool[j], pool[i]]
   }
   return pool.slice(0, count)
-}
-
-/** The same question with its options in a random order and `correct` following the right answer. */
-export function shuffleOptions(q, rng = Math.random) {
-  const order = [0, 1, 2, 3]
-  for (let i = order.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1))
-    ;[order[i], order[j]] = [order[j], order[i]]
-  }
-  return { ...q, options: order.map((i) => q.options[i]), correct: order.indexOf(q.correct) }
 }
 
 /** A random element (kept out of the components so they stay pure). */
@@ -35,12 +24,6 @@ export function questionPoints({ hint, wrong }) {
 }
 
 // ---------- Module C ----------
-/** One round per slot (3 slots), drawn from the slot's bank by the run's seed (a versus lobby shares it). */
-export function pickRounds(seed) {
-  const rnd = seed != null ? mulberry32(seed ^ 0x4c4c4c) : Math.random
-  return CIRCUIT_ROUND_BANK.map((bank) => bank[Math.floor(rnd() * bank.length)])
-}
-
 export function applyGate(type, a, b) {
   if (a == null) return null
   if (type === 'NOT') return a ? 0 : 1

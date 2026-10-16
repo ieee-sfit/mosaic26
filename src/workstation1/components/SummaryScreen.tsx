@@ -75,7 +75,8 @@ export function SummaryScreen({ result, onRestart }: { result: Station1Result; o
         <span className="chamfer-tr bg-goat-gold px-3 py-1 font-hud text-[11px] font-bold tracking-[0.3em] text-goat-void" style={{ ['--c' as string]: '10px' }}>
           STATION 01 · DEBRIEF
         </span>
-        <TeleChip label="OP" value={result.operator} />
+        <TeleChip label="OP1" value={result.operators[0]} />
+        <TeleChip label="OP2" value={result.operators[1]} />
         <TeleChip label="ELAPSED" value={mm(used)} />
       </div>
 
